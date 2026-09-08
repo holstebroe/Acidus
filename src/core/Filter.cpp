@@ -34,11 +34,14 @@ void Filter::reset() {
 }
 
 float Filter::processOversampledSample(float input, float cutoffHz, float resonance, float envModVal, float accentVal) {
-    float totalCutoffHz = cutoffHz + envModVal * 3500.0f + accentVal * 4500.0f;
-    totalCutoffHz = std::clamp(totalCutoffHz, 30.0f, 18000.0f);
+    // 303 VCF cutoff modulation range
+    float totalCutoffHz = cutoffHz + envModVal * 4800.0f + accentVal * 5500.0f;
+    totalCutoffHz = (std::min)((std::max)(totalCutoffHz, 30.0f), 18000.0f);
 
-    float resGainCorr = 1.0f - std::clamp((totalCutoffHz - 4000.0f) / 16000.0f, 0.0f, 0.4f);
-    float kRes = resonance * 3.85f * resGainCorr;
+    // 4-stage ladder feedback resonance threshold for self-oscillation/squelch is K >= 4.0
+    // Resonance knob 0.0 -> 1.0 scales K from 0.0 to 4.95 with non-linear curve
+    float resGainCorr = 1.0f - (std::min)((std::max)((totalCutoffHz - 5000.0f) / 15000.0f, 0.0f), 0.35f);
+    float kRes = (resonance * resonance * 4.95f) * resGainCorr;
 
     float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
     float gBase = std::tan(wc / (2.0f * static_cast<float>(oversampledRate_)));

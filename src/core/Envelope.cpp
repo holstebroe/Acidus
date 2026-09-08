@@ -14,18 +14,24 @@ void Envelope::setSampleRate(double sampleRate) {
 }
 
 void Envelope::setDecay(float decayParam) {
-    // 303 decay range is approximately 200ms at minimum to ~2.5s at max
-    decayTimeSec_ = 0.2f + 2.3f * (decayParam * decayParam); // non-linear knob response
+    // 303 VCF decay time constant (tau):
+    // T60 = 6.91 * tau
+    // Decay = 0 -> T60 = 200ms (0.2s) -> tau = 0.2 / 6.91 = 0.0289s (~29ms)
+    // Decay = 1 -> T60 = 2500ms (2.5s) -> tau = 2.5 / 6.91 = 0.3618s (~362ms)
+    float t60Sec = 0.20f + 2.30f * (decayParam * decayParam);
+    float tauSec = t60Sec / 6.907755f;
+    decayTimeSec_ = tauSec;
     updateCoefficients();
 }
 
 void Envelope::updateCoefficients() {
-    // T1/e decay coeff per sample
+    // Decay factor per sample: e^(-1 / (fs * tau))
     decayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * decayTimeSec_));
 
-    // Accent envelope decay is fast, fixed around 150ms-200ms
-    float accentDecaySec = 0.16f;
-    accentDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * accentDecaySec));
+    // Accent envelope T60 = ~160ms -> tau = 0.16 / 6.91 = ~23ms
+    float accentT60Sec = 0.16f;
+    float accentTauSec = accentT60Sec / 6.907755f;
+    accentDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * accentTauSec));
 }
 
 void Envelope::noteOn(bool isAccent, bool isSlide) {

@@ -350,8 +350,119 @@ void GuiWindow::drawX11Frame() {
 #endif
 
 #if defined(_WIN32)
-void GuiWindow::initWin32Window() {}
-void GuiWindow::drawWin32Frame() {}
+static const wchar_t* kSyrebasClassName = L"SyrebasWindowCLASS";
+static bool g_win32ClassRegistered = false;
+
+static LRESULT CALLBACK SyrebasWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    GuiWindow* gui = reinterpret_cast<GuiWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+
+    switch (msg) {
+        case WM_CREATE: {
+            CREATESTRUCTW* cs = reinterpret_cast<CREATESTRUCTW*>(lParam);
+            gui = reinterpret_cast<GuiWindow*>(cs->lpCreateParams);
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(gui));
+            SetTimer(hwnd, 1, 16, NULL); // ~60fps timer for repaint/events
+            return 0;
+        }
+        case WM_TIMER: {
+            if (gui) {
+                gui->renderFrame();
+            }
+            return 0;
+        }
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hwnd, &ps);
+            if (gui) {
+                gui->drawWin32Frame();
+            }
+            EndPaint(hwnd, &ps);
+            return 0;
+        }
+        case WM_LBUTTONDOWN: {
+            if (gui) {
+                int x = LOWORD(lParam);
+                int y = HIWORD(lParam);
+                SetCapture(hwnd);
+                gui->handleMouseDown(x, y);
+            }
+            return 0;
+        }
+        case WM_MOUSEMOVE: {
+            if (gui && (wParam & MK_LBUTTON)) {
+                int x = LOWORD(lParam);
+                int y = HIWORD(lParam);
+                gui->handleMouseDrag(x, y);
+            }
+            return 0;
+        }
+        case WM_LBUTTONUP: {
+            if (gui) {
+                ReleaseCapture();
+                gui->handleMouseUp();
+            }
+            return 0;
+        }
+        case WM_DESTROY: {
+            KillTimer(hwnd, 1);
+            return 0;
+        }
+    }
+    return DefWindowProcW(hwnd, msg, wParam, lParam);
+}
+
+void GuiWindow::initWin32Window() {
+    if (hwnd_) return;
+
+    HINSTANCE hInstance = GetModuleHandleW(NULL);
+
+    if (!g_win32ClassRegistered) {
+        WNDCLASSW wc = {};
+        wc.lpfnWndProc = SyrebasWndProc;
+        wc.hInstance = hInstance;
+        wc.lpszClassName = kSyrebasClassName;
+        wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+        RegisterClassW(&wc);
+        g_win32ClassRegistered = true;
+    }
+
+    HWND parent = static_cast<HWND>(parentHwnd_);
+
+    hwnd_ = CreateWindowExW(
+        0, kSyrebasClassName, L"Syrebas 303",
+        WS_CHILD | WS_VISIBLE,
+        0, 0, width_, height_,
+        parent, NULL, hInstance, this
+    );
+
+    renderFrame();
+}
+
+void GuiWindow::drawWin32Frame() {
+    if (!hwnd_) return;
+
+    HDC hdc = GetDC(static_cast<HWND>(hwnd_));
+    if (!hdc) return;
+
+    BITMAPINFO bmi = {};
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = width_;
+    bmi.bmiHeader.biHeight = -static_cast<int>(height_); // Top-down DIB
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    SetDIBitsToDevice(
+        hdc,
+        0, 0, width_, height_,
+        0, 0, 0, height_,
+        pixelBuffer_.data(),
+        &bmi,
+        DIB_RGB_COLORS
+    );
+
+    ReleaseDC(static_cast<HWND>(hwnd_), hdc);
+}
 #endif
 
 #if defined(__APPLE__)

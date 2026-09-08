@@ -12,6 +12,10 @@ void SynthEngine::setSampleRate(double sampleRate) {
     osc_.setSampleRate(sampleRate_);
     env_.setSampleRate(sampleRate_);
     filter_.setSampleRate(sampleRate_);
+
+    // VCA gate attack time ~3ms, release time ~35ms
+    vcaAttackCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.003));
+    vcaReleaseCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.035));
 }
 
 void SynthEngine::reset() {
@@ -19,6 +23,7 @@ void SynthEngine::reset() {
     currentNote_ = -1;
     isNoteActive_ = false;
     accentLevel_ = 0.0f;
+    vcaGateEnv_ = 0.0f;
 }
 
 void SynthEngine::noteOn(int noteNumber, float velocity) {
@@ -74,10 +79,16 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // 3. Process physical 303 filter engine
         float filterOut = filter_.processSample(rawOsc, params_.cutoff, params_.resonance, envModSignal, accentSignal);
 
-        // 4. VCA Stage: Envelope modulated gain (mainEnvVal for smooth decay, constant note volume)
-        // Accent adds dynamic boost punch on accented notes
-        float vcaEnv = (isNoteActive_ ? 1.0f : mainEnvVal);
-        float vcaGain = vcaEnv * (0.7f + 0.5f * accentSignal * params_.accent);
+        // 4. VCA Stage: Smooth gate envelope follower to eliminate Note On / Off clicks
+        float targetGate = isNoteActive_ ? 1.0f : 0.0f;
+        if (targetGate > vcaGateEnv_) {
+            vcaGateEnv_ = targetGate + (vcaGateEnv_ - targetGate) * vcaAttackCoeff_;
+        } else {
+            vcaGateEnv_ = targetGate + (vcaGateEnv_ - targetGate) * vcaReleaseCoeff_;
+        }
+
+        // Constant note volume modulated by VCA Gate follower + accent dynamic punch
+        float vcaGain = vcaGateEnv_ * (0.7f + 0.5f * accentSignal * params_.accent);
         float finalSample = filterOut * vcaGain * params_.masterVolume;
 
         if (outLeft) outLeft[i] = finalSample;

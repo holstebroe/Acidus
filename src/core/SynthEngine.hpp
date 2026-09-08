@@ -44,6 +44,11 @@ private:
     int currentNote_{-1};
     bool isNoteActive_{false};
     float accentLevel_{0.0f};
+
+    // Smooth VCA Gate Envelope to prevent Note On / Off clicks
+    float vcaGateEnv_{0.0f};
+    float vcaAttackCoeff_{0.0f};
+    float vcaReleaseCoeff_{0.0f};
 };
 
 } // namespace syrebas

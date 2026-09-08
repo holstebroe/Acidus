@@ -93,7 +93,7 @@ private:
     const float capScale1_{1.00f};
     const float capScale2_{1.50f};
     const float capScale3_{3.30f};
-    const float capScale4_{0.033f};
+    const float capScale4_{1.00f};
 
     static constexpr int FIR_TAPS = 16;
     std::array<float, FIR_TAPS> upBuffer1_{};
