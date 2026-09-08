@@ -11,6 +11,9 @@
 #endif
 
 #if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #endif
 
@@ -49,10 +52,10 @@ void GuiWindow::updateKnobValuesFromPlugin() {
 }
 
 void GuiWindow::drawRect(int x, int y, int w, int h, uint32_t color) {
-    int xEnd = std::min(x + w, static_cast<int>(width_));
-    int yEnd = std::min(y + h, static_cast<int>(height_));
-    int xStart = std::max(0, x);
-    int yStart = std::max(0, y);
+    int xEnd = (std::min)(x + w, static_cast<int>(width_));
+    int yEnd = (std::min)(y + h, static_cast<int>(height_));
+    int xStart = (std::max)(0, x);
+    int yStart = (std::max)(0, y);
 
     for (int py = yStart; py < yEnd; ++py) {
         for (int px = xStart; px < xEnd; ++px) {
