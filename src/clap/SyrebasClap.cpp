@@ -391,6 +391,13 @@ bool SyrebasClap::stateLoad(const clap_istream_t* stream) {
 }
 
 // CLAP Plugin Entry Point
+static const char* g_syrebasFeatures[] = {
+    CLAP_PLUGIN_FEATURE_INSTRUMENT,
+    CLAP_PLUGIN_FEATURE_SYNTHESIZER,
+    CLAP_PLUGIN_FEATURE_STEREO,
+    nullptr
+};
+
 static const clap_plugin_descriptor_t g_syrebasDescriptor = {
     CLAP_VERSION,
     "com.syrebas.synth",
@@ -401,7 +408,7 @@ static const clap_plugin_descriptor_t g_syrebasDescriptor = {
     "",
     "1.0.0",
     "Roland TB-303 Bass Synth Emulator",
-    (const char*[]){ CLAP_PLUGIN_FEATURE_INSTRUMENT, CLAP_PLUGIN_FEATURE_SYNTHESIZER, CLAP_PLUGIN_FEATURE_STEREO, nullptr }
+    g_syrebasFeatures
 };
 
 static uint32_t clap_factory_get_plugin_count(const clap_plugin_factory_t* factory) {

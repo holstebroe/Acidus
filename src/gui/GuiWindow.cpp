@@ -138,7 +138,7 @@ void GuiWindow::drawKnob(const Knob& knob) {
     drawCircle(knob.x, knob.y, knob.radius - 2, 0xFF505050);
 
     double normVal = (knob.currentVal - knob.minVal) / (knob.maxVal - knob.minVal);
-    normVal = std::clamp(normVal, 0.0, 1.0);
+    normVal = (std::min)((std::max)(normVal, 0.0), 1.0);
     double angleRad = (0.75 + normVal * 1.5) * 3.14159265358979323846;
 
     int ptrX = knob.x + static_cast<int>(std::cos(angleRad) * (knob.radius - 5));
@@ -197,7 +197,7 @@ void GuiWindow::handleMouseDrag(int x, int y) {
     if (knob.isStepped) {
         newVal = (newVal >= 0.5) ? 1.0 : 0.0;
     } else {
-        newVal = std::clamp(newVal, knob.minVal, knob.maxVal);
+        newVal = (std::min)((std::max)(newVal, knob.minVal), knob.maxVal);
     }
 
     knob.currentVal = newVal;

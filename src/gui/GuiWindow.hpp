@@ -12,6 +12,8 @@ namespace syrebas {
 
 class SyrebasClap;
 
+extern const clap_plugin_gui_t g_syrebasGuiExtension;
+
 struct Knob {
     int id;
     const char* label;
