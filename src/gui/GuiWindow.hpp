@@ -68,8 +68,10 @@ private:
 #elif defined(_WIN32)
     void* hwnd_{nullptr};
     void* parentHwnd_{nullptr};
+public:
     void initWin32Window();
     void drawWin32Frame();
+private:
 #elif defined(__APPLE__)
     void* nsView_{nullptr};
     void* parentNsView_{nullptr};
