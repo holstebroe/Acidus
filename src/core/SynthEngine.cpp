@@ -64,44 +64,53 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         env_.processNextSample();
         float vcfEnvVal = env_.getVcfEnv();
         float vcaEnvVal = env_.getVcaEnv();
+        float accentCapVal = env_.getAccentCap();
+        float accentVcaVal = env_.getAccentVca();
         bool noteAccent = env_.isAccent();
 
-        // 3. Calculate Cutoff Frequency & Interactive Knob Scaling
-        // Cutoff Pot: Maps exponentially from 200 Hz (0.0) to 2.5 kHz (1.0) under zero envelope modulation
+        // 3. Control-Current Domain Summing for Cutoff
         float cNorm = std::min(std::max(params_.cutoff, 0.0f), 1.0f);
         if (params_.cutoff > 1.0f) {
-            // Backward compatibility if cutoff parameter passed in Hz (e.g. 200Hz - 2500Hz)
             cNorm = std::min(std::max((params_.cutoff - 200.0f) / 2300.0f, 0.0f), 1.0f);
         }
-        float baseCutoff = 200.0f * std::pow(12.5f, cNorm); // 200 * (2500 / 200)^cNorm = 200 * (12.5)^cNorm
-
-        // Resonance / Cutoff Interaction: Negative control-voltage bleed
-        // Effective_Cutoff = Base_Cutoff * (1.0 - (0.15 * Resonance))
         float resNorm = std::min(std::max(params_.resonance, 0.0f), 1.0f);
-        float effectiveCutoff = baseCutoff * (1.0f - (0.15f * resNorm));
-
-        // Env Mod Pot: Scales peak envelope depth up to 7.5 kHz
         float envModNorm = std::min(std::max(params_.envMod, 0.0f), 1.0f);
-        // Accent Logic: Force Env Mod depth to 100% for accent notes
-        float effectiveEnvMod = noteAccent ? 1.0f : envModNorm;
+        float accentNorm = std::min(std::max(params_.accent, 0.0f), 1.0f);
 
-        // VCF Envelope sweep up to 7.5 kHz
-        float totalCutoff = effectiveCutoff + vcfEnvVal * (effectiveEnvMod * 7500.0f);
+        // Base cutoff frequency calculation with Env Mod baseline offset
+        float baseCutoff = 200.0f * std::pow(12.5f, cNorm);
+        float cutoffOffset = envModNorm * 350.0f;
+        float effectiveCutoff = (baseCutoff + cutoffOffset) * (1.0f - (0.15f * resNorm));
+
+        // Dual-gang Resonance pot interaction with Accent Sweep:
+        // As Resonance increases, more of the accent signal charges and sweeps through the 1uF cap
+        float directAccentPortion = (1.0f - resNorm * 0.7f) * vcfEnvVal;
+        float sweepCapPortion = (resNorm * 0.7f) * accentCapVal;
+        float accentSweepSignal = directAccentPortion + sweepCapPortion;
+
+        float effectiveEnvMod = noteAccent ? 1.0f : envModNorm;
+        float totalEnvContribution = vcfEnvVal * (effectiveEnvMod * 7500.0f);
+        float totalAccentContribution = noteAccent ? (accentSweepSignal * accentNorm * 4000.0f) : (sweepCapPortion * accentNorm * 2000.0f);
+
+        float totalCutoff = effectiveCutoff + totalEnvContribution + totalAccentContribution;
 
         // 4. Diode Ladder Filter Stage
         float filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
 
-        // 5. VCA Stage & Accent Saturation Boost
-        // Base VCA signal driven by VCA envelope (3ms attack, 4s decay)
-        float vcaSignal = filterOut * vcaEnvVal;
+        // 5. VCA Stage & Smoothed Accent Saturation Boost
+        // Base VCA signal driven by VEG
+        float vcaGain = vcaEnvVal;
 
-        // Accent Logic: Apply +6dB gain boost (+2.0x) into VCA stage driving asymmetric / heavy tanh clipping
-        if (noteAccent) {
-            float accentAmount = std::min(std::max(params_.accent, 0.0f), 1.0f);
-            // +6dB boost scaled by Accent knob amount: gain factor 1.0 + (2.0 - 1.0)*accentAmount = 1.0 + accentAmount
-            float boostFactor = 1.0f + accentAmount;
+        // Accent contribution to VCA control path through 47k + 0.033uF smoothing
+        if (accentVcaVal > 0.0001f) {
+            vcaGain += accentVcaVal * accentNorm * 0.8f;
+        }
+
+        float vcaSignal = filterOut * vcaGain;
+
+        if (noteAccent || accentVcaVal > 0.001f) {
+            float boostFactor = 1.0f + (accentNorm * accentVcaVal * 0.8f);
             float boosted = vcaSignal * boostFactor;
-            // Asymmetric VCA clipping / heavy saturation
             if (boosted > 0.0f) {
                 vcaSignal = std::tanh(boosted * 1.2f);
             } else {

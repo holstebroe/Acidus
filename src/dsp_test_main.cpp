@@ -73,11 +73,14 @@ int main() {
     };
 
     std::vector<Event> events = {
-        { 0, true, 36, 0.5f },              // C2 normal
-        { sampleRate / 2, true, 48, 1.0f },    // C3 slide + accent
-        { sampleRate, false, 48, 0.0f },       // Note off
-        { sampleRate + sampleRate / 4, true, 43, 0.5f }, // G2 normal
-        { sampleRate + sampleRate / 2, true, 36, 0.5f }, // C2 slide
+        { 0, true, 36, 0.5f },                 // C2 normal
+        { sampleRate / 4, true, 36, 1.0f },    // C2 Accent 1 (accumulate cap)
+        { sampleRate / 2, true, 36, 1.0f },    // C2 Accent 2 (accumulate cap further)
+        { 3 * sampleRate / 4, true, 36, 1.0f },// C2 Accent 3
+        { sampleRate, true, 48, 1.0f },       // C3 slide + accent
+        { 5 * sampleRate / 4, false, 48, 0.0f },// Note off
+        { 3 * sampleRate / 2, true, 43, 0.5f },// G2 normal
+        { 7 * sampleRate / 4, true, 36, 0.5f },// C2 slide
         { sampleRate * 2, false, 36, 0.0f }
     };
 
