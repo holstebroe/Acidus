@@ -11,7 +11,7 @@ public:
     void setSampleRate(double sampleRate);
     void setDecay(float decayParam); // 0.0 to 1.0 -> 200ms to 2.5s
 
-    void noteOn(bool isAccent, bool isSlide);
+    void noteOn(bool isAccent, bool isSlide, float accentKnob = 1.0f);
     void noteOff();
 
     void processNextSample();
