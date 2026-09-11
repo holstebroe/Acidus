@@ -14,10 +14,17 @@ class SyrebasClap;
 
 extern const clap_plugin_gui_t g_syrebasGuiExtension;
 
-struct Knob {
+enum class ControlType {
+    Knob,
+    ToggleSwitch
+};
+
+struct Control {
     int id;
     const char* label;
-    int x, y, radius;
+    ControlType type;
+    int x, y;
+    int radius;
     double minVal, maxVal, currentVal;
     bool isStepped;
 };
@@ -36,6 +43,8 @@ public:
     uint32_t getWidth() const { return width_; }
     uint32_t getHeight() const { return height_; }
 
+    const std::vector<uint32_t>& getPixelBuffer() const { return pixelBuffer_; }
+
     void renderFrame();
     void handleMouseDown(int x, int y);
     void handleMouseDrag(int x, int y);
@@ -43,13 +52,13 @@ public:
 
 private:
     SyrebasClap* plugin_{nullptr};
-    uint32_t width_{600};
-    uint32_t height_{320};
+    uint32_t width_{680};
+    uint32_t height_{180};
 
     std::vector<uint32_t> pixelBuffer_; // ARGB format (32-bit)
-    std::vector<Knob> knobs_;
+    std::vector<Control> controls_;
 
-    int activeKnobIndex_{-1};
+    int activeControlIndex_{-1};
     int dragStartY_{0};
     double dragStartVal_{0.0};
 
@@ -79,13 +88,17 @@ private:
     void drawCocoaFrame();
 #endif
 
-    void initKnobs();
+    void initControls();
     void updateKnobValuesFromPlugin();
     void drawRect(int x, int y, int w, int h, uint32_t color);
     void drawCircle(int cx, int cy, int radius, uint32_t color);
-    void drawLine(int x0, int y0, int x1, int y1, uint32_t color);
-    void drawTextLogo(int x, int y);
-    void drawKnob(const Knob& knob);
+    void drawCircleOutline(int cx, int cy, int radius, uint32_t color);
+    void drawLine(int x0, int y0, int x1, int y1, uint32_t color, int thickness = 1);
+    void drawChar(int x, int y, char c, uint32_t color, int scale = 1);
+    void drawText(int x, int y, const char* text, uint32_t color, int scale = 1);
+    void drawSyrebasTitle(int x, int y);
+    void drawKnob(const Control& ctrl);
+    void drawToggleSwitch(const Control& ctrl);
 };
 
 } // namespace syrebas

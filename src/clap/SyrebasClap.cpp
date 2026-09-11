@@ -338,6 +338,22 @@ bool SyrebasClap::paramsValue(clap_id paramId, double* outValue) {
     return true;
 }
 
+void SyrebasClap::setParamValueFromGui(clap_id paramId, double value) {
+    if (paramId < PARAM_COUNT) {
+        paramValues_[paramId] = value;
+        syncParamsToEngine();
+        if (host_) {
+            const auto* host_params = static_cast<const clap_host_params_t*>(
+                host_->get_extension(host_, CLAP_EXT_PARAMS));
+            if (host_params && host_params->request_flush) {
+                host_params->request_flush(host_);
+            } else if (host_->request_process) {
+                host_->request_process(host_);
+            }
+        }
+    }
+}
+
 bool SyrebasClap::paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity) {
     if (paramId >= PARAM_COUNT || !outBuffer || outBufferCapacity == 0) return false;
 

@@ -58,3 +58,12 @@ add_executable(syrebas_dsp_test
     src/core/Envelope.cpp
     src/dsp_test_main.cpp
 )
+
+# Standalone test executable for GUI frame verification
+add_executable(syrebas_gui_test
+    ${CORE_SOURCES}
+    ${CLAP_SOURCES}
+    ${GUI_SOURCES}
+    src/gui_test_main.cpp
+)
+target_link_libraries(syrebas_gui_test PRIVATE ${GUI_LIBS})
