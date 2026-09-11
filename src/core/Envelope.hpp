@@ -21,7 +21,7 @@ public:
     float getAccentCap() const { return accentCap_; }
     float getAccentVca() const { return accentVca_; }
     bool isAccent() const { return isAccent_; }
-    bool isActive() const { return gate_ || (vcaEnv_ > 0.0001f) || (vcfEnv_ > 0.0001f) || (accentCap_ > 0.0001f); }
+    bool isActive() const { return gate_ || (vcaEnv_ > 0.0001f) || (vcfEnv_ > 0.0001f); }
 
 private:
     double sampleRate_{44100.0};

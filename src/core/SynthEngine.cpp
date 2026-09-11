@@ -92,7 +92,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float totalEnvContribution = vcfEnvVal * (effectiveEnvMod * 7500.0f);
         float totalAccentContribution = noteAccent ? (accentSweepSignal * accentNorm * 4000.0f) : (sweepCapPortion * accentNorm * 2000.0f);
 
-        float totalCutoff = effectiveCutoff + totalEnvContribution + totalAccentContribution;
+        float totalCutoff = std::min(effectiveCutoff + totalEnvContribution + totalAccentContribution, 16000.0f);
 
         // 4. Diode Ladder Filter Stage
         float filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
@@ -109,12 +109,10 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float vcaSignal = filterOut * vcaGain;
 
         if (noteAccent || accentVcaVal > 0.001f) {
-            float boostFactor = 1.0f + (accentNorm * accentVcaVal * 0.8f);
-            float boosted = vcaSignal * boostFactor;
-            if (boosted > 0.0f) {
-                vcaSignal = std::tanh(boosted * 1.2f);
+            if (vcaSignal > 0.0f) {
+                vcaSignal = std::tanh(vcaSignal * 1.2f);
             } else {
-                vcaSignal = std::tanh(boosted * 0.9f);
+                vcaSignal = std::tanh(vcaSignal * 0.9f);
             }
         }
 

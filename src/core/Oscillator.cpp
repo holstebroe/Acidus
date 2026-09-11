@@ -1,5 +1,6 @@
 #include "Oscillator.hpp"
 #include <cmath>
+#include <algorithm>
 
 namespace syrebas {
 
