@@ -98,7 +98,7 @@ GuiWindow::~GuiWindow() {
 void GuiWindow::initControls() {
     controls_.clear();
     // 5 Main Knobs
-    controls_.push_back({ PARAM_CUTOFF, "CUT OFF FREQ", ControlType::Knob, 55, 100, 20, 300.0, 10000.0, 800.0, false });
+    controls_.push_back({ PARAM_CUTOFF, "CUT OFF FREQ", ControlType::Knob, 55, 100, 20, 0.0, 1.0, 0.5, false });
     controls_.push_back({ PARAM_RESONANCE, "RESONANCE", ControlType::Knob, 130, 100, 20, 0.0, 1.0, 0.5, false });
     controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 205, 100, 20, 0.0, 1.0, 0.5, false });
     controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 280, 100, 20, 0.0, 1.0, 0.5, false });

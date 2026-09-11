@@ -41,9 +41,9 @@ float Filter::processOversampledSample(float input, float cutoffHz, float resona
     float hpfCutoff = 150.0f + 100.0f * resNorm;
     hpfFeedback_.setCutoff(hpfCutoff);
 
-    // Non-linear feedback gain scaling (does not self oscillate to clean sine whistle)
-    // Max resonance gain is capped around 3.5 - 3.8 so that feedback saturates passband amplitude
-    float resGain = resNorm * 3.6f;
+    // Non-linear feedback gain scaling (TB-303 diode ladder oscillation threshold ~17.0)
+    // Max resonance gain scaled to 16.5f so high resonance squelches forcefully near oscillation boundary
+    float resGain = resNorm * 16.5f;
 
     float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
     float gBase = std::tan(wc / (2.0f * static_cast<float>(oversampledRate_)));

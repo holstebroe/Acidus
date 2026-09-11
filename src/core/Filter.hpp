@@ -94,10 +94,11 @@ private:
     HPFFeedback hpfFeedback_;
 
     // Diode ladder capacitor values / pole spreading for ~18dB/oct slope
-    const float capScale1_{1.00f};
-    const float capScale2_{1.50f};
-    const float capScale3_{3.30f};
-    const float capScale4_{1.00f};
+    // C1 = 10nF, C2 = 15nF, C3 = 33nF, C4 = 10nF -> conductance scale = 1/C
+    const float capScale1_{1.0000f};
+    const float capScale2_{0.6667f};
+    const float capScale3_{0.3030f};
+    const float capScale4_{1.0000f};
 
     static constexpr int FIR_TAPS = 16;
     std::array<float, FIR_TAPS> upBuffer1_{};
