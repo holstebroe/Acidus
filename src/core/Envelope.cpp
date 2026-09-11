@@ -44,16 +44,18 @@ void Envelope::updateCoefficients() {
     accentVcaCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.00155));
 }
 
-void Envelope::noteOn(bool isAccent, bool isSlide) {
+void Envelope::noteOn(bool isAccent, bool isSlide, float accentKnob) {
     gate_ = true;
     isAccent_ = isAccent;
 
     updateCoefficients();
 
-    // Accent Logic: If Note_Accent == True, force VCF decay envelope time directly to its absolute minimum (~200ms)
+    // Accent Logic: If Note_Accent == True, force VCF decay envelope time toward minimum (~200ms)
+    // scaled by accentKnob. When accentKnob == 0.0, VCF decay is the normal decay setting!
     if (isAccent_) {
         float minDecayTimeSec = 0.20f;
-        vcfDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (minDecayTimeSec / 6.907755f)));
+        float actualDecayTimeSec = vcfDecayTimeSec_ + (minDecayTimeSec - vcfDecayTimeSec_) * std::min(std::max(accentKnob, 0.0f), 1.0f);
+        vcfDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (actualDecayTimeSec / 6.907755f)));
     }
 
     if (!isSlide) {

@@ -35,7 +35,7 @@ void SynthEngine::noteOn(int noteNumber, float velocity) {
     osc_.setWaveform(params_.waveform);
     osc_.noteOn(noteNumber, isSlide);
     env_.setDecay(params_.decay);
-    env_.noteOn(isAccent, isSlide);
+    env_.noteOn(isAccent, isSlide, params_.accent);
 }
 
 void SynthEngine::noteOff(int noteNumber) {
@@ -71,48 +71,60 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // 3. Control-Current Domain Summing for Cutoff
         float cNorm = std::min(std::max(params_.cutoff, 0.0f), 1.0f);
         if (params_.cutoff > 1.0f) {
-            cNorm = std::min(std::max((params_.cutoff - 200.0f) / 2300.0f, 0.0f), 1.0f);
+            cNorm = std::min(std::max((params_.cutoff - 300.0f) / 9700.0f, 0.0f), 1.0f);
         }
         float resNorm = std::min(std::max(params_.resonance, 0.0f), 1.0f);
         float envModNorm = std::min(std::max(params_.envMod, 0.0f), 1.0f);
         float accentNorm = std::min(std::max(params_.accent, 0.0f), 1.0f);
 
-        // Base cutoff frequency calculation with Env Mod baseline offset
-        float baseCutoff = 200.0f * std::pow(12.5f, cNorm);
-        float cutoffOffset = envModNorm * 350.0f;
-        float effectiveCutoff = (baseCutoff + cutoffOffset) * (1.0f - (0.15f * resNorm));
+        // Audio pot tapers (50 kOhm Audio / A taper) for Cutoff and Env Mod knobs
+        float cTaper = cNorm * cNorm;
+        float envModTaper = envModNorm * envModNorm;
+
+        // Base cutoff knob CV range: 200 Hz to 2500 Hz (~3.64385 octaves)
+        float cv_base = 3.64385f * cTaper;
+
+        // Env Mod baseline offset (+350 Hz / +0.80735 octaves at max Env Mod)
+        float cv_offset = envModTaper * 0.80735f;
+
+        // Effective Env Mod depth for this sample (boosted on accent, scaled by accentNorm)
+        float effectiveEnvMod = noteAccent ? (envModNorm + (1.0f - envModNorm) * accentNorm) : envModNorm;
+        float effectiveEnvModTaper = effectiveEnvMod * effectiveEnvMod;
+        float cv_envmod = effectiveEnvModTaper * vcfEnvVal * 3.5f;
 
         // Dual-gang Resonance pot interaction with Accent Sweep:
-        // As Resonance increases, more of the accent signal charges and sweeps through the 1uF cap
         float directAccentPortion = (1.0f - resNorm * 0.7f) * vcfEnvVal;
         float sweepCapPortion = (resNorm * 0.7f) * accentCapVal;
         float accentSweepSignal = directAccentPortion + sweepCapPortion;
 
-        float effectiveEnvMod = noteAccent ? 1.0f : envModNorm;
-        float totalEnvContribution = vcfEnvVal * (effectiveEnvMod * 7500.0f);
-        float totalAccentContribution = noteAccent ? (accentSweepSignal * accentNorm * 4000.0f) : (sweepCapPortion * accentNorm * 2000.0f);
+        // Accent Sweep CV contribution to cutoff
+        float cv_accent = noteAccent ? (accentNorm * accentSweepSignal * 1.5f) : (accentNorm * sweepCapPortion * 0.75f);
 
-        float totalCutoff = std::min(effectiveCutoff + totalEnvContribution + totalAccentContribution, 16000.0f);
+        // Control Voltage Summing in control-current (exponential octave) domain
+        float cv_total = cv_base + cv_offset + cv_envmod + cv_accent;
+
+        // Convert CV to frequency with Resonance CV Bleed (up to 15% reduction)
+        float effectiveCutoff = 200.0f * std::pow(2.0f, cv_total) * (1.0f - (0.15f * resNorm));
+        float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 14000.0f);
 
         // 4. Diode Ladder Filter Stage
         float filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
 
         // 5. VCA Stage & Smoothed Accent Saturation Boost
-        // Base VCA signal driven by VEG
         float vcaGain = vcaEnvVal;
 
-        // Accent contribution to VCA control path through 47k + 0.033uF smoothing
-        if (accentVcaVal > 0.0001f) {
+        if (noteAccent && accentVcaVal > 0.0001f) {
             vcaGain += accentVcaVal * accentNorm * 0.8f;
         }
 
         float vcaSignal = filterOut * vcaGain;
 
-        if (noteAccent || accentVcaVal > 0.001f) {
+        if (noteAccent && accentNorm > 0.01f) {
+            float satDrive = 1.0f + accentNorm * 0.25f;
             if (vcaSignal > 0.0f) {
-                vcaSignal = std::tanh(vcaSignal * 1.2f);
+                vcaSignal = std::tanh(vcaSignal * satDrive);
             } else {
-                vcaSignal = std::tanh(vcaSignal * 0.9f);
+                vcaSignal = std::tanh(vcaSignal * (satDrive * 0.85f));
             }
         }
 

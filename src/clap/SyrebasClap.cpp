@@ -124,7 +124,7 @@ SyrebasClap::SyrebasClap(const clap_host_t* host) : host_(host) {
     };
 
     // Initialize default parameter values
-    paramValues_[PARAM_CUTOFF] = 800.0;
+    paramValues_[PARAM_CUTOFF] = 0.5;
     paramValues_[PARAM_RESONANCE] = 0.5;
     paramValues_[PARAM_ENV_MOD] = 0.5;
     paramValues_[PARAM_DECAY] = 0.5;
@@ -279,9 +279,9 @@ bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) 
         case PARAM_CUTOFF:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Cutoff Freq");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Filter");
-            paramInfo->min_value = 300.0;
-            paramInfo->max_value = 10000.0;
-            paramInfo->default_value = 800.0;
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.5;
             break;
         case PARAM_RESONANCE:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Resonance");
