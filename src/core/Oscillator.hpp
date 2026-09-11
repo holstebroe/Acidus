@@ -25,6 +25,8 @@ public:
     float processNextSample();
     bool isSliding() const { return isSliding_; }
 
+    void resetFilterStates();
+
 private:
     double sampleRate_{44100.0};
     Waveform waveform_{Waveform::Saw};
@@ -34,6 +36,14 @@ private:
     double targetFreq_{440.0};
     bool isSliding_{false};
     double slideCoeff_{0.0};
+
+    // Filter coefficients & states
+    double lpfSawCoeff_{0.0};
+    double lpfSawState_{0.0};
+
+    double hpfSqCoeff_{0.0};
+    double hpfSqX1_{0.0};
+    double hpfSqY1_{0.0};
 
     static double noteToFreq(int note) {
         return 440.0 * std::pow(2.0, (note - 69) / 12.0);

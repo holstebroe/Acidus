@@ -8,11 +8,11 @@
 namespace syrebas {
 
 struct SynthParameters {
-    float cutoff{500.0f};      // 300Hz to 10000Hz
-    float resonance{0.5f};     // 0.0 to 1.0
-    float envMod{0.5f};        // 0.0 to 1.0
-    float decay{0.5f};         // 0.0 to 1.0
-    float accent{0.5f};        // 0.0 to 1.0
+    float cutoff{0.5f};        // Knob range 0.0 to 1.0 (maps exp 200 Hz to 2.5 kHz)
+    float resonance{0.5f};     // Knob range 0.0 to 1.0
+    float envMod{0.5f};        // Knob range 0.0 to 1.0 (scales up to 7.5 kHz sweep)
+    float decay{0.5f};         // Knob range 0.0 to 1.0 (200ms to 2.5s)
+    float accent{0.5f};        // Knob range 0.0 to 1.0
     Waveform waveform{Waveform::Saw};
     float masterVolume{0.8f};
 };

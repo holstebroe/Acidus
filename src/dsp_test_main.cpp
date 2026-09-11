@@ -51,11 +51,11 @@ int main() {
     engine.setSampleRate(44100.0);
 
     auto& params = engine.getParams();
-    params.cutoff = 800.0f;
-    params.resonance = 0.85f;
-    params.envMod = 0.8f;
-    params.decay = 0.4f;
-    params.accent = 0.8f;
+    params.cutoff = 0.4f;       // Cutoff knob
+    params.resonance = 0.85f;   // High resonance
+    params.envMod = 0.8f;      // High env mod
+    params.decay = 0.5f;       // Decay knob ~50%
+    params.accent = 0.9f;      // High accent
     params.waveform = syrebas::Waveform::Saw;
     params.masterVolume = 0.8f;
 
@@ -65,12 +65,6 @@ int main() {
     std::vector<float> left(frameSize);
     std::vector<float> right(frameSize);
 
-    // Sequence:
-    // Note 1: C2 (MIDI 36), normal
-    // Note 2: C3 (MIDI 48), slide, accented
-    // Note 3: G2 (MIDI 43), normal
-    // Note 4: C2 (MIDI 36), slide, normal
-
     struct Event {
         int sampleOffset;
         bool isNoteOn;
@@ -79,11 +73,11 @@ int main() {
     };
 
     std::vector<Event> events = {
-        { 0, true, 36, 0.5f },           // C2
-        { sampleRate / 2, true, 48, 1.0f }, // C3 (Slide + Accent)
-        { sampleRate, false, 48, 0.0f },
-        { sampleRate + sampleRate / 4, true, 43, 0.5f }, // G2
-        { sampleRate + sampleRate / 2, true, 36, 0.5f }, // C2 (Slide)
+        { 0, true, 36, 0.5f },              // C2 normal
+        { sampleRate / 2, true, 48, 1.0f },    // C3 slide + accent
+        { sampleRate, false, 48, 0.0f },       // Note off
+        { sampleRate + sampleRate / 4, true, 43, 0.5f }, // G2 normal
+        { sampleRate + sampleRate / 2, true, 36, 0.5f }, // C2 slide
         { sampleRate * 2, false, 36, 0.0f }
     };
 
@@ -110,6 +104,29 @@ int main() {
     }
 
     writeWav("test_syrebas_303.wav", audioBuffer, sampleRate);
-    std::cout << "DSP test completed successfully.\n";
+
+    // Run programmatic assertions on generated audio
+    bool hasNonZeroOutput = false;
+    float maxAbs = 0.0f;
+    for (float sample : audioBuffer) {
+        if (std::abs(sample) > 0.0001f) {
+            hasNonZeroOutput = true;
+        }
+        if (std::abs(sample) > maxAbs) {
+            maxAbs = std::abs(sample);
+        }
+    }
+
+    if (!hasNonZeroOutput) {
+        std::cerr << "ERROR: Audio buffer is silent!\n";
+        return 1;
+    }
+
+    if (maxAbs > 1.2f) {
+        std::cerr << "ERROR: Output clipped abnormally! Max abs: " << maxAbs << "\n";
+        return 1;
+    }
+
+    std::cout << "DSP test completed successfully. Max peak amplitude: " << maxAbs << "\n";
     return 0;
 }
