@@ -39,7 +39,7 @@ void SynthEngine::noteOn(int noteNumber, float velocity) {
 }
 
 void SynthEngine::noteOff(int noteNumber) {
-    if (noteNumber == currentNote_) {
+    if (noteNumber == currentNote_ || noteNumber < 0) {
         isNoteActive_ = false;
         osc_.noteOff();
         env_.noteOff();

@@ -19,12 +19,12 @@ public:
     float getVcfEnv() const { return vcfEnv_; }
     float getVcaEnv() const { return vcaEnv_; }
     bool isAccent() const { return isAccent_; }
-    bool isActive() const { return vcaGate_ || (vcaEnv_ > 0.0001f) || (vcfEnv_ > 0.0001f); }
+    bool isActive() const { return gate_ || (vcaEnv_ > 0.0001f) || (vcfEnv_ > 0.0001f); }
 
 private:
     double sampleRate_{44100.0};
 
-    bool vcaGate_{false};
+    bool gate_{false};
     bool isAccent_{false};
 
     float vcfDecayTimeSec_{0.20f};
@@ -32,13 +32,14 @@ private:
     float vcfDecayCoeff_{0.0f};
 
     float vcaAttackCoeff_{0.0f};
-    float vcaDecayCoeff_{0.0f};
+    float vcaGateHighDecayCoeff_{0.0f};
+    float vcaQuickDrainCoeff_{0.0f};
 
     float vcfEnv_{0.0f};
-    float vcfState_{0.0f};
+    float vcfTarget_{0.0f};
 
     float vcaEnv_{0.0f};
-    float vcaState_{0.0f};
+    float vcaTarget_{0.0f};
 
     void updateCoefficients();
 };
