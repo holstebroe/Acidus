@@ -124,72 +124,147 @@ void GuiWindow::updateKnobValuesFromPlugin() {
     }
 }
 
+static inline uint32_t blendColors(uint32_t src, uint32_t dst, float alpha) {
+    if (alpha <= 0.0f) return dst;
+    if (alpha >= 1.0f) return src;
+
+    uint32_t sr = (src >> 16) & 0xFF;
+    uint32_t sg = (src >> 8) & 0xFF;
+    uint32_t sb = src & 0xFF;
+
+    uint32_t dr = (dst >> 16) & 0xFF;
+    uint32_t dg = (dst >> 8) & 0xFF;
+    uint32_t db = dst & 0xFF;
+
+    uint32_t r = static_cast<uint32_t>(sr * alpha + dr * (1.0f - alpha) + 0.5f);
+    uint32_t g = static_cast<uint32_t>(sg * alpha + dg * (1.0f - alpha) + 0.5f);
+    uint32_t b = static_cast<uint32_t>(sb * alpha + db * (1.0f - alpha) + 0.5f);
+
+    return 0xFF000000 | (r << 16) | (g << 8) | b;
+}
+
 void GuiWindow::drawRect(int x, int y, int w, int h, uint32_t color) {
-    int xEnd = (std::min)(x + w, static_cast<int>(width_));
-    int yEnd = (std::min)(y + h, static_cast<int>(height_));
-    int xStart = (std::max)(0, x);
-    int yStart = (std::max)(0, y);
+    int hW = width_ * 2;
+    int hH = height_ * 2;
+    int xStart = (std::max)(0, x * 2);
+    int yStart = (std::max)(0, y * 2);
+    int xEnd = (std::min)(hW, (x + w) * 2);
+    int yEnd = (std::min)(hH, (y + h) * 2);
 
     for (int py = yStart; py < yEnd; ++py) {
         for (int px = xStart; px < xEnd; ++px) {
-            pixelBuffer_[py * width_ + px] = color;
+            hiResBuffer_[py * hW + px] = color;
         }
     }
 }
 
 void GuiWindow::drawCircle(int cx, int cy, int radius, uint32_t color) {
-    int r2 = radius * radius;
-    for (int dy = -radius; dy <= radius; ++dy) {
-        for (int dx = -radius; dx <= radius; ++dx) {
-            if (dx * dx + dy * dy <= r2) {
-                int px = cx + dx;
-                int py = cy + dy;
-                if (px >= 0 && px < static_cast<int>(width_) && py >= 0 && py < static_cast<int>(height_)) {
-                    pixelBuffer_[py * width_ + px] = color;
-                }
+    int hW = width_ * 2;
+    int hH = height_ * 2;
+    float cx2 = cx * 2.0f + 1.0f;
+    float cy2 = cy * 2.0f + 1.0f;
+    float r2 = radius * 2.0f;
+
+    int minX = (std::max)(0, static_cast<int>(cx2 - r2 - 2.0f));
+    int maxX = (std::min)(hW - 1, static_cast<int>(cx2 + r2 + 2.0f));
+    int minY = (std::max)(0, static_cast<int>(cy2 - r2 - 2.0f));
+    int maxY = (std::min)(hH - 1, static_cast<int>(cy2 + r2 + 2.0f));
+
+    for (int py = minY; py <= maxY; ++py) {
+        float dy = py - cy2;
+        for (int px = minX; px <= maxX; ++px) {
+            float dx = px - cx2;
+            float dist = std::hypot(dx, dy);
+            float alpha = 0.0f;
+            if (dist <= r2 - 0.75f) {
+                alpha = 1.0f;
+            } else if (dist < r2 + 0.75f) {
+                alpha = (r2 + 0.75f - dist) / 1.5f;
+            }
+            if (alpha > 0.0f) {
+                int idx = py * hW + px;
+                hiResBuffer_[idx] = blendColors(color, hiResBuffer_[idx], alpha);
             }
         }
     }
 }
 
 void GuiWindow::drawCircleOutline(int cx, int cy, int radius, uint32_t color) {
-    int rInner2 = (radius - 1) * (radius - 1);
-    int rOuter2 = radius * radius;
-    for (int dy = -radius; dy <= radius; ++dy) {
-        for (int dx = -radius; dx <= radius; ++dx) {
-            int dist2 = dx * dx + dy * dy;
-            if (dist2 >= rInner2 && dist2 <= rOuter2) {
-                int px = cx + dx;
-                int py = cy + dy;
-                if (px >= 0 && px < static_cast<int>(width_) && py >= 0 && py < static_cast<int>(height_)) {
-                    pixelBuffer_[py * width_ + px] = color;
-                }
+    int hW = width_ * 2;
+    int hH = height_ * 2;
+    float cx2 = cx * 2.0f + 1.0f;
+    float cy2 = cy * 2.0f + 1.0f;
+    float rOuter = radius * 2.0f;
+    float rInner = (radius - 1) * 2.0f;
+
+    int minX = (std::max)(0, static_cast<int>(cx2 - rOuter - 2.0f));
+    int maxX = (std::min)(hW - 1, static_cast<int>(cx2 + rOuter + 2.0f));
+    int minY = (std::max)(0, static_cast<int>(cy2 - rOuter - 2.0f));
+    int maxY = (std::min)(hH - 1, static_cast<int>(cy2 + rOuter + 2.0f));
+
+    for (int py = minY; py <= maxY; ++py) {
+        float dy = py - cy2;
+        for (int px = minX; px <= maxX; ++px) {
+            float dx = px - cx2;
+            float dist = std::hypot(dx, dy);
+            float alpha = 0.0f;
+            if (dist >= rInner - 0.75f && dist <= rOuter + 0.75f) {
+                float aOuter = (dist <= rOuter - 0.75f) ? 1.0f : ((rOuter + 0.75f - dist) / 1.5f);
+                float aInner = (dist >= rInner + 0.75f) ? 1.0f : ((dist - (rInner - 0.75f)) / 1.5f);
+                alpha = (std::min)(aOuter, aInner);
+            }
+            if (alpha > 0.0f) {
+                int idx = py * hW + px;
+                hiResBuffer_[idx] = blendColors(color, hiResBuffer_[idx], alpha);
             }
         }
     }
 }
 
 void GuiWindow::drawLine(int x0, int y0, int x1, int y1, uint32_t color, int thickness) {
-    int dx = std::abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-    int dy = -std::abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-    int err = dx + dy, e2;
+    int hW = width_ * 2;
+    int hH = height_ * 2;
 
-    int halfThick = thickness / 2;
+    float p0x = x0 * 2.0f + 1.0f;
+    float p0y = y0 * 2.0f + 1.0f;
+    float p1x = x1 * 2.0f + 1.0f;
+    float p1y = y1 * 2.0f + 1.0f;
+    float halfThick = thickness * 1.0f; // in 2x pixels
 
-    while (true) {
-        for (int tx = -halfThick; tx <= halfThick; ++tx) {
-            for (int ty = -halfThick; ty <= halfThick; ++ty) {
-                int px = x0 + tx;
-                int py = y0 + ty;
-                if (px >= 0 && px < static_cast<int>(width_) && py >= 0 && py < static_cast<int>(height_)) {
-                    pixelBuffer_[py * width_ + px] = color;
-                }
+    float l2 = (p1x - p0x) * (p1x - p0x) + (p1y - p0y) * (p1y - p0y);
+
+    int minX = (std::max)(0, static_cast<int>((std::min)(p0x, p1x) - halfThick - 2.0f));
+    int maxX = (std::min)(hW - 1, static_cast<int>((std::max)(p0x, p1x) + halfThick + 2.0f));
+    int minY = (std::max)(0, static_cast<int>((std::min)(p0y, p1y) - halfThick - 2.0f));
+    int maxY = (std::min)(hH - 1, static_cast<int>((std::max)(p0y, p1y) + halfThick + 2.0f));
+
+    for (int py = minY; py <= maxY; ++py) {
+        float pyf = static_cast<float>(py);
+        for (int px = minX; px <= maxX; ++px) {
+            float pxf = static_cast<float>(px);
+            float dist = 0.0f;
+            if (l2 == 0.0f) {
+                dist = std::hypot(pxf - p0x, pyf - p0y);
+            } else {
+                float t = ((pxf - p0x) * (p1x - p0x) + (pyf - p0y) * (p1y - p0y)) / l2;
+                t = (std::min)((std::max)(t, 0.0f), 1.0f);
+                float projX = p0x + t * (p1x - p0x);
+                float projY = p0y + t * (p1y - p0y);
+                dist = std::hypot(pxf - projX, pyf - projY);
+            }
+
+            float alpha = 0.0f;
+            if (dist <= halfThick - 0.75f) {
+                alpha = 1.0f;
+            } else if (dist < halfThick + 0.75f) {
+                alpha = (halfThick + 0.75f - dist) / 1.5f;
+            }
+
+            if (alpha > 0.0f) {
+                int idx = py * hW + px;
+                hiResBuffer_[idx] = blendColors(color, hiResBuffer_[idx], alpha);
             }
         }
-        if (x0 == x1 && y0 == y1) break;
-        e2 = 2 * err;
-        if (e2 >= dy) { err += dy; x0 += sx; }
-        if (e2 <= dx) { err += dx; y0 += sy; }
     }
 }
 
@@ -363,8 +438,14 @@ void GuiWindow::drawToggleSwitch(const Control& ctrl) {
 void GuiWindow::renderFrame() {
     updateKnobValuesFromPlugin();
 
+    int hW = width_ * 2;
+    int hH = height_ * 2;
+    if (hiResBuffer_.size() != static_cast<size_t>(hW * hH)) {
+        hiResBuffer_.resize(hW * hH);
+    }
+
     // 1. Brushed silver panel background
-    std::fill(pixelBuffer_.begin(), pixelBuffer_.end(), 0xFFDBDFE1);
+    std::fill(hiResBuffer_.begin(), hiResBuffer_.end(), 0xFFDBDFE1);
 
     // Top & Bottom metallic borders / trims
     drawRect(0, 0, width_, 12, 0xFFC0C4C8);
@@ -375,7 +456,7 @@ void GuiWindow::renderFrame() {
     drawRect(0, height_ - 13, width_, 13, 0xFFC0C4C8);
 
     // Vertical dividing line separating controls from right title panel
-    drawLine(525, 14, 525, height_ - 14, 0xFF181818, 2);
+    drawLine(530, 14, 530, height_ - 14, 0xFF181818, 2);
 
     // 2. Draw Controls
     for (const auto& ctrl : controls_) {
@@ -387,7 +468,24 @@ void GuiWindow::renderFrame() {
     }
 
     // 3. Draw Title Logo "Syrebas"
-    drawSyrebasTitle(535, 65);
+    drawSyrebasTitle(545, 65);
+
+    // 4. Downsample hiResBuffer_ (2x2 box filter) into pixelBuffer_
+    pixelBuffer_.resize(width_ * height_);
+    for (uint32_t py = 0; py < height_; ++py) {
+        for (uint32_t px = 0; px < width_; ++px) {
+            uint32_t p00 = hiResBuffer_[(2 * py) * hW + (2 * px)];
+            uint32_t p01 = hiResBuffer_[(2 * py) * hW + (2 * px + 1)];
+            uint32_t p10 = hiResBuffer_[(2 * py + 1) * hW + (2 * px)];
+            uint32_t p11 = hiResBuffer_[(2 * py + 1) * hW + (2 * px + 1)];
+
+            uint32_t r = (((p00 >> 16) & 0xFF) + ((p01 >> 16) & 0xFF) + ((p10 >> 16) & 0xFF) + ((p11 >> 16) & 0xFF) + 2) >> 2;
+            uint32_t g = (((p00 >> 8) & 0xFF) + ((p01 >> 8) & 0xFF) + ((p10 >> 8) & 0xFF) + ((p11 >> 8) & 0xFF) + 2) >> 2;
+            uint32_t b = ((p00 & 0xFF) + (p01 & 0xFF) + (p10 & 0xFF) + (p11 & 0xFF) + 2) >> 2;
+
+            pixelBuffer_[py * width_ + px] = 0xFF000000 | (r << 16) | (g << 8) | b;
+        }
+    }
 
 #if defined(__linux__) && !defined(__APPLE__)
     drawX11Frame();
@@ -398,7 +496,8 @@ void GuiWindow::renderFrame() {
 #endif
 }
 
-void GuiWindow::handleMouseDown(int x, int y) {
+void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
+    lastShiftState_ = isShift;
     for (size_t i = 0; i < controls_.size(); ++i) {
         auto& ctrl = controls_[i];
         if (ctrl.type == ControlType::Knob) {
@@ -424,16 +523,22 @@ void GuiWindow::handleMouseDown(int x, int y) {
     }
 }
 
-void GuiWindow::handleMouseDrag(int x, int y) {
+void GuiWindow::handleMouseDrag(int x, int y, bool isShift) {
     if (activeControlIndex_ < 0 || activeControlIndex_ >= static_cast<int>(controls_.size())) return;
 
     auto& ctrl = controls_[activeControlIndex_];
     if (ctrl.type != ControlType::Knob) return;
 
+    if (isShift != lastShiftState_) {
+        dragStartY_ = y;
+        dragStartVal_ = ctrl.currentVal;
+        lastShiftState_ = isShift;
+    }
+
     int deltaY = dragStartY_ - y;
 
     double range = ctrl.maxVal - ctrl.minVal;
-    double sensitivity = 0.005 * range;
+    double sensitivity = (isShift ? 0.0025 : 0.0125) * range;
     double newVal = dragStartVal_ + deltaY * sensitivity;
 
     newVal = (std::min)((std::max)(newVal, ctrl.minVal), ctrl.maxVal);
@@ -544,10 +649,12 @@ void GuiWindow::eventLoopX11() {
             if (ev.type == Expose) {
                 drawX11Frame();
             } else if (ev.type == ButtonPress) {
-                handleMouseDown(ev.xbutton.x, ev.xbutton.y);
+                bool isShift = (ev.xbutton.state & ShiftMask) != 0;
+                handleMouseDown(ev.xbutton.x, ev.xbutton.y, isShift);
             } else if (ev.type == MotionNotify) {
                 if (ev.xmotion.state & Button1Mask) {
-                    handleMouseDrag(ev.xmotion.x, ev.xmotion.y);
+                    bool isShift = (ev.xmotion.state & ShiftMask) != 0;
+                    handleMouseDrag(ev.xmotion.x, ev.xmotion.y, isShift);
                 }
             } else if (ev.type == ButtonRelease) {
                 handleMouseUp();
@@ -611,8 +718,9 @@ static LRESULT CALLBACK SyrebasWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
             if (gui) {
                 int x = LOWORD(lParam);
                 int y = HIWORD(lParam);
+                bool isShift = (wParam & MK_SHIFT) != 0;
                 SetCapture(hwnd);
-                gui->handleMouseDown(x, y);
+                gui->handleMouseDown(x, y, isShift);
             }
             return 0;
         }
@@ -620,7 +728,8 @@ static LRESULT CALLBACK SyrebasWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
             if (gui && (wParam & MK_LBUTTON)) {
                 int x = LOWORD(lParam);
                 int y = HIWORD(lParam);
-                gui->handleMouseDrag(x, y);
+                bool isShift = (wParam & MK_SHIFT) != 0;
+                gui->handleMouseDrag(x, y, isShift);
             }
             return 0;
         }
@@ -735,7 +844,7 @@ const clap_plugin_gui_t g_syrebasGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
-        *width = 680;
+        *width = 710;
         *height = 180;
         return true;
     },
@@ -746,7 +855,7 @@ const clap_plugin_gui_t g_syrebasGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
-        *width = 680;
+        *width = 710;
         *height = 180;
         return true;
     },

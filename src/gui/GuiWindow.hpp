@@ -46,17 +46,19 @@ public:
     const std::vector<uint32_t>& getPixelBuffer() const { return pixelBuffer_; }
 
     void renderFrame();
-    void handleMouseDown(int x, int y);
-    void handleMouseDrag(int x, int y);
+    void handleMouseDown(int x, int y, bool isShift = false);
+    void handleMouseDrag(int x, int y, bool isShift = false);
     void handleMouseUp();
 
 private:
     SyrebasClap* plugin_{nullptr};
-    uint32_t width_{680};
+    uint32_t width_{710};
     uint32_t height_{180};
 
     std::vector<uint32_t> pixelBuffer_; // ARGB format (32-bit)
+    std::vector<uint32_t> hiResBuffer_; // 2x supersampled buffer
     std::vector<Control> controls_;
+    bool lastShiftState_{false};
 
     int activeControlIndex_{-1};
     int dragStartY_{0};
