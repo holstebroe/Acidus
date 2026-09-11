@@ -507,14 +507,21 @@ void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
                 activeControlIndex_ = static_cast<int>(i);
                 dragStartY_ = y;
                 dragStartVal_ = ctrl.currentVal;
+                if (plugin_) {
+                    plugin_->onBeginEditFromGui(ctrl.id);
+                }
                 break;
             }
         } else if (ctrl.type == ControlType::ToggleSwitch) {
             if (std::abs(x - ctrl.x) <= 20 && std::abs(y - ctrl.y) <= 25) {
+                if (plugin_) {
+                    plugin_->onBeginEditFromGui(ctrl.id);
+                }
                 double newVal = (ctrl.currentVal >= 0.5) ? 0.0 : 1.0;
                 ctrl.currentVal = newVal;
                 if (plugin_) {
-                    plugin_->setParamValueFromGui(ctrl.id, newVal);
+                    plugin_->onParamValueFromGui(ctrl.id, newVal);
+                    plugin_->onEndEditFromGui(ctrl.id);
                 }
                 renderFrame();
                 break;
@@ -545,13 +552,18 @@ void GuiWindow::handleMouseDrag(int x, int y, bool isShift) {
     ctrl.currentVal = newVal;
 
     if (plugin_) {
-        plugin_->setParamValueFromGui(ctrl.id, newVal);
+        plugin_->onParamValueFromGui(ctrl.id, newVal);
     }
 
     renderFrame();
 }
 
 void GuiWindow::handleMouseUp() {
+    if (activeControlIndex_ >= 0 && activeControlIndex_ < static_cast<int>(controls_.size())) {
+        if (plugin_) {
+            plugin_->onEndEditFromGui(controls_[activeControlIndex_].id);
+        }
+    }
     activeControlIndex_ = -1;
 }
 

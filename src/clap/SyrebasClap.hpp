@@ -4,8 +4,17 @@
 #include <clap/clap.h>
 #include "core/SynthEngine.hpp"
 #include <memory>
+#include <vector>
+#include <mutex>
 
 namespace syrebas {
+
+struct GuiParamEvent {
+    uint16_t type; // CLAP_EVENT_PARAM_GESTURE_BEGIN, CLAP_EVENT_PARAM_VALUE, CLAP_EVENT_PARAM_GESTURE_END
+    clap_id paramId;
+    double value;
+    uint32_t flags; // e.g. CLAP_EVENT_IS_LIVE, CLAP_EVENT_DONT_RECORD
+};
 
 // Parameter IDs
 enum ParamId : clap_id {
@@ -43,9 +52,14 @@ public:
     bool paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) const;
     bool paramsValue(clap_id paramId, double* outValue);
     void setParamValueFromGui(clap_id paramId, double value);
+    void onBeginEditFromGui(clap_id paramId);
+    void onParamValueFromGui(clap_id paramId, double value);
+    void onEndEditFromGui(clap_id paramId);
     bool paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity);
     bool paramsTextToValue(clap_id paramId, const char* paramValueText, double* outValue);
     void paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out);
+    void pushPendingOutputEvents(const clap_output_events_t* out);
+    void requestHostFlush();
 
     // CLAP State Extension
     bool stateSave(const clap_ostream_t* stream);
@@ -66,6 +80,9 @@ private:
     std::unique_ptr<class GuiWindow> guiWindow_;
 
     double paramValues_[PARAM_COUNT]{};
+
+    std::mutex outEventQueueMutex_;
+    std::vector<GuiParamEvent> outEventQueue_;
 
     void handleEvent(const clap_event_header_t* header);
     void syncParamsToEngine();

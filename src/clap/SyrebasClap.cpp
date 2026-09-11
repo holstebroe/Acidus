@@ -195,13 +195,37 @@ void SyrebasClap::handleEvent(const clap_event_header_t* header) {
     } else if (header->type == CLAP_EVENT_MIDI) {
         const auto* midiEv = reinterpret_cast<const clap_event_midi_t*>(header);
         uint8_t status = midiEv->data[0] & 0xF0;
-        uint8_t note = midiEv->data[1];
-        uint8_t vel = midiEv->data[2];
+        uint8_t data1 = midiEv->data[1];
+        uint8_t data2 = midiEv->data[2];
 
-        if (status == 0x90 && vel > 0) {
-            engine_.noteOn(note, static_cast<float>(vel) / 127.0f);
-        } else if (status == 0x80 || (status == 0x90 && vel == 0)) {
-            engine_.noteOff(note);
+        if (status == 0x90 && data2 > 0) {
+            engine_.noteOn(data1, static_cast<float>(data2) / 127.0f);
+        } else if (status == 0x80 || (status == 0x90 && data2 == 0)) {
+            engine_.noteOff(data1);
+        } else if (status == 0xB0) {
+            // MIDI Control Change
+            clap_id paramId = PARAM_COUNT;
+            if (data1 == 74) paramId = PARAM_CUTOFF;
+            else if (data1 == 71) paramId = PARAM_RESONANCE;
+            else if (data1 == 73) paramId = PARAM_ENV_MOD;
+            else if (data1 == 72) paramId = PARAM_DECAY;
+            else if (data1 == 16) paramId = PARAM_ACCENT;
+            else if (data1 == 17 || data1 == 68) paramId = PARAM_WAVEFORM;
+            else if (data1 == 7) paramId = PARAM_VOLUME;
+
+            if (paramId < PARAM_COUNT) {
+                double normVal = static_cast<double>(data2) / 127.0;
+                if (paramId == PARAM_WAVEFORM) {
+                    normVal = (data2 >= 64) ? 1.0 : 0.0;
+                }
+                paramValues_[paramId] = normVal;
+                syncParamsToEngine();
+                {
+                    std::lock_guard<std::mutex> lock(outEventQueueMutex_);
+                    outEventQueue_.push_back({ CLAP_EVENT_PARAM_VALUE, paramId, normVal, CLAP_EVENT_DONT_RECORD });
+                }
+                requestHostFlush();
+            }
         }
     } else if (header->type == CLAP_EVENT_PARAM_VALUE) {
         const auto* paramEv = reinterpret_cast<const clap_event_param_value_t*>(header);
@@ -249,6 +273,8 @@ clap_process_status SyrebasClap::process(const clap_process_t* process) {
             frame += framesToProcess;
         }
     }
+
+    pushPendingOutputEvents(process->out_events);
 
     return CLAP_PROCESS_CONTINUE;
 }
@@ -338,18 +364,84 @@ bool SyrebasClap::paramsValue(clap_id paramId, double* outValue) {
     return true;
 }
 
+void SyrebasClap::requestHostFlush() {
+    if (host_) {
+        const auto* host_params = static_cast<const clap_host_params_t*>(
+            host_->get_extension(host_, CLAP_EXT_PARAMS));
+        if (host_params && host_params->request_flush) {
+            host_params->request_flush(host_);
+        } else if (host_->request_process) {
+            host_->request_process(host_);
+        }
+    }
+}
+
+void SyrebasClap::onBeginEditFromGui(clap_id paramId) {
+    if (paramId >= PARAM_COUNT) return;
+    {
+        std::lock_guard<std::mutex> lock(outEventQueueMutex_);
+        outEventQueue_.push_back({ CLAP_EVENT_PARAM_GESTURE_BEGIN, paramId, 0.0, CLAP_EVENT_IS_LIVE });
+    }
+    requestHostFlush();
+}
+
+void SyrebasClap::onParamValueFromGui(clap_id paramId, double value) {
+    if (paramId >= PARAM_COUNT) return;
+    paramValues_[paramId] = value;
+    syncParamsToEngine();
+    {
+        std::lock_guard<std::mutex> lock(outEventQueueMutex_);
+        outEventQueue_.push_back({ CLAP_EVENT_PARAM_VALUE, paramId, value, CLAP_EVENT_IS_LIVE });
+    }
+    requestHostFlush();
+}
+
+void SyrebasClap::onEndEditFromGui(clap_id paramId) {
+    if (paramId >= PARAM_COUNT) return;
+    {
+        std::lock_guard<std::mutex> lock(outEventQueueMutex_);
+        outEventQueue_.push_back({ CLAP_EVENT_PARAM_GESTURE_END, paramId, 0.0, CLAP_EVENT_IS_LIVE });
+    }
+    requestHostFlush();
+}
+
 void SyrebasClap::setParamValueFromGui(clap_id paramId, double value) {
-    if (paramId < PARAM_COUNT) {
-        paramValues_[paramId] = value;
-        syncParamsToEngine();
-        if (host_) {
-            const auto* host_params = static_cast<const clap_host_params_t*>(
-                host_->get_extension(host_, CLAP_EXT_PARAMS));
-            if (host_params && host_params->request_flush) {
-                host_params->request_flush(host_);
-            } else if (host_->request_process) {
-                host_->request_process(host_);
-            }
+    onParamValueFromGui(paramId, value);
+}
+
+void SyrebasClap::pushPendingOutputEvents(const clap_output_events_t* out) {
+    if (!out) return;
+    std::vector<GuiParamEvent> pending;
+    {
+        std::lock_guard<std::mutex> lock(outEventQueueMutex_);
+        pending.swap(outEventQueue_);
+    }
+
+    for (const auto& ev : pending) {
+        if (ev.type == CLAP_EVENT_PARAM_GESTURE_BEGIN || ev.type == CLAP_EVENT_PARAM_GESTURE_END) {
+            clap_event_param_gesture_t gestureEv{};
+            gestureEv.header.size = sizeof(gestureEv);
+            gestureEv.header.time = 0;
+            gestureEv.header.space_id = CLAP_CORE_EVENT_SPACE_ID;
+            gestureEv.header.type = ev.type;
+            gestureEv.header.flags = ev.flags;
+            gestureEv.param_id = ev.paramId;
+            out->try_push(out, &gestureEv.header);
+        } else if (ev.type == CLAP_EVENT_PARAM_VALUE) {
+            clap_event_param_value_t valueEv{};
+            valueEv.header.size = sizeof(valueEv);
+            valueEv.header.time = 0;
+            valueEv.header.space_id = CLAP_CORE_EVENT_SPACE_ID;
+            valueEv.header.type = CLAP_EVENT_PARAM_VALUE;
+            valueEv.header.flags = ev.flags;
+            valueEv.param_id = ev.paramId;
+            valueEv.cookie = nullptr;
+            valueEv.note_id = -1;
+            valueEv.port_index = -1;
+            valueEv.channel = -1;
+            valueEv.key = -1;
+            valueEv.value = ev.value;
+            out->try_push(out, &valueEv.header);
         }
     }
 }
@@ -358,7 +450,9 @@ bool SyrebasClap::paramsValueToText(clap_id paramId, double value, char* outBuff
     if (paramId >= PARAM_COUNT || !outBuffer || outBufferCapacity == 0) return false;
 
     if (paramId == PARAM_CUTOFF) {
-        snprintf(outBuffer, outBufferCapacity, "%.1f Hz", value);
+        double norm = std::min(std::max(value, 0.0), 1.0);
+        double hz = 200.0 * std::pow(12.5, norm);
+        snprintf(outBuffer, outBufferCapacity, "%.1f Hz", hz);
     } else if (paramId == PARAM_WAVEFORM) {
         snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Square" : "Saw");
     } else {
@@ -377,17 +471,26 @@ bool SyrebasClap::paramsTextToValue(clap_id paramId, const char* paramValueText,
         }
         return true;
     }
+    if (paramId == PARAM_CUTOFF) {
+        double hz = std::atof(paramValueText);
+        if (hz <= 200.0) *outValue = 0.0;
+        else if (hz >= 2500.0) *outValue = 1.0;
+        else *outValue = std::log(hz / 200.0) / std::log(12.5);
+        return true;
+    }
     *outValue = std::atof(paramValueText);
     return true;
 }
 
 void SyrebasClap::paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out) {
-    if (!in) return;
-    uint32_t size = in->size(in);
-    for (uint32_t i = 0; i < size; ++i) {
-        const clap_event_header_t* hdr = in->get(in, i);
-        handleEvent(hdr);
+    if (in) {
+        uint32_t size = in->size(in);
+        for (uint32_t i = 0; i < size; ++i) {
+            const clap_event_header_t* hdr = in->get(in, i);
+            handleEvent(hdr);
+        }
     }
+    pushPendingOutputEvents(out);
 }
 
 bool SyrebasClap::stateSave(const clap_ostream_t* stream) {
