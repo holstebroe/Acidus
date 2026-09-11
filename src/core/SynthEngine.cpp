@@ -70,9 +70,6 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
 
         // 3. Control-Current Domain Summing for Cutoff
         float cNorm = std::min(std::max(params_.cutoff, 0.0f), 1.0f);
-        if (params_.cutoff > 1.0f) {
-            cNorm = std::min(std::max((params_.cutoff - 200.0f) / 2300.0f, 0.0f), 1.0f);
-        }
         float resNorm = std::min(std::max(params_.resonance, 0.0f), 1.0f);
         float envModNorm = std::min(std::max(params_.envMod, 0.0f), 1.0f);
         float accentNorm = std::min(std::max(params_.accent, 0.0f), 1.0f);

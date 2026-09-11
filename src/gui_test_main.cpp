@@ -22,26 +22,107 @@ int main() {
 
     std::cout << "GUI Frame rendered: " << w << "x" << h << ", saved to /tmp/syrebas_gui_buffer.raw" << std::endl;
 
+    // Mock output event collector
+    struct TestOutEvents {
+        std::vector<uint16_t> types;
+        std::vector<clap_id> paramIds;
+        std::vector<double> values;
+        std::vector<uint32_t> flags;
+
+        static bool tryPush(const clap_output_events_t* list, const clap_event_header_t* event) {
+            auto* self = static_cast<TestOutEvents*>(list->ctx);
+            self->types.push_back(event->type);
+            if (event->type == CLAP_EVENT_PARAM_GESTURE_BEGIN || event->type == CLAP_EVENT_PARAM_GESTURE_END) {
+                const auto* ge = reinterpret_cast<const clap_event_param_gesture_t*>(event);
+                self->paramIds.push_back(ge->param_id);
+                self->values.push_back(0.0);
+            } else if (event->type == CLAP_EVENT_PARAM_VALUE) {
+                const auto* ve = reinterpret_cast<const clap_event_param_value_t*>(event);
+                self->paramIds.push_back(ve->param_id);
+                self->values.push_back(ve->value);
+            }
+            self->flags.push_back(event->flags);
+            return true;
+        }
+    } testCtx;
+
+    clap_output_events_t mockOutList{};
+    mockOutList.ctx = &testCtx;
+    mockOutList.try_push = TestOutEvents::tryPush;
+
     // Test mouse interaction and Shift fine tuning
-    // Cutoff Knob is at x=55, y=100 (minVal=300, maxVal=10000)
+    // Cutoff Knob is at x=55, y=100 (minVal=0.0, maxVal=1.0)
     // 1. Standard mouse drag test (isShift = false)
     gui.handleMouseDown(55, 100, false);
     gui.handleMouseDrag(55, 20, false); // Drag up 80 pixels
+    gui.handleMouseUp();
+
     double valNormal = 0.0;
     plugin.paramsValue(syrebas::PARAM_CUTOFF, &valNormal);
-    std::cout << "Cutoff after 80px normal drag: " << valNormal << " Hz" << std::endl;
-    assert(valNormal > 9900.0);
+    std::cout << "Cutoff after 80px normal drag: " << valNormal << std::endl;
+    assert(valNormal >= 0.99);
+
+    // Flush GUI output events to mockOutList
+    plugin.paramsFlush(nullptr, &mockOutList);
+
+    assert(!testCtx.types.empty());
+    assert(testCtx.types.front() == CLAP_EVENT_PARAM_GESTURE_BEGIN);
+    assert(testCtx.types.back() == CLAP_EVENT_PARAM_GESTURE_END);
+    assert(testCtx.paramIds.front() == syrebas::PARAM_CUTOFF);
+    std::cout << "GUI output event gesture queue test passed successfully! Events recorded: " << testCtx.types.size() << std::endl;
 
     // 2. Fine mouse drag test (isShift = true)
-    gui.handleMouseUp();
     gui.handleMouseDown(130, 100, true); // Resonance knob at (130, 100) with Shift
     gui.handleMouseDrag(130, 20, true);  // Drag up 80 pixels with Shift (from initial 0.5)
+    gui.handleMouseUp();
+
     double valFine = 0.0;
     plugin.paramsValue(syrebas::PARAM_RESONANCE, &valFine);
     std::cout << "Resonance after 80px fine drag with Shift: " << valFine << std::endl;
     assert(std::abs(valFine - 0.70) < 0.01);
 
-    std::cout << "Mouse drag and Shift key fine-dialing unit tests passed successfully!" << std::endl;
+    // 3. Test MIDI CC 74 (Cutoff) mapping to absolute range
+    testCtx.types.clear();
+    testCtx.paramIds.clear();
+    testCtx.values.clear();
+    testCtx.flags.clear();
+
+    clap_event_midi_t midiCcEv{};
+    midiCcEv.header.size = sizeof(midiCcEv);
+    midiCcEv.header.space_id = CLAP_CORE_EVENT_SPACE_ID;
+    midiCcEv.header.type = CLAP_EVENT_MIDI;
+    midiCcEv.port_index = 0;
+    midiCcEv.data[0] = 0xB0; // Control Change Ch 1
+    midiCcEv.data[1] = 74;   // CC 74 (Cutoff)
+    midiCcEv.data[2] = 127;  // Max CC value
+
+    // Simulate process block or flush with incoming MIDI CC
+    struct TestInEvents {
+        const clap_event_header_t* ev;
+        static uint32_t size(const clap_input_events_t* list) { return 1; }
+        static const clap_event_header_t* get(const clap_input_events_t* list, uint32_t index) {
+            auto* self = static_cast<TestInEvents*>(list->ctx);
+            return self->ev;
+        }
+    } inCtx;
+    inCtx.ev = &midiCcEv.header;
+
+    clap_input_events_t mockInList{};
+    mockInList.ctx = &inCtx;
+    mockInList.size = TestInEvents::size;
+    mockInList.get = TestInEvents::get;
+
+    plugin.paramsFlush(&mockInList, &mockOutList);
+
+    double ccCutoffVal = 0.0;
+    plugin.paramsValue(syrebas::PARAM_CUTOFF, &ccCutoffVal);
+    std::cout << "Cutoff after MIDI CC 74 (127): " << ccCutoffVal << std::endl;
+    assert(ccCutoffVal == 1.0);
+    assert(!testCtx.types.empty());
+    assert(testCtx.types.back() == CLAP_EVENT_PARAM_VALUE);
+    assert(testCtx.flags.back() == CLAP_EVENT_DONT_RECORD);
+
+    std::cout << "Mouse drag, gesture events, and MIDI CC unit tests passed successfully!" << std::endl;
 
     return 0;
 }

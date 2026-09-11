@@ -98,7 +98,7 @@ GuiWindow::~GuiWindow() {
 void GuiWindow::initControls() {
     controls_.clear();
     // 5 Main Knobs
-    controls_.push_back({ PARAM_CUTOFF, "CUT OFF FREQ", ControlType::Knob, 55, 100, 20, 300.0, 10000.0, 800.0, false });
+    controls_.push_back({ PARAM_CUTOFF, "CUT OFF FREQ", ControlType::Knob, 55, 100, 20, 0.0, 1.0, 0.5, false });
     controls_.push_back({ PARAM_RESONANCE, "RESONANCE", ControlType::Knob, 130, 100, 20, 0.0, 1.0, 0.5, false });
     controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 205, 100, 20, 0.0, 1.0, 0.5, false });
     controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 280, 100, 20, 0.0, 1.0, 0.5, false });
@@ -507,14 +507,21 @@ void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
                 activeControlIndex_ = static_cast<int>(i);
                 dragStartY_ = y;
                 dragStartVal_ = ctrl.currentVal;
+                if (plugin_) {
+                    plugin_->onBeginEditFromGui(ctrl.id);
+                }
                 break;
             }
         } else if (ctrl.type == ControlType::ToggleSwitch) {
             if (std::abs(x - ctrl.x) <= 20 && std::abs(y - ctrl.y) <= 25) {
+                if (plugin_) {
+                    plugin_->onBeginEditFromGui(ctrl.id);
+                }
                 double newVal = (ctrl.currentVal >= 0.5) ? 0.0 : 1.0;
                 ctrl.currentVal = newVal;
                 if (plugin_) {
-                    plugin_->setParamValueFromGui(ctrl.id, newVal);
+                    plugin_->onParamValueFromGui(ctrl.id, newVal);
+                    plugin_->onEndEditFromGui(ctrl.id);
                 }
                 renderFrame();
                 break;
@@ -545,13 +552,18 @@ void GuiWindow::handleMouseDrag(int x, int y, bool isShift) {
     ctrl.currentVal = newVal;
 
     if (plugin_) {
-        plugin_->setParamValueFromGui(ctrl.id, newVal);
+        plugin_->onParamValueFromGui(ctrl.id, newVal);
     }
 
     renderFrame();
 }
 
 void GuiWindow::handleMouseUp() {
+    if (activeControlIndex_ >= 0 && activeControlIndex_ < static_cast<int>(controls_.size())) {
+        if (plugin_) {
+            plugin_->onEndEditFromGui(controls_[activeControlIndex_].id);
+        }
+    }
     activeControlIndex_ = -1;
 }
 
