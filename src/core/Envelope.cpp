@@ -1,5 +1,6 @@
 #include "Envelope.hpp"
 #include <cmath>
+#include <algorithm>
 
 namespace syrebas {
 
