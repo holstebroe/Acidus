@@ -42,6 +42,7 @@ public:
     uint32_t paramsCount() const;
     bool paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) const;
     bool paramsValue(clap_id paramId, double* outValue);
+    void setParamValueFromGui(clap_id paramId, double value);
     bool paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity);
     bool paramsTextToValue(clap_id paramId, const char* paramValueText, double* outValue);
     void paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out);

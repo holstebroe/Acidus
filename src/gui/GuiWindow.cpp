@@ -17,36 +17,109 @@
 #include <windows.h>
 #endif
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 namespace syrebas {
 
+// 5x7 ASCII bitmap font (characters 32 to 95)
+static const uint8_t font5x7[64][5] = {
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // ' ' (32)
+    {0x00, 0x00, 0x5f, 0x00, 0x00}, // '!'
+    {0x00, 0x07, 0x00, 0x07, 0x00}, // '"'
+    {0x14, 0x7f, 0x14, 0x7f, 0x14}, // '#'
+    {0x24, 0x2a, 0x7f, 0x2a, 0x12}, // '$'
+    {0x23, 0x13, 0x08, 0x64, 0x62}, // '%'
+    {0x36, 0x49, 0x55, 0x22, 0x50}, // '&'
+    {0x00, 0x05, 0x03, 0x00, 0x00}, // '\''
+    {0x00, 0x1c, 0x22, 0x41, 0x00}, // '('
+    {0x00, 0x41, 0x22, 0x1c, 0x00}, // ')'
+    {0x14, 0x08, 0x3e, 0x08, 0x14}, // '*'
+    {0x08, 0x08, 0x3e, 0x08, 0x08}, // '+'
+    {0x00, 0x50, 0x30, 0x00, 0x00}, // ','
+    {0x08, 0x08, 0x08, 0x08, 0x08}, // '-'
+    {0x00, 0x60, 0x60, 0x00, 0x00}, // '.'
+    {0x20, 0x10, 0x08, 0x04, 0x02}, // '/'
+    {0x3e, 0x51, 0x49, 0x45, 0x3e}, // '0'
+    {0x00, 0x42, 0x7f, 0x40, 0x00}, // '1'
+    {0x42, 0x61, 0x51, 0x49, 0x46}, // '2'
+    {0x21, 0x41, 0x45, 0x4b, 0x31}, // '3'
+    {0x18, 0x14, 0x12, 0x7f, 0x10}, // '4'
+    {0x27, 0x45, 0x45, 0x45, 0x39}, // '5'
+    {0x3c, 0x4a, 0x49, 0x49, 0x30}, // '6'
+    {0x01, 0x71, 0x09, 0x05, 0x03}, // '7'
+    {0x36, 0x49, 0x49, 0x49, 0x36}, // '8'
+    {0x06, 0x49, 0x49, 0x29, 0x1e}, // '9'
+    {0x00, 0x36, 0x36, 0x00, 0x00}, // ':'
+    {0x00, 0x56, 0x36, 0x00, 0x00}, // ';'
+    {0x08, 0x14, 0x22, 0x41, 0x00}, // '<'
+    {0x14, 0x14, 0x14, 0x14, 0x14}, // '='
+    {0x00, 0x41, 0x22, 0x14, 0x08}, // '>'
+    {0x02, 0x01, 0x51, 0x09, 0x06}, // '?'
+    {0x32, 0x49, 0x79, 0x41, 0x3e}, // '@'
+    {0x7e, 0x11, 0x11, 0x11, 0x7e}, // 'A'
+    {0x7f, 0x49, 0x49, 0x49, 0x36}, // 'B'
+    {0x3e, 0x41, 0x41, 0x41, 0x22}, // 'C'
+    {0x7f, 0x41, 0x41, 0x22, 0x1c}, // 'D'
+    {0x7f, 0x49, 0x49, 0x49, 0x41}, // 'E'
+    {0x7f, 0x09, 0x09, 0x09, 0x01}, // 'F'
+    {0x3e, 0x41, 0x49, 0x49, 0x7a}, // 'G'
+    {0x7f, 0x08, 0x08, 0x08, 0x7f}, // 'H'
+    {0x00, 0x41, 0x7f, 0x41, 0x00}, // 'I'
+    {0x20, 0x40, 0x41, 0x3f, 0x01}, // 'J'
+    {0x7f, 0x08, 0x14, 0x22, 0x41}, // 'K'
+    {0x7f, 0x40, 0x40, 0x40, 0x40}, // 'L'
+    {0x7f, 0x02, 0x0c, 0x02, 0x7f}, // 'M'
+    {0x7f, 0x04, 0x08, 0x10, 0x7f}, // 'N'
+    {0x3e, 0x41, 0x41, 0x41, 0x3e}, // 'O'
+    {0x7f, 0x09, 0x09, 0x09, 0x06}, // 'P'
+    {0x3e, 0x41, 0x51, 0x21, 0x5e}, // 'Q'
+    {0x7f, 0x09, 0x19, 0x29, 0x46}, // 'R'
+    {0x46, 0x49, 0x49, 0x49, 0x31}, // 'S'
+    {0x01, 0x01, 0x7f, 0x01, 0x01}, // 'T'
+    {0x3f, 0x40, 0x40, 0x40, 0x3f}, // 'U'
+    {0x1f, 0x20, 0x40, 0x20, 0x1f}, // 'V'
+    {0x3f, 0x40, 0x38, 0x40, 0x3f}, // 'W'
+    {0x63, 0x14, 0x08, 0x14, 0x63}, // 'X'
+    {0x07, 0x08, 0x70, 0x08, 0x07}, // 'Y'
+    {0x61, 0x51, 0x49, 0x45, 0x43}  // 'Z'
+};
+
 GuiWindow::GuiWindow(SyrebasClap* plugin) : plugin_(plugin) {
-    pixelBuffer_.resize(width_ * height_, 0xFF282828);
-    initKnobs();
+    pixelBuffer_.resize(width_ * height_, 0xFFDBDFE1);
+    initControls();
 }
 
 GuiWindow::~GuiWindow() {
     destroy();
 }
 
-void GuiWindow::initKnobs() {
-    knobs_.clear();
-    knobs_.push_back({ PARAM_CUTOFF, "CUTOFF", 70, 180, 28, 300.0, 10000.0, 800.0, false });
-    knobs_.push_back({ PARAM_RESONANCE, "RESONANCE", 155, 180, 28, 0.0, 1.0, 0.5, false });
-    knobs_.push_back({ PARAM_ENV_MOD, "ENV MOD", 240, 180, 28, 0.0, 1.0, 0.5, false });
-    knobs_.push_back({ PARAM_DECAY, "DECAY", 325, 180, 28, 0.0, 1.0, 0.5, false });
-    knobs_.push_back({ PARAM_ACCENT, "ACCENT", 410, 180, 28, 0.0, 1.0, 0.5, false });
-    knobs_.push_back({ PARAM_WAVEFORM, "WAVE", 495, 180, 22, 0.0, 1.0, 0.0, true });
-    knobs_.push_back({ PARAM_VOLUME, "VOLUME", 560, 180, 20, 0.0, 1.0, 0.8, false });
+void GuiWindow::initControls() {
+    controls_.clear();
+    // 5 Main Knobs
+    controls_.push_back({ PARAM_CUTOFF, "CUT OFF FREQ", ControlType::Knob, 55, 100, 20, 300.0, 10000.0, 800.0, false });
+    controls_.push_back({ PARAM_RESONANCE, "RESONANCE", ControlType::Knob, 130, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 205, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 280, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_ACCENT, "ACCENT", ControlType::Knob, 355, 100, 20, 0.0, 1.0, 0.5, false });
+
+    // Waveform Toggle Switch
+    controls_.push_back({ PARAM_WAVEFORM, "WAVEFORM", ControlType::ToggleSwitch, 425, 100, 15, 0.0, 1.0, 0.0, true });
+
+    // Master Volume Knob
+    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 485, 100, 18, 0.0, 1.0, 0.8, false });
 
     updateKnobValuesFromPlugin();
 }
 
 void GuiWindow::updateKnobValuesFromPlugin() {
     if (!plugin_) return;
-    for (auto& k : knobs_) {
+    for (size_t i = 0; i < controls_.size(); ++i) {
+        if (static_cast<int>(i) == activeControlIndex_) continue;
         double val = 0.0;
-        if (plugin_->paramsValue(k.id, &val)) {
-            k.currentVal = val;
+        if (plugin_->paramsValue(controls_[i].id, &val)) {
+            controls_[i].currentVal = val;
         }
     }
 }
@@ -79,14 +152,39 @@ void GuiWindow::drawCircle(int cx, int cy, int radius, uint32_t color) {
     }
 }
 
-void GuiWindow::drawLine(int x0, int y0, int x1, int y1, uint32_t color) {
+void GuiWindow::drawCircleOutline(int cx, int cy, int radius, uint32_t color) {
+    int rInner2 = (radius - 1) * (radius - 1);
+    int rOuter2 = radius * radius;
+    for (int dy = -radius; dy <= radius; ++dy) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            int dist2 = dx * dx + dy * dy;
+            if (dist2 >= rInner2 && dist2 <= rOuter2) {
+                int px = cx + dx;
+                int py = cy + dy;
+                if (px >= 0 && px < static_cast<int>(width_) && py >= 0 && py < static_cast<int>(height_)) {
+                    pixelBuffer_[py * width_ + px] = color;
+                }
+            }
+        }
+    }
+}
+
+void GuiWindow::drawLine(int x0, int y0, int x1, int y1, uint32_t color, int thickness) {
     int dx = std::abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
     int dy = -std::abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
     int err = dx + dy, e2;
 
+    int halfThick = thickness / 2;
+
     while (true) {
-        if (x0 >= 0 && x0 < static_cast<int>(width_) && y0 >= 0 && y0 < static_cast<int>(height_)) {
-            pixelBuffer_[y0 * width_ + x0] = color;
+        for (int tx = -halfThick; tx <= halfThick; ++tx) {
+            for (int ty = -halfThick; ty <= halfThick; ++ty) {
+                int px = x0 + tx;
+                int py = y0 + ty;
+                if (px >= 0 && px < static_cast<int>(width_) && py >= 0 && py < static_cast<int>(height_)) {
+                    pixelBuffer_[py * width_ + px] = color;
+                }
+            }
         }
         if (x0 == x1 && y0 == y1) break;
         e2 = 2 * err;
@@ -95,75 +193,201 @@ void GuiWindow::drawLine(int x0, int y0, int x1, int y1, uint32_t color) {
     }
 }
 
-void GuiWindow::drawTextLogo(int x, int y) {
-    drawRect(x, y, 560, 60, 0xFF181818);
-    drawRect(x + 5, y + 5, 550, 50, 0xFF2A2A2A);
-    drawRect(x + 10, y + 50, 540, 3, 0xFF42A5F5);
+void GuiWindow::drawChar(int x, int y, char c, uint32_t color, int scale) {
+    if (c >= 'a' && c <= 'z') c = c - 'a' + 'A';
+    if (c < 32 || c > 95) return;
 
-    const char* logoText = "SYREBAS 303";
-    int posX = x + 20;
-    int posY = y + 15;
-
-    for (int i = 0; logoText[i] != '\0'; ++i) {
-        char c = logoText[i];
-        if (c == ' ') {
-            posX += 20;
-            continue;
+    int idx = c - 32;
+    for (int col = 0; col < 5; ++col) {
+        uint8_t line = font5x7[idx][col];
+        for (int row = 0; row < 7; ++row) {
+            if (line & (1 << row)) {
+                drawRect(x + col * scale, y + row * scale, scale, scale, color);
+            }
         }
-        drawRect(posX, posY, 14, 22, 0xFFE0E0E0);
-        drawRect(posX + 3, posY + 3, 8, 16, 0xFF2A2A2A);
-
-        if (c == 'S' || c == '3') {
-            drawRect(posX, posY, 14, 5, 0xFF42A5F5);
-            drawRect(posX, posY + 9, 14, 4, 0xFF42A5F5);
-            drawRect(posX, posY + 17, 14, 5, 0xFF42A5F5);
-        } else if (c == 'Y') {
-            drawRect(posX, posY, 14, 5, 0xFFFFB74D);
-            drawRect(posX + 4, posY + 10, 6, 12, 0xFFFFB74D);
-        } else if (c == 'R' || c == 'B' || c == 'A') {
-            drawRect(posX, posY, 14, 5, 0xFF81C784);
-            drawRect(posX, posY + 10, 14, 4, 0xFF81C784);
-        } else if (c == 'E') {
-            drawRect(posX, posY, 14, 5, 0xFFBA68C8);
-            drawRect(posX, posY + 9, 10, 4, 0xFFBA68C8);
-            drawRect(posX, posY + 17, 14, 5, 0xFFBA68C8);
-        } else if (c == '0') {
-            drawRect(posX, posY, 14, 4, 0xFF42A5F5);
-            drawRect(posX, posY + 18, 14, 4, 0xFF42A5F5);
-        }
-        posX += 22;
     }
 }
 
-void GuiWindow::drawKnob(const Knob& knob) {
-    drawCircle(knob.x, knob.y, knob.radius + 3, 0xFF121212);
-    drawCircle(knob.x, knob.y, knob.radius, 0xFF3A3A3A);
-    drawCircle(knob.x, knob.y, knob.radius - 2, 0xFF505050);
+void GuiWindow::drawText(int x, int y, const char* text, uint32_t color, int scale) {
+    int currX = x;
+    while (*text) {
+        drawChar(currX, y, *text, color, scale);
+        currX += 6 * scale;
+        text++;
+    }
+}
 
+void GuiWindow::drawSyrebasTitle(int x, int y) {
+    // Draw Roland TB-303 styled "Syrebas" logo using drawing primitives
+    // S
+    drawRect(x, y, 22, 6, 0xFF121212);
+    drawRect(x, y, 6, 16, 0xFF121212);
+    drawRect(x, y + 15, 22, 6, 0xFF121212);
+    drawRect(x + 16, y + 18, 6, 17, 0xFF121212);
+    drawRect(x, y + 32, 22, 6, 0xFF121212);
+
+    // y
+    int yX = x + 28;
+    drawRect(yX, y + 12, 5, 12, 0xFF121212);
+    drawRect(yX + 11, y + 12, 5, 26, 0xFF121212);
+    drawRect(yX, y + 20, 16, 5, 0xFF121212);
+    drawRect(yX, y + 33, 16, 5, 0xFF121212);
+
+    // r
+    int rX = x + 54;
+    drawRect(rX, y + 12, 5, 26, 0xFF121212);
+    drawRect(rX, y + 12, 14, 5, 0xFF121212);
+    drawRect(rX + 12, y + 15, 5, 8, 0xFF121212);
+
+    // e
+    int eX = x + 75;
+    drawRect(eX, y + 12, 16, 5, 0xFF121212);
+    drawRect(eX, y + 12, 5, 26, 0xFF121212);
+    drawRect(eX, y + 22, 14, 5, 0xFF121212);
+    drawRect(eX, y + 33, 16, 5, 0xFF121212);
+
+    // b
+    int bX = x + 97;
+    drawRect(bX, y, 5, 38, 0xFF121212);
+    drawRect(bX, y + 18, 16, 5, 0xFF121212);
+    drawRect(bX + 12, y + 21, 5, 14, 0xFF121212);
+    drawRect(bX, y + 33, 16, 5, 0xFF121212);
+
+    // a
+    int aX = x + 119;
+    drawRect(aX, y + 18, 14, 5, 0xFF121212);
+    drawRect(aX + 11, y + 18, 5, 20, 0xFF121212);
+    drawRect(aX, y + 26, 14, 4, 0xFF121212);
+    drawRect(aX, y + 33, 14, 5, 0xFF121212);
+    drawRect(aX, y + 22, 4, 12, 0xFF121212);
+
+    // s
+    int s2X = x + 139;
+    drawRect(s2X, y + 18, 14, 4, 0xFF121212);
+    drawRect(s2X, y + 18, 4, 9, 0xFF121212);
+    drawRect(s2X, y + 25, 14, 4, 0xFF121212);
+    drawRect(s2X + 10, y + 27, 4, 9, 0xFF121212);
+    drawRect(s2X, y + 34, 14, 4, 0xFF121212);
+}
+
+void GuiWindow::drawKnob(const Control& knob) {
+    // Label centered above knob
+    int labelLen = static_cast<int>(strlen(knob.label));
+    int labelX = knob.x - (labelLen * 6) / 2;
+    drawText(labelX, knob.y - knob.radius - 28, knob.label, 0xFF101010, 1);
+
+    // Circular dial tick marks
+    int numTicks = 11;
+    double startAngle = 135.0 * M_PI / 180.0; // 7 o'clock
+    double totalAngle = 270.0 * M_PI / 180.0; // Clockwise to 5 o'clock
+
+    for (int i = 0; i < numTicks; ++i) {
+        double norm = static_cast<double>(i) / (numTicks - 1);
+        double angle = startAngle + norm * totalAngle;
+
+        int rIn = knob.radius + 4;
+        int rOut = knob.radius + 8;
+
+        int x1 = knob.x + static_cast<int>(std::cos(angle) * rIn);
+        int y1 = knob.y + static_cast<int>(std::sin(angle) * rIn);
+        int x2 = knob.x + static_cast<int>(std::cos(angle) * rOut);
+        int y2 = knob.y + static_cast<int>(std::sin(angle) * rOut);
+
+        drawLine(x1, y1, x2, y2, 0xFF202020, 1);
+
+        // 12 o'clock tick mark (i == 5) gets the iconic 303 black square above it
+        if (i == 5) {
+            drawRect(knob.x - 2, knob.y - knob.radius - 14, 4, 4, 0xFF101010);
+        }
+    }
+
+    // Outer shadow / bezel
+    drawCircle(knob.x + 1, knob.y + 1, knob.radius + 2, 0xFF888A8C);
+    drawCircle(knob.x, knob.y, knob.radius + 1, 0xFF202020);
+
+    // Knob body (Metallic fluted silver)
+    drawCircle(knob.x, knob.y, knob.radius, 0xFF808488);
+    drawCircle(knob.x, knob.y, knob.radius - 1, 0xFFB4B8BC);
+
+    // Fluted ridges around skirt
+    for (int a = 0; a < 360; a += 30) {
+        double rad = a * M_PI / 180.0;
+        int rx1 = knob.x + static_cast<int>(std::cos(rad) * (knob.radius - 4));
+        int ry1 = knob.y + static_cast<int>(std::sin(rad) * (knob.radius - 4));
+        int rx2 = knob.x + static_cast<int>(std::cos(rad) * knob.radius);
+        int ry2 = knob.y + static_cast<int>(std::sin(rad) * knob.radius);
+        drawLine(rx1, ry1, rx2, ry2, 0xFF606468, 1);
+    }
+
+    // Conical top face
+    drawCircle(knob.x, knob.y, knob.radius - 4, 0xFFD4D8DC);
+    drawCircleOutline(knob.x, knob.y, knob.radius - 4, 0xFF909498);
+
+    // Pointer indicator line
     double normVal = (knob.currentVal - knob.minVal) / (knob.maxVal - knob.minVal);
     normVal = (std::min)((std::max)(normVal, 0.0), 1.0);
-    double angleRad = (0.75 + normVal * 1.5) * 3.14159265358979323846;
+    double ptrAngle = startAngle + normVal * totalAngle;
 
-    int ptrX = knob.x + static_cast<int>(std::cos(angleRad) * (knob.radius - 5));
-    int ptrY = knob.y + static_cast<int>(std::sin(angleRad) * (knob.radius - 5));
+    int ptrX = knob.x + static_cast<int>(std::cos(ptrAngle) * (knob.radius - 3));
+    int ptrY = knob.y + static_cast<int>(std::sin(ptrAngle) * (knob.radius - 3));
 
-    drawLine(knob.x, knob.y, ptrX, ptrY, 0xFF64B5F6);
-    drawCircle(ptrX, ptrY, 2, 0xFFE3F2FD);
+    drawLine(knob.x, knob.y, ptrX, ptrY, 0xFF101010, 2);
+    drawCircle(ptrX, ptrY, 1, 0xFF101010);
+}
 
-    drawRect(knob.x - knob.radius - 5, knob.y + knob.radius + 8, knob.radius * 2 + 10, 16, 0xFF181818);
+void GuiWindow::drawToggleSwitch(const Control& ctrl) {
+    // Label above switch
+    int labelLen = static_cast<int>(strlen(ctrl.label));
+    int labelX = ctrl.x - (labelLen * 6) / 2;
+    drawText(labelX, ctrl.y - 35, ctrl.label, 0xFF101010, 1);
+
+    // SAW / SQUARE labels beside positions
+    drawText(ctrl.x - 28, ctrl.y - 18, "SQR", 0xFF202020, 1);
+    drawText(ctrl.x - 28, ctrl.y + 10, "SAW", 0xFF202020, 1);
+
+    // Outer metal frame box
+    drawRect(ctrl.x - 8, ctrl.y - 20, 16, 40, 0xFF202020);
+    drawRect(ctrl.x - 7, ctrl.y - 19, 14, 38, 0xFF888C90);
+    drawRect(ctrl.x - 5, ctrl.y - 17, 10, 34, 0xFF181818);
+
+    // Toggle handle
+    bool isSquare = (ctrl.currentVal >= 0.5);
+    int handleY = isSquare ? (ctrl.y - 16) : (ctrl.y + 2);
+
+    drawRect(ctrl.x - 7, handleY, 14, 14, 0xFF303030);
+    drawRect(ctrl.x - 6, handleY + 1, 12, 12, 0xFFE0E4E8);
+    drawRect(ctrl.x - 4, handleY + 3, 8, 8, 0xFFB0B4B8);
+    drawLine(ctrl.x - 5, handleY + 7, ctrl.x + 5, handleY + 7, 0xFF101010, 1);
 }
 
 void GuiWindow::renderFrame() {
     updateKnobValuesFromPlugin();
 
-    std::fill(pixelBuffer_.begin(), pixelBuffer_.end(), 0xFF383838);
-    drawRect(10, 10, width_ - 20, height_ - 20, 0xFF2B2B2B);
+    // 1. Brushed silver panel background
+    std::fill(pixelBuffer_.begin(), pixelBuffer_.end(), 0xFFDBDFE1);
 
-    drawTextLogo(20, 20);
+    // Top & Bottom metallic borders / trims
+    drawRect(0, 0, width_, 12, 0xFFC0C4C8);
+    drawLine(0, 12, width_, 12, 0xFF808488, 1);
+    drawLine(0, 13, width_, 13, 0xFFFFFFFF, 1);
 
-    for (const auto& knob : knobs_) {
-        drawKnob(knob);
+    drawLine(0, height_ - 14, width_, height_ - 14, 0xFF808488, 1);
+    drawRect(0, height_ - 13, width_, 13, 0xFFC0C4C8);
+
+    // Vertical dividing line separating controls from right title panel
+    drawLine(525, 14, 525, height_ - 14, 0xFF181818, 2);
+
+    // 2. Draw Controls
+    for (const auto& ctrl : controls_) {
+        if (ctrl.type == ControlType::Knob) {
+            drawKnob(ctrl);
+        } else if (ctrl.type == ControlType::ToggleSwitch) {
+            drawToggleSwitch(ctrl);
+        }
     }
+
+    // 3. Draw Title Logo "Syrebas"
+    drawSyrebasTitle(535, 65);
 
 #if defined(__linux__) && !defined(__APPLE__)
     drawX11Frame();
@@ -175,51 +399,55 @@ void GuiWindow::renderFrame() {
 }
 
 void GuiWindow::handleMouseDown(int x, int y) {
-    for (size_t i = 0; i < knobs_.size(); ++i) {
-        int dx = x - knobs_[i].x;
-        int dy = y - knobs_[i].y;
-        if (dx * dx + dy * dy <= knobs_[i].radius * knobs_[i].radius + 50) {
-            activeKnobIndex_ = static_cast<int>(i);
-            dragStartY_ = y;
-            dragStartVal_ = knobs_[i].currentVal;
-            break;
+    for (size_t i = 0; i < controls_.size(); ++i) {
+        auto& ctrl = controls_[i];
+        if (ctrl.type == ControlType::Knob) {
+            int dx = x - ctrl.x;
+            int dy = y - ctrl.y;
+            if (dx * dx + dy * dy <= (ctrl.radius + 10) * (ctrl.radius + 10)) {
+                activeControlIndex_ = static_cast<int>(i);
+                dragStartY_ = y;
+                dragStartVal_ = ctrl.currentVal;
+                break;
+            }
+        } else if (ctrl.type == ControlType::ToggleSwitch) {
+            if (std::abs(x - ctrl.x) <= 20 && std::abs(y - ctrl.y) <= 25) {
+                double newVal = (ctrl.currentVal >= 0.5) ? 0.0 : 1.0;
+                ctrl.currentVal = newVal;
+                if (plugin_) {
+                    plugin_->setParamValueFromGui(ctrl.id, newVal);
+                }
+                renderFrame();
+                break;
+            }
         }
     }
 }
 
 void GuiWindow::handleMouseDrag(int x, int y) {
-    if (activeKnobIndex_ < 0 || activeKnobIndex_ >= static_cast<int>(knobs_.size())) return;
+    if (activeControlIndex_ < 0 || activeControlIndex_ >= static_cast<int>(controls_.size())) return;
 
-    auto& knob = knobs_[activeKnobIndex_];
+    auto& ctrl = controls_[activeControlIndex_];
+    if (ctrl.type != ControlType::Knob) return;
+
     int deltaY = dragStartY_ - y;
 
-    double range = knob.maxVal - knob.minVal;
+    double range = ctrl.maxVal - ctrl.minVal;
     double sensitivity = 0.005 * range;
     double newVal = dragStartVal_ + deltaY * sensitivity;
 
-    if (knob.isStepped) {
-        newVal = (newVal >= 0.5) ? 1.0 : 0.0;
-    } else {
-        newVal = (std::min)((std::max)(newVal, knob.minVal), knob.maxVal);
-    }
-
-    knob.currentVal = newVal;
+    newVal = (std::min)((std::max)(newVal, ctrl.minVal), ctrl.maxVal);
+    ctrl.currentVal = newVal;
 
     if (plugin_) {
-        plugin_->getEngine().getParams().cutoff = (knob.id == PARAM_CUTOFF) ? static_cast<float>(newVal) : plugin_->getEngine().getParams().cutoff;
-        plugin_->getEngine().getParams().resonance = (knob.id == PARAM_RESONANCE) ? static_cast<float>(newVal) : plugin_->getEngine().getParams().resonance;
-        plugin_->getEngine().getParams().envMod = (knob.id == PARAM_ENV_MOD) ? static_cast<float>(newVal) : plugin_->getEngine().getParams().envMod;
-        plugin_->getEngine().getParams().decay = (knob.id == PARAM_DECAY) ? static_cast<float>(newVal) : plugin_->getEngine().getParams().decay;
-        plugin_->getEngine().getParams().accent = (knob.id == PARAM_ACCENT) ? static_cast<float>(newVal) : plugin_->getEngine().getParams().accent;
-        plugin_->getEngine().getParams().waveform = (knob.id == PARAM_WAVEFORM) ? ((newVal >= 0.5) ? Waveform::Square : Waveform::Saw) : plugin_->getEngine().getParams().waveform;
-        plugin_->getEngine().getParams().masterVolume = (knob.id == PARAM_VOLUME) ? static_cast<float>(newVal) : plugin_->getEngine().getParams().masterVolume;
+        plugin_->setParamValueFromGui(ctrl.id, newVal);
     }
 
     renderFrame();
 }
 
 void GuiWindow::handleMouseUp() {
-    activeKnobIndex_ = -1;
+    activeControlIndex_ = -1;
 }
 
 bool GuiWindow::setParent(const clap_window_t* window) {
@@ -249,7 +477,7 @@ bool GuiWindow::setParent(const clap_window_t* window) {
 bool GuiWindow::setSize(uint32_t width, uint32_t height) {
     width_ = width;
     height_ = height;
-    pixelBuffer_.resize(width_ * height_, 0xFF282828);
+    pixelBuffer_.resize(width_ * height_, 0xFFDBDFE1);
     renderFrame();
     return true;
 }
@@ -361,7 +589,7 @@ static LRESULT CALLBACK SyrebasWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
             CREATESTRUCTW* cs = reinterpret_cast<CREATESTRUCTW*>(lParam);
             gui = reinterpret_cast<GuiWindow*>(cs->lpCreateParams);
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(gui));
-            SetTimer(hwnd, 1, 16, NULL); // ~60fps timer for repaint/events
+            SetTimer(hwnd, 1, 16, NULL);
             return 0;
         }
         case WM_TIMER: {
@@ -447,7 +675,7 @@ void GuiWindow::drawWin32Frame() {
     BITMAPINFO bmi = {};
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bmi.bmiHeader.biWidth = width_;
-    bmi.bmiHeader.biHeight = -static_cast<int>(height_); // Top-down DIB
+    bmi.bmiHeader.biHeight = -static_cast<int>(height_);
     bmi.bmiHeader.biPlanes = 1;
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
@@ -507,8 +735,8 @@ const clap_plugin_gui_t g_syrebasGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
-        *width = 600;
-        *height = 320;
+        *width = 680;
+        *height = 180;
         return true;
     },
     [](const clap_plugin_t* plugin) -> bool {
@@ -518,8 +746,8 @@ const clap_plugin_gui_t g_syrebasGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
-        *width = 600;
-        *height = 320;
+        *width = 680;
+        *height = 180;
         return true;
     },
     [](const clap_plugin_t* plugin, uint32_t width, uint32_t height) -> bool {
