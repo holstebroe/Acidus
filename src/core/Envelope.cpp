@@ -30,11 +30,18 @@ void Envelope::updateCoefficients() {
 
     // VCA Attack: 3.0ms RC curve
     vcaAttackCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.003));
-    // VCA Gate HIGH Phase 1 Decay: 4.0s slow discharge time constant
-    vcaGateHighDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (4.0f / 6.907755f)));
+    // VCA Gate HIGH Phase 1 Decay: 3.5s slow discharge time constant
+    vcaGateHighDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (3.5f / 6.907755f)));
     // VCA Gate LOW Phase 2 Quick Drain: discharge to silence (-60dB / 0.001) in 18ms (tau = 18ms / 6.9078 = 2.6ms)
     float quickDrainTimeSec = 0.018f;
     vcaQuickDrainCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (quickDrainTimeSec / 6.907755f)));
+
+    // Accent Sweep RC (47 kOhm + 1 uF -> tau ~ 47ms)
+    accentChargeCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.047));
+    accentDischargeCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.047));
+
+    // Accent VCA RC smoothing (47 kOhm + 0.033 uF -> tau ~ 1.55ms)
+    accentVcaCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.00155));
 }
 
 void Envelope::noteOn(bool isAccent, bool isSlide) {
@@ -92,10 +99,10 @@ void Envelope::processNextSample() {
             // Attack Phase: 3.0ms exponential RC rise up to 1.0 peak
             vcaEnv_ += vcaAttackCoeff_ * (vcaTarget_ - vcaEnv_);
             if (vcaEnv_ >= 0.99f) {
-                vcaTarget_ = 0.0f; // Transition to 4.0s slow decay
+                vcaTarget_ = 0.0f; // Transition to slow decay
             }
         } else {
-            // Gate HIGH Decay Phase: 4.0-second slow exponential discharge
+            // Gate HIGH Decay Phase: slow exponential discharge
             vcaEnv_ *= vcaGateHighDecayCoeff_;
         }
     } else {
@@ -103,6 +110,18 @@ void Envelope::processNextSample() {
         // Discharges to absolute silence (-60dB) within 15ms to 20ms
         vcaEnv_ *= vcaQuickDrainCoeff_;
     }
+
+    // 3. Accent Sweep Capacitor Processing (1uF capacitor charge memory)
+    // Continuous capacitor state across notes (never reset)
+    if (isAccent_ && gate_) {
+        accentCap_ += accentChargeCoeff_ * (vcfEnv_ - accentCap_);
+    } else {
+        accentCap_ *= accentDischargeCoeff_;
+    }
+
+    // 4. Accent VCA control path smoothing (47 kOhm + 0.033 uF RC network)
+    float accentVcaTarget = (isAccent_ && gate_) ? vcfEnv_ : 0.0f;
+    accentVca_ += accentVcaCoeff_ * (accentVcaTarget - accentVca_);
 }
 
 } // namespace syrebas

@@ -1,5 +1,6 @@
 #include "Oscillator.hpp"
 #include <cmath>
+#include <algorithm>
 
 namespace syrebas {
 
@@ -36,9 +37,8 @@ void Oscillator::noteOn(int noteNumber, bool slide) {
     targetFreq_ = freq;
 
     if (!slide) {
-        // Hard jump to new frequency and reset phase for fresh note start
+        // Hard jump to new frequency without phase reset (continuous analogue VCO)
         currentFreq_ = targetFreq_;
-        phase_ = 0.0;
         isSliding_ = false;
     } else {
         // Slide / portamento: glide smoothly from currentFreq_ to targetFreq_
@@ -82,8 +82,11 @@ float Oscillator::processNextSample() {
 
         out = static_cast<float>(curvedSaw);
     } else {
-        // Asymmetric pulse wave (duty cycle fixed between 45% and 47%, e.g., 46%)
-        double rawSq = (phase_ < 0.46) ? 1.0 : -1.0;
+        // Pitch-dependent duty cycle: approaches ~45% at high pitches, up to ~70% at very low frequencies
+        double duty = 0.45 + 0.25 * std::exp(-currentFreq_ / 180.0);
+        duty = std::min(0.70, std::max(0.45, duty));
+
+        double rawSq = (phase_ < duty) ? 0.75 : -0.75;
 
         // 1-pole HPF fixed at 150 Hz to tilt top and bottom flats and cut sub-bass
         double hpfOut = hpfSqCoeff_ * (hpfSqY1_ + rawSq - hpfSqX1_);
