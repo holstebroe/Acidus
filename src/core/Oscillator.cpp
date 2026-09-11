@@ -9,10 +9,26 @@ Oscillator::Oscillator() {
 
 void Oscillator::setSampleRate(double sampleRate) {
     sampleRate_ = sampleRate;
-    // 303 slide time is roughly 50ms - 60ms constant time constant
-    // Exponential approach coefficient per sample at current sampleRate
-    double slideTimeSec = 0.055;
+
+    // RC time constant tracking between 60ms and 80ms (70ms)
+    double slideTimeSec = 0.070;
     slideCoeff_ = std::exp(-1.0 / (sampleRate_ * slideTimeSec));
+
+    // 1-pole LPF at 14 kHz for sawtooth peak rounding
+    double fcLpf = 14000.0;
+    lpfSawCoeff_ = 1.0 - std::exp(-2.0 * 3.14159265358979323846 * fcLpf / sampleRate_);
+
+    // 1-pole HPF at 150 Hz for square wave phase shift / tilt
+    double fcHpf = 150.0;
+    hpfSqCoeff_ = std::exp(-2.0 * 3.14159265358979323846 * fcHpf / sampleRate_);
+
+    resetFilterStates();
+}
+
+void Oscillator::resetFilterStates() {
+    lpfSawState_ = 0.0;
+    hpfSqX1_ = 0.0;
+    hpfSqY1_ = 0.0;
 }
 
 void Oscillator::noteOn(int noteNumber, bool slide) {
@@ -35,12 +51,15 @@ void Oscillator::noteOff() {
 }
 
 float Oscillator::processNextSample() {
-    // Smoothly interpolate current pitch towards target pitch if sliding
-    if (std::abs(currentFreq_ - targetFreq_) > 0.01) {
+    // Pitch Glide via 1-pole lag filter when sliding
+    if (isSliding_) {
         currentFreq_ = targetFreq_ + (currentFreq_ - targetFreq_) * slideCoeff_;
+        if (std::abs(currentFreq_ - targetFreq_) < 0.001) {
+            currentFreq_ = targetFreq_;
+            isSliding_ = false;
+        }
     } else {
         currentFreq_ = targetFreq_;
-        isSliding_ = false;
     }
 
     double phaseInc = currentFreq_ / sampleRate_;
@@ -51,13 +70,27 @@ float Oscillator::processNextSample() {
 
     float out = 0.0f;
     if (waveform_ == Waveform::Saw) {
-        // 303 Sawtooth: Unipolar/Bipolar saw with mild curve
-        // Standard saw is 1.0 - 2.0 * phase_
-        out = static_cast<float>(1.0 - 2.0 * phase_);
+        // Negative-going sawtooth: 1.0 - 2.0 * phase_
+        double rawSaw = 1.0 - 2.0 * phase_;
+
+        // 1-pole LPF at 14 kHz to round sharp peaks
+        lpfSawState_ += lpfSawCoeff_ * (rawSaw - lpfSawState_);
+
+        // Mild quadratic distortion: f(x) = x - 0.05 * x^2
+        double x = lpfSawState_;
+        double curvedSaw = x - 0.05 * x * x;
+
+        out = static_cast<float>(curvedSaw);
     } else {
-        // 303 Square: Derived from saw/integrated pulse waveform
-        // Square wave with high harmonic content (~50% duty)
-        out = (phase_ < 0.5) ? 1.0f : -1.0f;
+        // Asymmetric pulse wave (duty cycle fixed between 45% and 47%, e.g., 46%)
+        double rawSq = (phase_ < 0.46) ? 1.0 : -1.0;
+
+        // 1-pole HPF fixed at 150 Hz to tilt top and bottom flats and cut sub-bass
+        double hpfOut = hpfSqCoeff_ * (hpfSqY1_ + rawSq - hpfSqX1_);
+        hpfSqX1_ = rawSq;
+        hpfSqY1_ = hpfOut;
+
+        out = static_cast<float>(hpfOut);
     }
 
     return out;

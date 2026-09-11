@@ -26,17 +26,20 @@ private:
     float s_{0.0f};
 };
 
-// High-Pass Filter for Feedback Loop (C13 / R23 network)
+// High-Pass Filter for Feedback Loop
 class HPFFeedback {
 public:
     HPFFeedback() = default;
 
     void setSampleRate(double sampleRate) {
         sampleRate_ = sampleRate;
-        float cutoff = 150.0f;
-        float w0 = 2.0f * 3.14159265358979323846f * cutoff;
-        alpha_ = 1.0f / (1.0f + w0 / (2.0f * static_cast<float>(sampleRate_)));
+        setCutoff(150.0f);
         reset();
+    }
+
+    void setCutoff(float cutoffHz) {
+        float w0 = 2.0f * 3.14159265358979323846f * cutoffHz;
+        alpha_ = 1.0f / (1.0f + w0 / (2.0f * static_cast<float>(sampleRate_)));
     }
 
     void reset() {
@@ -77,7 +80,7 @@ public:
     void setSampleRate(double sampleRate);
     void reset();
 
-    float processSample(float input, float cutoffHz, float resonance, float envModVal, float accentVal);
+    float processSample(float input, float cutoffHz, float resonance);
 
 private:
     double sampleRate_{44100.0};
@@ -90,6 +93,7 @@ private:
 
     HPFFeedback hpfFeedback_;
 
+    // Diode ladder capacitor values / pole spreading for ~18dB/oct slope
     const float capScale1_{1.00f};
     const float capScale2_{1.50f};
     const float capScale3_{3.30f};
@@ -105,7 +109,7 @@ private:
     int downIdx1_{0};
     int downIdx2_{0};
 
-    float processOversampledSample(float input, float cutoffHz, float resonance, float envModVal, float accentVal);
+    float processOversampledSample(float input, float cutoffHz, float resonance);
 };
 
 } // namespace syrebas

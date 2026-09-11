@@ -9,30 +9,36 @@ public:
     ~Envelope() = default;
 
     void setSampleRate(double sampleRate);
-    void setDecay(float decayParam); // 0.0 to 1.0 (corresponds to ~200ms to 2.5s)
+    void setDecay(float decayParam); // 0.0 to 1.0 -> 200ms to 2.5s
 
     void noteOn(bool isAccent, bool isSlide);
     void noteOff();
 
-    float processNextSample();
+    void processNextSample();
 
-    bool isActive() const { return gate_ || (mainEnv_ > 0.0001f) || (accentEnv_ > 0.0001f); }
-    float getMainEnv() const { return mainEnv_; }
-    float getAccentEnv() const { return accentEnv_; }
+    float getVcfEnv() const { return vcfEnv_; }
+    float getVcaEnv() const { return vcaEnv_; }
     bool isAccent() const { return isAccent_; }
+    bool isActive() const { return vcaGate_ || (vcaEnv_ > 0.0001f) || (vcfEnv_ > 0.0001f); }
 
 private:
     double sampleRate_{44100.0};
 
-    bool gate_{false};
+    bool vcaGate_{false};
     bool isAccent_{false};
 
-    float decayTimeSec_{0.2f};
-    float decayCoeff_{0.0f};
-    float accentDecayCoeff_{0.0f};
+    float vcfDecayTimeSec_{0.20f};
+    float vcfAttackCoeff_{0.0f};
+    float vcfDecayCoeff_{0.0f};
 
-    float mainEnv_{0.0f};
-    float accentEnv_{0.0f};
+    float vcaAttackCoeff_{0.0f};
+    float vcaDecayCoeff_{0.0f};
+
+    float vcfEnv_{0.0f};
+    float vcfState_{0.0f};
+
+    float vcaEnv_{0.0f};
+    float vcaState_{0.0f};
 
     void updateCoefficients();
 };
