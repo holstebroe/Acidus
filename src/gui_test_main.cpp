@@ -1,5 +1,8 @@
 #include "clap/SyrebasClap.hpp"
 #include "gui/GuiWindow.hpp"
+#include "gui/Graphics.hpp"
+#include "gui/Font.hpp"
+#include "gui/IControlRenderer.hpp"
 #include <fstream>
 #include <iostream>
 #include <cassert>
@@ -122,7 +125,34 @@ int main() {
     assert(testCtx.types.back() == CLAP_EVENT_PARAM_VALUE);
     assert(testCtx.flags.back() == CLAP_EVENT_DONT_RECORD);
 
-    std::cout << "Mouse drag, gesture events, and MIDI CC unit tests passed successfully!" << std::endl;
+    // 4. Test Font and Custom Control Renderer interface
+    syrebas::Font customFont(6, 8);
+    assert(customFont.getWidth() == 6);
+    assert(customFont.getHeight() == 8);
+    gui.setFont(customFont);
+    assert(gui.getFont().getWidth() == 6);
+
+    class TestCustomRenderer : public syrebas::IControlRenderer {
+    public:
+        bool knobDrawn = false;
+        bool switchDrawn = false;
+        void drawKnob(syrebas::Graphics& g, const syrebas::Control& ctrl, const syrebas::Font& font) override {
+            knobDrawn = true;
+        }
+        void drawToggleSwitch(syrebas::Graphics& g, const syrebas::Control& ctrl, const syrebas::Font& font) override {
+            switchDrawn = true;
+        }
+    };
+
+    auto customRenderer = std::make_unique<TestCustomRenderer>();
+    auto* rawPtr = customRenderer.get();
+    gui.setControlRenderer(std::move(customRenderer));
+    gui.renderFrame();
+    assert(rawPtr->knobDrawn);
+    assert(rawPtr->switchDrawn);
+    std::cout << "Custom Font and IControlRenderer interface tests passed successfully!" << std::endl;
+
+    std::cout << "Mouse drag, gesture events, MIDI CC, and refactored GUI tests passed successfully!" << std::endl;
 
     return 0;
 }

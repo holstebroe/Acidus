@@ -7,6 +7,9 @@
 #include <cstdint>
 #include <atomic>
 #include <thread>
+#include <memory>
+#include "Font.hpp"
+#include "IControlRenderer.hpp"
 
 namespace syrebas {
 
@@ -45,6 +48,15 @@ public:
 
     const std::vector<uint32_t>& getPixelBuffer() const { return pixelBuffer_; }
 
+    void setFont(const Font& font) { font_ = font; }
+    const Font& getFont() const { return font_; }
+
+    void setControlRenderer(std::unique_ptr<IControlRenderer> renderer) {
+        if (renderer) {
+            controlRenderer_ = std::move(renderer);
+        }
+    }
+
     void renderFrame();
     void handleMouseDown(int x, int y, bool isShift = false);
     void handleMouseDrag(int x, int y, bool isShift = false);
@@ -59,6 +71,9 @@ private:
     std::vector<uint32_t> hiResBuffer_; // 2x supersampled buffer
     std::vector<Control> controls_;
     bool lastShiftState_{false};
+
+    Font font_{Font::default5x7()};
+    std::unique_ptr<IControlRenderer> controlRenderer_;
 
     int activeControlIndex_{-1};
     int dragStartY_{0};
@@ -92,15 +107,6 @@ private:
 
     void initControls();
     void updateKnobValuesFromPlugin();
-    void drawRect(int x, int y, int w, int h, uint32_t color);
-    void drawCircle(int cx, int cy, int radius, uint32_t color);
-    void drawCircleOutline(int cx, int cy, int radius, uint32_t color);
-    void drawLine(int x0, int y0, int x1, int y1, uint32_t color, int thickness = 1);
-    void drawChar(int x, int y, char c, uint32_t color, int scale = 1);
-    void drawText(int x, int y, const char* text, uint32_t color, int scale = 1);
-    void drawSyrebasTitle(int x, int y);
-    void drawKnob(const Control& ctrl);
-    void drawToggleSwitch(const Control& ctrl);
 };
 
 } // namespace syrebas
