@@ -7,14 +7,20 @@
 
 namespace syrebas {
 
+enum class EmulationMode {
+    Accurate = 0,
+    Simplified = 1
+};
+
 struct SynthParameters {
-    float cutoff{0.5f};        // Knob range 0.0 to 1.0 (maps exp 200 Hz to 2.5 kHz)
+    float cutoff{0.5f};        // Knob range 0.0 to 1.0
     float resonance{0.5f};     // Knob range 0.0 to 1.0
-    float envMod{0.5f};        // Knob range 0.0 to 1.0 (scales up to 7.5 kHz sweep)
-    float decay{0.5f};         // Knob range 0.0 to 1.0 (200ms to 2.5s)
+    float envMod{0.5f};        // Knob range 0.0 to 1.0
+    float decay{0.5f};         // Knob range 0.0 to 1.0
     float accent{0.5f};        // Knob range 0.0 to 1.0
     Waveform waveform{Waveform::Saw};
     float masterVolume{0.8f};
+    EmulationMode mode{EmulationMode::Accurate};
 };
 
 class SynthEngine {

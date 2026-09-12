@@ -11,8 +11,8 @@ Oscillator::Oscillator() {
 void Oscillator::setSampleRate(double sampleRate) {
     sampleRate_ = sampleRate;
 
-    // RC time constant tracking between 60ms and 80ms (70ms)
-    double slideTimeSec = 0.070;
+    // Nominal analogue slide lag time constant ~60 ms (Section 37)
+    double slideTimeSec = 0.060;
     slideCoeff_ = std::exp(-1.0 / (sampleRate_ * slideTimeSec));
 
     // 1-pole LPF at 14 kHz for sawtooth peak rounding
