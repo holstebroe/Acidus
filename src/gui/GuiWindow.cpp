@@ -60,6 +60,58 @@ void GuiWindow::updateKnobValuesFromPlugin() {
     }
 }
 
+void GuiWindow::drawSyrebasTitle(Graphics& g, int x, int y) {
+    // S
+    g.drawRect(x, y, 22, 6, 0xFF121212);
+    g.drawRect(x, y, 6, 16, 0xFF121212);
+    g.drawRect(x, y + 15, 22, 6, 0xFF121212);
+    g.drawRect(x + 16, y + 18, 6, 17, 0xFF121212);
+    g.drawRect(x, y + 32, 22, 6, 0xFF121212);
+
+    // y
+    int yX = x + 28;
+    g.drawRect(yX, y + 12, 5, 12, 0xFF121212);
+    g.drawRect(yX + 11, y + 12, 5, 26, 0xFF121212);
+    g.drawRect(yX, y + 20, 16, 5, 0xFF121212);
+    g.drawRect(yX, y + 33, 16, 5, 0xFF121212);
+
+    // r
+    int rX = x + 54;
+    g.drawRect(rX, y + 12, 5, 26, 0xFF121212);
+    g.drawRect(rX, y + 12, 14, 5, 0xFF121212);
+    g.drawRect(rX + 12, y + 15, 5, 8, 0xFF121212);
+
+    // e
+    int eX = x + 75;
+    g.drawRect(eX, y + 12, 16, 5, 0xFF121212);
+    g.drawRect(eX, y + 12, 5, 26, 0xFF121212);
+    g.drawRect(eX, y + 22, 14, 5, 0xFF121212);
+    g.drawRect(eX, y + 33, 16, 5, 0xFF121212);
+
+    // b
+    int bX = x + 97;
+    g.drawRect(bX, y, 5, 38, 0xFF121212);
+    g.drawRect(bX, y + 18, 16, 5, 0xFF121212);
+    g.drawRect(bX + 12, y + 21, 5, 14, 0xFF121212);
+    g.drawRect(bX, y + 33, 16, 5, 0xFF121212);
+
+    // a
+    int aX = x + 119;
+    g.drawRect(aX, y + 18, 14, 5, 0xFF121212);
+    g.drawRect(aX + 11, y + 18, 5, 20, 0xFF121212);
+    g.drawRect(aX, y + 26, 14, 4, 0xFF121212);
+    g.drawRect(aX, y + 33, 14, 5, 0xFF121212);
+    g.drawRect(aX, y + 26, 4, 12, 0xFF121212);
+
+    // s
+    int s2X = x + 139;
+    g.drawRect(s2X, y + 18, 14, 4, 0xFF121212);
+    g.drawRect(s2X, y + 18, 4, 9, 0xFF121212);
+    g.drawRect(s2X, y + 25, 14, 4, 0xFF121212);
+    g.drawRect(s2X + 10, y + 27, 4, 9, 0xFF121212);
+    g.drawRect(s2X, y + 34, 14, 4, 0xFF121212);
+}
+
 void GuiWindow::renderFrame() {
     updateKnobValuesFromPlugin();
 
@@ -97,7 +149,7 @@ void GuiWindow::renderFrame() {
     }
 
     // 3. Draw Title Logo "Syrebas"
-    g.drawSyrebasTitle(545, 65);
+    drawSyrebasTitle(g, 545, 65);
 
     // 4. Downsample hiResBuffer_ (2x2 box filter) into pixelBuffer_
     pixelBuffer_.resize(width_ * height_);

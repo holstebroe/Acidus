@@ -107,6 +107,7 @@ private:
 
     void initControls();
     void updateKnobValuesFromPlugin();
+    void drawSyrebasTitle(Graphics& g, int x, int y);
 };
 
 } // namespace syrebas

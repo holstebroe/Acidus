@@ -24,8 +24,6 @@ public:
     void drawChar(int x, int y, char c, uint32_t color, const Font& font, int scale = 1);
     void drawText(int x, int y, const char* text, uint32_t color, const Font& font, int scale = 1);
 
-    void drawSyrebasTitle(int x, int y);
-
     static uint32_t blendColors(uint32_t src, uint32_t dst, float alpha);
 
 private:
