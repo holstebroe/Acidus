@@ -334,7 +334,7 @@ void GuiWindow::drawSyrebasTitle(int x, int y) {
     drawRect(aX + 11, y + 18, 5, 20, 0xFF121212);
     drawRect(aX, y + 26, 14, 4, 0xFF121212);
     drawRect(aX, y + 33, 14, 5, 0xFF121212);
-    drawRect(aX, y + 22, 4, 12, 0xFF121212);
+    drawRect(aX, y + 26, 4, 12, 0xFF121212);
 
     // s
     int s2X = x + 139;
