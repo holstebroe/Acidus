@@ -205,13 +205,13 @@ void SyrebasClap::handleEvent(const clap_event_header_t* header) {
         } else if (status == 0xB0) {
             // MIDI Control Change
             clap_id paramId = PARAM_COUNT;
-            if (data1 == 74) paramId = PARAM_CUTOFF;
-            else if (data1 == 71) paramId = PARAM_RESONANCE;
-            else if (data1 == 73) paramId = PARAM_ENV_MOD;
-            else if (data1 == 72) paramId = PARAM_DECAY;
-            else if (data1 == 16) paramId = PARAM_ACCENT;
-            else if (data1 == 17 || data1 == 68) paramId = PARAM_WAVEFORM;
-            else if (data1 == 7) paramId = PARAM_VOLUME;
+            if (data1 == MIDI_PARAM_CUTOFF) paramId = PARAM_CUTOFF;
+            else if (data1 == MIDI_PARAM_RESONANCE) paramId = PARAM_RESONANCE;
+            else if (data1 == MIDI_PARAM_ENV_MOD) paramId = PARAM_ENV_MOD;
+            else if (data1 == MIDI_PARAM_DECAY) paramId = PARAM_DECAY;
+            else if (data1 == MIDI_PARAM_ACCENT) paramId = PARAM_ACCENT;
+            else if (data1 == MIDI_PARAM_WAVEFORM) paramId = PARAM_WAVEFORM;
+            else if (data1 == MIDI_PARAM_VOLUME) paramId = PARAM_VOLUME;
 
             if (paramId < PARAM_COUNT) {
                 double normVal = static_cast<double>(data2) / 127.0;

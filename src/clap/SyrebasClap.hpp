@@ -28,6 +28,17 @@ enum ParamId : clap_id {
     PARAM_COUNT = 7
 };
 
+enum MidiParamId : clap_id {
+    MIDI_PARAM_CUTOFF = 71,
+    MIDI_PARAM_RESONANCE = 72,
+    MIDI_PARAM_ENV_MOD = 73,
+    MIDI_PARAM_DECAY = 74,
+    MIDI_PARAM_ACCENT = 22,
+    MIDI_PARAM_WAVEFORM = 23,
+    MIDI_PARAM_VOLUME = 20,
+    MIDI_PARAM_COUNT = 7
+};
+
 class SyrebasClap {
 public:
     explicit SyrebasClap(const clap_host_t* host);
