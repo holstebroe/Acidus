@@ -105,7 +105,7 @@ When an accented step is triggered (velocity >= 0.8):
 
 ---
 
-## Updated Summary Matrix
+## Summary Matrix
 
 | Parameter / Module | Characteristic / Behavior | Formula / Value |
 | :--- | :--- | :--- |
