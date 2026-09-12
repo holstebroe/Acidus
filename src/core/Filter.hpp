@@ -82,6 +82,9 @@ public:
 
     float processSample(float input, float cutoffHz, float resonance);
 
+    // Accurate coupled diode-ladder solver with inter-stage loading
+    float processAccurateSample(float input, float cutoffHz, float resonance);
+
 private:
     double sampleRate_{44100.0};
     double oversampledRate_{176400.0};
@@ -90,6 +93,14 @@ private:
     TPTOnePole stage2_;
     TPTOnePole stage3_;
     TPTOnePole stage4_;
+
+    // Coupled ladder node voltage states for accurate mode (v1, v2, v3, v4)
+    float ladderV1_{0.0f};
+    float ladderV2_{0.0f};
+    float ladderV3_{0.0f};
+    float ladderV4_{0.0f};
+    float hpFbStateX1_{0.0f};
+    float hpFbStateY1_{0.0f};
 
     HPFFeedback hpfFeedback_;
 

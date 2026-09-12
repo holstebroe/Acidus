@@ -31,6 +31,80 @@ void Filter::reset() {
     downBuffer1_.fill(0.0f);
     downBuffer2_.fill(0.0f);
     upIdx1_ = upIdx2_ = downIdx1_ = downIdx2_ = 0;
+
+    ladderV1_ = 0.0f;
+    ladderV2_ = 0.0f;
+    ladderV3_ = 0.0f;
+    ladderV4_ = 0.0f;
+    hpFbStateX1_ = 0.0f;
+    hpFbStateY1_ = 0.0f;
+}
+
+float Filter::processAccurateSample(float input, float cutoffHz, float resonance) {
+    // 4x oversampling step for accurate coupled diode ladder
+    float dt = 1.0f / static_cast<float>(oversampledRate_);
+    float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
+
+    float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
+
+    // High pass in feedback path (Section 13)
+    float hpfAlpha = 1.0f / (1.0f + 2.0f * 3.14159265358979323846f * 180.0f * dt);
+
+    float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
+    float kFb = resNorm * 17.0f; // Oscillation threshold around ~17
+
+    float outVal = 0.0f;
+
+    for (int os = 0; os < 4; ++os) {
+        float inSample = (os == 0) ? input : input;
+
+        // Feedback calculation
+        float hpOut = hpfAlpha * (hpFbStateY1_ + ladderV4_ - hpFbStateX1_);
+        hpFbStateX1_ = ladderV4_;
+        hpFbStateY1_ = hpOut;
+
+        float fbSignal = std::tanh(hpOut * kFb * 0.15f);
+        float u = inSample - fbSignal;
+
+        // Coupled Diode Ladder Differential Equations (Section 7)
+        // dv1/dt = w [ tanh(u - v1) - tanh(v1 - v2) ]
+        // dv2/dt = w [ tanh(v1 - v2) - tanh(v2 - v3) ]
+        // dv3/dt = w [ tanh(v2 - v3) - tanh(v3 - v4) ]
+        // dv4/dt = 2w * tanh(v3 - v4)
+
+        // Sub-step RK2 integration for stability
+        float h = dt;
+        float v1 = ladderV1_;
+        float v2 = ladderV2_;
+        float v3 = ladderV3_;
+        float v4 = ladderV4_;
+
+        // K1
+        float dv1_1 = wc * (std::tanh(u - v1) - std::tanh(v1 - v2));
+        float dv2_1 = wc * (std::tanh(v1 - v2) - std::tanh(v2 - v3));
+        float dv3_1 = wc * (std::tanh(v2 - v3) - std::tanh(v3 - v4));
+        float dv4_1 = 2.0f * wc * std::tanh(v3 - v4);
+
+        // K2
+        float v1_mid = v1 + 0.5f * h * dv1_1;
+        float v2_mid = v2 + 0.5f * h * dv2_1;
+        float v3_mid = v3 + 0.5f * h * dv3_1;
+        float v4_mid = v4 + 0.5f * h * dv4_1;
+
+        float dv1_2 = wc * (std::tanh(u - v1_mid) - std::tanh(v1_mid - v2_mid));
+        float dv2_2 = wc * (std::tanh(v1_mid - v2_mid) - std::tanh(v2_mid - v3_mid));
+        float dv3_2 = wc * (std::tanh(v2_mid - v3_mid) - std::tanh(v3_mid - v4_mid));
+        float dv4_2 = 2.0f * wc * std::tanh(v3_mid - v4_mid);
+
+        ladderV1_ += h * dv1_2;
+        ladderV2_ += h * dv2_2;
+        ladderV3_ += h * dv3_2;
+        ladderV4_ += h * dv4_2;
+
+        outVal = ladderV4_;
+    }
+
+    return outVal;
 }
 
 float Filter::processOversampledSample(float input, float cutoffHz, float resonance) {

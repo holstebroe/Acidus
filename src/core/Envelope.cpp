@@ -15,9 +15,8 @@ void Envelope::setSampleRate(double sampleRate) {
 }
 
 void Envelope::setDecay(float decayParam) {
-    // Exponential scaling from 200ms (0.2s) fully CCW to 2.5s fully CW
+    // Exponential scaling from 200ms (0.2s) fully CCW to 2.5s fully CW (Section 19.2)
     float d = std::min(std::max(decayParam, 0.0f), 1.0f);
-    // Exponential mapping: 0.2 * (2.5 / 0.2)^d = 0.2 * (12.5)^d
     vcfDecayTimeSec_ = 0.20f * std::pow(12.5f, d);
     updateCoefficients();
 }
@@ -28,12 +27,12 @@ void Envelope::updateCoefficients() {
     // VCF Decay: exponential decay time constant for vcfDecayTimeSec_ (tau = t_60 / 6.9078)
     vcfDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (vcfDecayTimeSec_ / 6.907755f)));
 
-    // VCA Attack: 3.0ms RC curve
+    // VCA Attack: 3.0ms RC curve (Section 21)
     vcaAttackCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.003));
-    // VCA Gate HIGH Phase 1 Decay: 3.5s slow discharge time constant
+    // VCA Gate HIGH Phase 1 Decay: 3.5s slow discharge time constant (Section 21)
     vcaGateHighDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (3.5f / 6.907755f)));
-    // VCA Gate LOW Phase 2 Quick Drain: discharge to silence (-60dB / 0.001) in 18ms (tau = 18ms / 6.9078 = 2.6ms)
-    float quickDrainTimeSec = 0.018f;
+    // VCA Gate LOW Phase 2 Quick Drain: discharge to silence in 16ms (Section 22)
+    float quickDrainTimeSec = 0.016f;
     vcaQuickDrainCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (quickDrainTimeSec / 6.907755f)));
 
     // Accent Sweep RC (47 kOhm + 1 uF -> tau ~ 47ms)
