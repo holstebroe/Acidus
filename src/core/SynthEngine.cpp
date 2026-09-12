@@ -78,43 +78,50 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
 
         if (params_.mode == EmulationMode::Accurate) {
             // --- ACCURATE MODE: Current-Domain Control Summing & Coupled Diode Ladder ---
-            // Cutoff audio taper (50 kOhm Log/A pot)
+            // Audio pot tapers (50 kOhm Audio / A taper) for Cutoff and Env Mod knobs
             float cTaper = cNorm * cNorm;
             float envModTaper = envModNorm * envModNorm;
 
-            // Control Currents summing (Section 16, 83)
-            // I_cutoff = I_static + I_env + I_accent + I_bias
-            float i_static = 0.05f + cTaper * 0.80f; // Static cutoff bias
-            float i_env = envModTaper * vcfEnvVal * 1.2f;
+            // Base cutoff knob CV range: 200 Hz to 2.5 kHz (~3.64385 octaves)
+            float cv_base = 3.64385f * cTaper;
+            // Env Mod baseline offset (+350 Hz / +0.80735 octaves at max Env Mod)
+            float cv_offset = envModTaper * 0.80735f;
 
-            // Dual-gang Resonance section 2 controls Accent Sweep signal delivery (Section 14, 27)
-            float directPortion = (1.0f - resNorm * 0.6f) * vcfEnvVal;
-            float capPortion = (resNorm * 0.6f) * accentCapVal;
-            float accentSweepSig = directPortion + capPortion;
+            // Effective Env Mod depth for this sample (boosted on accent, scaled by accentNorm)
+            float effectiveEnvMod = noteAccent ? (envModNorm + (1.0f - envModNorm) * accentNorm) : envModNorm;
+            float effectiveEnvModTaper = effectiveEnvMod * effectiveEnvMod;
+            float cv_envmod = effectiveEnvModTaper * vcfEnvVal * 3.5f; // Up to 7.5 kHz sweep
 
-            float i_accent = noteAccent ? (accentNorm * accentSweepSig * 1.0f) : (accentNorm * capPortion * 0.4f);
+            // Dual-gang Resonance pot section 2 interaction with Accent Sweep:
+            float directAccentPortion = (1.0f - resNorm * 0.7f) * vcfEnvVal;
+            float sweepCapPortion = (resNorm * 0.7f) * accentCapVal;
+            float accentSweepSignal = directAccentPortion + sweepCapPortion;
 
-            float i_total = i_static + i_env + i_accent;
+            // Accent Sweep CV contribution to cutoff
+            float cv_accent = noteAccent ? (accentNorm * accentSweepSignal * 1.5f) : (accentNorm * sweepCapPortion * 0.75f);
 
-            // Exponential voltage-to-current conversion for filter cutoff frequency
-            float cutoffHz = 200.0f * std::exp(i_total * 2.80f);
-            cutoffHz = std::min(std::max(cutoffHz, 20.0f), 16000.0f);
+            // Control Voltage Summing in control-current (exponential octave) domain
+            float cv_total = cv_base + cv_offset + cv_envmod + cv_accent;
+
+            // Convert CV to frequency with Resonance CV Bleed (up to 15% reduction)
+            float effectiveCutoff = 200.0f * std::pow(2.0f, cv_total) * (1.0f - (0.15f * resNorm));
+            float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 15000.0f);
 
             // Coupled diode ladder filter simulation
-            filterOut = filter_.processAccurateSample(rawOsc, cutoffHz, resNorm);
+            filterOut = filter_.processAccurateSample(rawOsc, totalCutoff, resNorm);
 
             // BA662 VCA Model with control current summing (Section 23, 26)
             float vcaGain = vcaEnvVal;
             if (noteAccent) {
-                vcaGain += accentVcaVal * accentNorm * 0.7f;
+                vcaGain += accentVcaVal * accentNorm * 0.8f;
             }
 
             // Asymmetric BA662 VCA saturation (Section 44)
             float xVal = filterOut * vcaGain;
             if (xVal > 0.0f) {
-                vcaSignal = std::tanh(xVal * 1.2f) / 1.2f;
+                vcaSignal = std::tanh(xVal * 1.1f);
             } else {
-                vcaSignal = std::tanh(xVal * 1.0f);
+                vcaSignal = std::tanh(xVal * 0.9f);
             }
         } else {
             // --- SIMPLIFIED MODE ---

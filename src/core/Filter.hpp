@@ -101,6 +101,7 @@ private:
     float ladderV4_{0.0f};
     float hpFbStateX1_{0.0f};
     float hpFbStateY1_{0.0f};
+    float prevAccurateInput_{0.0f};
 
     HPFFeedback hpfFeedback_;
 
