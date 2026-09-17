@@ -42,9 +42,10 @@ public:
     // Kept exactly as-is: this is the emulation mode users already know and like.
     float processAccurateSample(float input, float cutoffHz, float resonance);
 
-    // "Faithful" mode: higher-order (RK4) coupled diode-ladder solver at 8x
-    // oversampling, with per-stage capacitor pole spreading and the extra
-    // input/output coupling poles the real VCF's surrounding network adds.
+    // "Faithful" mode: implicit trapezoidal solve (Newton-Raphson, tridiagonal
+    // Jacobian) of the coupled diode-ladder at 8x oversampling, with per-stage
+    // capacitor pole spreading and the extra input/output coupling poles the
+    // real VCF's surrounding network adds.
     float processFaithfulSample(float input, float cutoffHz, float resonance);
 
 private:

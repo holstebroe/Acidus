@@ -34,6 +34,7 @@ void SynthEngine::noteOn(int noteNumber, float velocity) {
 
     osc_.setWaveform(params_.waveform);
     osc_.noteOn(noteNumber, isSlide);
+    env_.setFaithfulAccentDecay(params_.mode == EmulationMode::Faithful);
     env_.setDecay(params_.decay);
     env_.noteOn(isAccent, isSlide, params_.accent);
 }
@@ -48,6 +49,7 @@ void SynthEngine::noteOff(int noteNumber) {
 
 void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     osc_.setWaveform(params_.waveform);
+    env_.setFaithfulAccentDecay(params_.mode == EmulationMode::Faithful);
     env_.setDecay(params_.decay);
 
     for (int i = 0; i < numFrames; ++i) {
@@ -87,8 +89,15 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // Env Mod baseline offset (+350 Hz / +0.80735 octaves at max Env Mod)
         float cv_offset = envModTaper * 0.80735f;
 
-        // Effective Env Mod depth for this sample (boosted on accent, scaled by accentNorm)
-        float effectiveEnvMod = noteAccent ? (envModNorm + (1.0f - envModNorm) * accentNorm) : envModNorm;
+        // Effective Env Mod depth for this sample. Section 15/24: on an accented note the
+        // MEG forces Env Mod depth to 100% for a sharp chirp - an unconditional switch, not
+        // scaled by the Accent knob (which instead scales the separate sweep/VCA paths
+        // below). Faithful mode applies that unconditional force; Accurate mode keeps its
+        // existing Accent-knob-scaled blend so its sound is unchanged.
+        bool faithfulMode = (params_.mode == EmulationMode::Faithful);
+        float effectiveEnvMod = noteAccent
+            ? (faithfulMode ? 1.0f : (envModNorm + (1.0f - envModNorm) * accentNorm))
+            : envModNorm;
         float effectiveEnvModTaper = effectiveEnvMod * effectiveEnvMod;
         float cv_envmod = effectiveEnvModTaper * vcfEnvVal * 3.5f; // Up to 7.5 kHz sweep
 
@@ -107,9 +116,9 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float effectiveCutoff = 200.0f * std::pow(2.0f, cv_total) * (1.0f - (0.15f * resNorm));
         float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 15000.0f);
 
-        float filterOut = (params_.mode == EmulationMode::Accurate)
-            ? filter_.processAccurateSample(rawOsc, totalCutoff, resNorm)
-            : filter_.processFaithfulSample(rawOsc, totalCutoff, resNorm);
+        float filterOut = faithfulMode
+            ? filter_.processFaithfulSample(rawOsc, totalCutoff, resNorm)
+            : filter_.processAccurateSample(rawOsc, totalCutoff, resNorm);
 
         // BA662 VCA Model with control current summing (Section 23, 26)
         float vcaGain = vcaEnvVal;

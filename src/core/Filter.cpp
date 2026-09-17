@@ -6,25 +6,23 @@ namespace syrebas {
 
 namespace {
 
-// Coupled diode-ladder derivatives (Section 7/84 of the emulation reference):
-//   dv1/dt = w1 * Vt * [ tanh((u - v1)/Vt)  - tanh((v1 - v2)/Vt) ]
-//   dv2/dt = w2 * Vt * [ tanh((v1 - v2)/Vt) - tanh((v2 - v3)/Vt) ]
-//   dv3/dt = w3 * Vt * [ tanh((v2 - v3)/Vt) - tanh((v3 - v4)/Vt) ]
-//   dv4/dt = 2*w4 * Vt * tanh((v3 - v4)/Vt)
-// Each stage gets its own rate w_n = wc * capScale_n so the ladder's poles
-// spread apart instead of coinciding, matching the 10/15/33/10 nF capacitors.
-inline void ladderDerivatives(float u, float v1, float v2, float v3, float v4,
-                               float wc, float Vt, float VtInv,
-                               float c1, float c2, float c3, float c4,
-                               float& dv1, float& dv2, float& dv3, float& dv4) {
-    float t1 = std::tanh((u - v1) * VtInv);
-    float t2 = std::tanh((v1 - v2) * VtInv);
-    float t3 = std::tanh((v2 - v3) * VtInv);
-    float t4 = std::tanh((v3 - v4) * VtInv);
-    dv1 = wc * c1 * Vt * (t1 - t2);
-    dv2 = wc * c2 * Vt * (t2 - t3);
-    dv3 = wc * c3 * Vt * (t3 - t4);
-    dv4 = 2.0f * wc * c4 * Vt * t4;
+// Solve a 4x4 tridiagonal system via the Thomas algorithm:
+//   row0: a[0]*x0 + bUp[0]*x1                                   = d[0]
+//   row1: cLow[0]*x0 + a[1]*x1 + bUp[1]*x2                      = d[1]
+//   row2:              cLow[1]*x1 + a[2]*x2 + bUp[2]*x3         = d[2]
+//   row3:                           cLow[2]*x2 + a[3]*x3        = d[3]
+// `a` and `d` are modified in place (forward elimination); results land in x.
+inline void solveTridiagonal4(float a[4], const float bUp[3], const float cLow[3],
+                               float d[4], float x[4]) {
+    for (int i = 1; i < 4; ++i) {
+        float w = cLow[i - 1] / a[i - 1];
+        a[i] -= w * bUp[i - 1];
+        d[i] -= w * d[i - 1];
+    }
+    x[3] = d[3] / a[3];
+    for (int i = 2; i >= 0; --i) {
+        x[i] = (d[i] - bUp[i] * x[i + 1]) / a[i];
+    }
 }
 
 } // namespace
@@ -162,6 +160,10 @@ float Filter::processFaithfulSample(float input, float cutoffHz, float resonance
     float prevIn = prevFaithfulInput_;
     prevFaithfulInput_ = input;
 
+    constexpr int kNewtonIters = 3;
+    const float w1 = wc * capScale1_, w2 = wc * capScale2_;
+    const float w3 = wc * capScale3_, w4 = wc * capScale4_;
+
     for (int os = 0; os < kOS; ++os) {
         float alphaOS = static_cast<float>(os + 1) / static_cast<float>(kOS);
         float currIn = prevIn + alphaOS * (input - prevIn);
@@ -174,8 +176,8 @@ float Filter::processFaithfulSample(float input, float cutoffHz, float resonance
 
         // Commit the feedback HPF's one-pole state once per oversample step (from
         // the pre-step v4), then reuse that committed state to estimate the
-        // feedback voltage at each RK stage's predicted v4 without advancing the
-        // filter's history multiple times per sample.
+        // feedback voltage at each Newton iterate's predicted v4 without advancing
+        // the filter's history multiple times per sample.
         float hpOut0 = hpfAlpha * (fHpFbStateY1_ + v4 - fHpFbStateX1_);
         fHpFbStateX1_ = v4;
         fHpFbStateY1_ = hpOut0;
@@ -186,43 +188,78 @@ float Filter::processFaithfulSample(float input, float cutoffHz, float resonance
             return inSample - hpOut * kFb;
         };
 
-        // Classical RK4 on the coupled ladder, re-deriving the nonlinear feedback
-        // voltage at each stage from that stage's predicted v4 (closer to an
-        // implicit solve than the accurate mode's 2-stage predictor/corrector,
-        // without the cost of a full Newton iteration on a 4x4 Jacobian).
-        float dv1_1, dv2_1, dv3_1, dv4_1;
-        ladderDerivatives(u0, v1, v2, v3, v4, wc, Vt, VtInv,
-                           capScale1_, capScale2_, capScale3_, capScale4_,
-                           dv1_1, dv2_1, dv3_1, dv4_1);
+        // f(v) at the start of the step (u0, v_old), used as the fixed half of the
+        // implicit trapezoidal rule: v_new = v_old + (h/2)*(f(v_old) + f(v_new)).
+        float T1o = std::tanh((u0 - v1) * VtInv);
+        float T2o = std::tanh((v1 - v2) * VtInv);
+        float T3o = std::tanh((v2 - v3) * VtInv);
+        float T4o = std::tanh((v3 - v4) * VtInv);
+        float f1o = w1 * Vt * (T1o - T2o);
+        float f2o = w2 * Vt * (T2o - T3o);
+        float f3o = w3 * Vt * (T3o - T4o);
+        float f4o = 2.0f * w4 * Vt * T4o;
 
-        float v1a = v1 + 0.5f * h * dv1_1, v2a = v2 + 0.5f * h * dv2_1;
-        float v3a = v3 + 0.5f * h * dv3_1, v4a = v4 + 0.5f * h * dv4_1;
-        float ua = feedbackFor(v4a);
-        float dv1_2, dv2_2, dv3_2, dv4_2;
-        ladderDerivatives(ua, v1a, v2a, v3a, v4a, wc, Vt, VtInv,
-                           capScale1_, capScale2_, capScale3_, capScale4_,
-                           dv1_2, dv2_2, dv3_2, dv4_2);
+        // Newton-Raphson on the trapezoidal residual R(k) = k - v_old - (h/2)*(f_old + f(k)),
+        // solved via the ladder's tridiagonal Jacobian (each stage only couples to its
+        // immediate neighbours) at each iterate. The feedback voltage u is re-derived from
+        // each iterate's k4 (a fixed-point update folded into the same loop) rather than
+        // included as a Jacobian term, which keeps the system exactly tridiagonal.
+        float k1 = v1 + h * f1o, k2 = v2 + h * f2o;
+        float k3 = v3 + h * f3o, k4 = v4 + h * f4o;
 
-        float v1b = v1 + 0.5f * h * dv1_2, v2b = v2 + 0.5f * h * dv2_2;
-        float v3b = v3 + 0.5f * h * dv3_2, v4b = v4 + 0.5f * h * dv4_2;
-        float ub = feedbackFor(v4b);
-        float dv1_3, dv2_3, dv3_3, dv4_3;
-        ladderDerivatives(ub, v1b, v2b, v3b, v4b, wc, Vt, VtInv,
-                           capScale1_, capScale2_, capScale3_, capScale4_,
-                           dv1_3, dv2_3, dv3_3, dv4_3);
+        for (int iter = 0; iter < kNewtonIters; ++iter) {
+            float uk = feedbackFor(k4);
+            float T1 = std::tanh((uk - k1) * VtInv);
+            float T2 = std::tanh((k1 - k2) * VtInv);
+            float T3 = std::tanh((k2 - k3) * VtInv);
+            float T4 = std::tanh((k3 - k4) * VtInv);
+            float S1 = 1.0f - T1 * T1;
+            float S2 = 1.0f - T2 * T2;
+            float S3 = 1.0f - T3 * T3;
+            float S4 = 1.0f - T4 * T4;
 
-        float v1c = v1 + h * dv1_3, v2c = v2 + h * dv2_3;
-        float v3c = v3 + h * dv3_3, v4c = v4 + h * dv4_3;
-        float uc = feedbackFor(v4c);
-        float dv1_4, dv2_4, dv3_4, dv4_4;
-        ladderDerivatives(uc, v1c, v2c, v3c, v4c, wc, Vt, VtInv,
-                           capScale1_, capScale2_, capScale3_, capScale4_,
-                           dv1_4, dv2_4, dv3_4, dv4_4);
+            float f1 = w1 * Vt * (T1 - T2);
+            float f2 = w2 * Vt * (T2 - T3);
+            float f3 = w3 * Vt * (T3 - T4);
+            float f4 = 2.0f * w4 * Vt * T4;
 
-        fLadderV1_ = v1 + (h / 6.0f) * (dv1_1 + 2.0f * dv1_2 + 2.0f * dv1_3 + dv1_4);
-        fLadderV2_ = v2 + (h / 6.0f) * (dv2_1 + 2.0f * dv2_2 + 2.0f * dv2_3 + dv2_4);
-        fLadderV3_ = v3 + (h / 6.0f) * (dv3_1 + 2.0f * dv3_2 + 2.0f * dv3_3 + dv3_4);
-        fLadderV4_ = v4 + (h / 6.0f) * (dv4_1 + 2.0f * dv4_2 + 2.0f * dv4_3 + dv4_4);
+            float R1 = k1 - v1 - 0.5f * h * (f1o + f1);
+            float R2 = k2 - v2 - 0.5f * h * (f2o + f2);
+            float R3 = k3 - v3 - 0.5f * h * (f3o + f3);
+            float R4 = k4 - v4 - 0.5f * h * (f4o + f4);
+
+            float hh = 0.5f * h;
+            float a[4] = {
+                1.0f + hh * w1 * (S1 + S2),
+                1.0f + hh * w2 * (S2 + S3),
+                1.0f + hh * w3 * (S3 + S4),
+                1.0f + hh * 2.0f * w4 * S4
+            };
+            float bUp[3] = { -hh * w1 * S2, -hh * w2 * S3, -hh * w3 * S4 };
+            float cLow[3] = { -hh * w2 * S2, -hh * w3 * S3, -hh * 2.0f * w4 * S4 };
+            float d[4] = { -R1, -R2, -R3, -R4 };
+            float delta[4];
+            solveTridiagonal4(a, bUp, cLow, d, delta);
+
+            k1 += delta[0];
+            k2 += delta[1];
+            k3 += delta[2];
+            k4 += delta[3];
+        }
+
+        if (std::isfinite(k1) && std::isfinite(k2) && std::isfinite(k3) && std::isfinite(k4)) {
+            fLadderV1_ = k1;
+            fLadderV2_ = k2;
+            fLadderV3_ = k3;
+            fLadderV4_ = k4;
+        } else {
+            // Guard against a pathological Newton step; hold the ladder at its last
+            // good state rather than propagate NaN/Inf into the audio output.
+            fLadderV1_ = v1;
+            fLadderV2_ = v2;
+            fLadderV3_ = v3;
+            fLadderV4_ = v4;
+        }
 
         float stageOut = fLadderV4_ / 0.05f;
         stageOut = outputCoupling_.lowpass(stageOut, outCouplingAlpha);
