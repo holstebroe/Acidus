@@ -137,8 +137,8 @@ int main() {
     float accurateMax = runTestForMode(syrebas::EmulationMode::Accurate, "test_syrebas_accurate.wav");
     std::cout << "Accurate mode DSP test completed. Max peak amplitude: " << accurateMax << "\n";
 
-    float simplifiedMax = runTestForMode(syrebas::EmulationMode::Simplified, "test_syrebas_simplified.wav");
-    std::cout << "Simplified mode DSP test completed. Max peak amplitude: " << simplifiedMax << "\n";
+    float faithfulMax = runTestForMode(syrebas::EmulationMode::Faithful, "test_syrebas_faithful.wav");
+    std::cout << "Faithful mode DSP test completed. Max peak amplitude: " << faithfulMax << "\n";
 
     std::cout << "All DSP tests completed successfully.\n";
     return 0;

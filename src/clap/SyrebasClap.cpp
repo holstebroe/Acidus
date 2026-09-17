@@ -131,7 +131,7 @@ SyrebasClap::SyrebasClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_ACCENT] = 0.5;
     paramValues_[PARAM_WAVEFORM] = 0.0; // 0 = Saw, 1 = Square
     paramValues_[PARAM_VOLUME] = 0.8;
-    paramValues_[PARAM_MODE] = 0.0; // 0 = Accurate, 1 = Simplified
+    paramValues_[PARAM_MODE] = 0.0; // 0 = Accurate, 1 = Faithful
 
     syncParamsToEngine();
 }
@@ -182,7 +182,7 @@ void SyrebasClap::syncParamsToEngine() {
     params.accent = static_cast<float>(paramValues_[PARAM_ACCENT]);
     params.waveform = (paramValues_[PARAM_WAVEFORM] >= 0.5) ? Waveform::Square : Waveform::Saw;
     params.masterVolume = static_cast<float>(paramValues_[PARAM_VOLUME]);
-    params.mode = (paramValues_[PARAM_MODE] >= 0.5) ? EmulationMode::Simplified : EmulationMode::Accurate;
+    params.mode = (paramValues_[PARAM_MODE] >= 0.5) ? EmulationMode::Faithful : EmulationMode::Accurate;
 }
 
 void SyrebasClap::handleEvent(const clap_event_header_t* header) {
@@ -361,7 +361,7 @@ bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) 
             paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
             paramInfo->min_value = 0.0;
             paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0; // 0 = Accurate, 1 = Simplified
+            paramInfo->default_value = 0.0; // 0 = Accurate, 1 = Faithful
             break;
         default:
             return false;
@@ -467,7 +467,7 @@ bool SyrebasClap::paramsValueToText(clap_id paramId, double value, char* outBuff
     } else if (paramId == PARAM_WAVEFORM) {
         snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Square" : "Saw");
     } else if (paramId == PARAM_MODE) {
-        snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Simplified" : "Accurate");
+        snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Faithful" : "Accurate");
     } else {
         snprintf(outBuffer, outBufferCapacity, "%.2f", value);
     }
@@ -485,7 +485,7 @@ bool SyrebasClap::paramsTextToValue(clap_id paramId, const char* paramValueText,
         return true;
     }
     if (paramId == PARAM_MODE) {
-        if (std::strstr(paramValueText, "Simplified") || std::strstr(paramValueText, "simplified")) {
+        if (std::strstr(paramValueText, "Faithful") || std::strstr(paramValueText, "faithful")) {
             *outValue = 1.0;
         } else {
             *outValue = 0.0;

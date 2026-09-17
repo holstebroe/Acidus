@@ -4,10 +4,30 @@
 
 namespace syrebas {
 
-static const float FIR_COEFFS[16] = {
-    -0.0031f, 0.0f, 0.0156f, 0.0f, -0.0528f, 0.0f, 0.3134f, 0.5f,
-     0.3134f, 0.0f, -0.0528f, 0.0f, 0.0156f, 0.0f, -0.0031f, 0.0f
-};
+namespace {
+
+// Coupled diode-ladder derivatives (Section 7/84 of the emulation reference):
+//   dv1/dt = w1 * Vt * [ tanh((u - v1)/Vt)  - tanh((v1 - v2)/Vt) ]
+//   dv2/dt = w2 * Vt * [ tanh((v1 - v2)/Vt) - tanh((v2 - v3)/Vt) ]
+//   dv3/dt = w3 * Vt * [ tanh((v2 - v3)/Vt) - tanh((v3 - v4)/Vt) ]
+//   dv4/dt = 2*w4 * Vt * tanh((v3 - v4)/Vt)
+// Each stage gets its own rate w_n = wc * capScale_n so the ladder's poles
+// spread apart instead of coinciding, matching the 10/15/33/10 nF capacitors.
+inline void ladderDerivatives(float u, float v1, float v2, float v3, float v4,
+                               float wc, float Vt, float VtInv,
+                               float c1, float c2, float c3, float c4,
+                               float& dv1, float& dv2, float& dv3, float& dv4) {
+    float t1 = std::tanh((u - v1) * VtInv);
+    float t2 = std::tanh((v1 - v2) * VtInv);
+    float t3 = std::tanh((v2 - v3) * VtInv);
+    float t4 = std::tanh((v3 - v4) * VtInv);
+    dv1 = wc * c1 * Vt * (t1 - t2);
+    dv2 = wc * c2 * Vt * (t2 - t3);
+    dv3 = wc * c3 * Vt * (t3 - t4);
+    dv4 = 2.0f * wc * c4 * Vt * t4;
+}
+
+} // namespace
 
 Filter::Filter() {
     setSampleRate(44100.0);
@@ -15,35 +35,26 @@ Filter::Filter() {
 
 void Filter::setSampleRate(double sampleRate) {
     sampleRate_ = sampleRate;
-    oversampledRate_ = sampleRate_ * 4.0;
-    hpfFeedback_.setSampleRate(oversampledRate_);
+    oversampledRateAccurate_ = sampleRate_ * 4.0;
+    oversampledRateFaithful_ = sampleRate_ * 8.0;
     reset();
 }
 
 void Filter::reset() {
-    stage1_.reset();
-    stage2_.reset();
-    stage3_.reset();
-    stage4_.reset();
-    hpfFeedback_.reset();
-    upBuffer1_.fill(0.0f);
-    upBuffer2_.fill(0.0f);
-    downBuffer1_.fill(0.0f);
-    downBuffer2_.fill(0.0f);
-    upIdx1_ = upIdx2_ = downIdx1_ = downIdx2_ = 0;
-
-    ladderV1_ = 0.0f;
-    ladderV2_ = 0.0f;
-    ladderV3_ = 0.0f;
-    ladderV4_ = 0.0f;
-    hpFbStateX1_ = 0.0f;
-    hpFbStateY1_ = 0.0f;
+    ladderV1_ = ladderV2_ = ladderV3_ = ladderV4_ = 0.0f;
+    hpFbStateX1_ = hpFbStateY1_ = 0.0f;
     prevAccurateInput_ = 0.0f;
+
+    fLadderV1_ = fLadderV2_ = fLadderV3_ = fLadderV4_ = 0.0f;
+    fHpFbStateX1_ = fHpFbStateY1_ = 0.0f;
+    prevFaithfulInput_ = 0.0f;
+    inputCoupling_.reset();
+    outputCoupling_.reset();
 }
 
 float Filter::processAccurateSample(float input, float cutoffHz, float resonance) {
     // 4x oversampling step for accurate coupled diode ladder
-    float dt = 1.0f / static_cast<float>(oversampledRate_);
+    float dt = 1.0f / static_cast<float>(oversampledRateAccurate_);
     float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
 
     float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
@@ -122,136 +133,103 @@ float Filter::processAccurateSample(float input, float cutoffHz, float resonance
     return accOut;
 }
 
-float Filter::processOversampledSample(float input, float cutoffHz, float resonance) {
+float Filter::processFaithfulSample(float input, float cutoffHz, float resonance) {
+    // 8x oversampling (Section 55 recommends 4x minimum, "preferably 8x") for the
+    // nonlinear ladder, since aliasing from the tanh junctions is otherwise audible.
+    constexpr int kOS = 8;
+    float dt = 1.0f / static_cast<float>(oversampledRateFaithful_);
     float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
+    float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
 
-    // Resonance Bass Drop: Dynamic HPF in feedback loop scaling between 150 Hz and 250 Hz as Resonance increases
     float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
     float hpfCutoff = 150.0f + 100.0f * resNorm;
-    hpfFeedback_.setCutoff(hpfCutoff);
+    float hpfAlpha = 1.0f / (1.0f + 2.0f * 3.14159265358979323846f * hpfCutoff * dt);
 
-    // Non-linear feedback gain scaling (TB-303 diode ladder oscillation threshold ~17.0)
-    // Max resonance gain scaled to 16.5f so high resonance squelches forcefully near oscillation boundary
-    float resGain = resNorm * 16.5f;
+    // Real ladders sit below clean self-oscillation (Section 12); push the threshold
+    // a little further out than the accurate mode's so resonance keeps "squelching"
+    // rather than ringing cleanly even near maximum.
+    float kFb = resNorm * 36.0f;
 
-    float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
-    float gBase = std::tan(wc / (2.0f * static_cast<float>(oversampledRate_)));
+    const float Vt = 0.052f;
+    const float VtInv = 19.23f;
 
-    float g1 = gBase * capScale1_;
-    float g2 = gBase * capScale2_;
-    float g3 = gBase * capScale3_;
-    float g4 = gBase * capScale4_;
+    // Input coupling cap (Section 10/47): blocks DC and trims sub-bass ahead of the ladder.
+    float inCouplingAlpha = 1.0f - std::exp(-2.0f * 3.14159265358979323846f * 20.0f * dt);
+    // Output/buffer bandwidth limit representing the extra high-frequency coupling poles.
+    float outCouplingAlpha = 1.0f - std::exp(-2.0f * 3.14159265358979323846f * 20000.0f * dt);
 
-    // Save initial state memory prior to ZDF iteration loop
-    float savedS1 = stage1_.getState();
-    float savedS2 = stage2_.getState();
-    float savedS3 = stage3_.getState();
-    float savedS4 = stage4_.getState();
-    HPFFeedback::State savedHpfState = hpfFeedback_.getState();
+    float out = 0.0f;
+    float prevIn = prevFaithfulInput_;
+    prevFaithfulInput_ = input;
 
-    // Feedback path with non-linear saturation Feedback(x) = tanh(x * Resonance_Gain)
-    float hpFb = hpfFeedback_.process(0.0f);
-    float satFb = std::tanh(hpFb * resGain);
-    float x1 = input - satFb;
+    for (int os = 0; os < kOS; ++os) {
+        float alphaOS = static_cast<float>(os + 1) / static_cast<float>(kOS);
+        float currIn = prevIn + alphaOS * (input - prevIn);
 
-    // Fixed point iteration loop to resolve non-linear ZDF feedback
-    for (int iter = 0; iter < 3; ++iter) {
-        // Restore state prior to trial processing
-        stage1_.setState(savedS1);
-        stage2_.setState(savedS2);
-        stage3_.setState(savedS3);
-        stage4_.setState(savedS4);
-        hpfFeedback_.setState(savedHpfState);
+        float inSample = currIn * 0.05f;
+        inSample = inputCoupling_.highpass(inSample, inCouplingAlpha);
 
-        float y1 = stage1_.process(x1, g1);
-        float y2 = stage2_.process(y1, g2);
-        float y3 = stage3_.process(y2, g3);
-        float y4 = stage4_.process(y3, g4);
+        float h = dt;
+        float v1 = fLadderV1_, v2 = fLadderV2_, v3 = fLadderV3_, v4 = fLadderV4_;
 
-        hpFb = hpfFeedback_.process(y4);
-        satFb = std::tanh(hpFb * resGain);
-        x1 = input - satFb;
+        // Commit the feedback HPF's one-pole state once per oversample step (from
+        // the pre-step v4), then reuse that committed state to estimate the
+        // feedback voltage at each RK stage's predicted v4 without advancing the
+        // filter's history multiple times per sample.
+        float hpOut0 = hpfAlpha * (fHpFbStateY1_ + v4 - fHpFbStateX1_);
+        fHpFbStateX1_ = v4;
+        fHpFbStateY1_ = hpOut0;
+        float u0 = inSample - hpOut0 * kFb;
+
+        auto feedbackFor = [&](float v4pred) {
+            float hpOut = hpfAlpha * (fHpFbStateY1_ + v4pred - fHpFbStateX1_);
+            return inSample - hpOut * kFb;
+        };
+
+        // Classical RK4 on the coupled ladder, re-deriving the nonlinear feedback
+        // voltage at each stage from that stage's predicted v4 (closer to an
+        // implicit solve than the accurate mode's 2-stage predictor/corrector,
+        // without the cost of a full Newton iteration on a 4x4 Jacobian).
+        float dv1_1, dv2_1, dv3_1, dv4_1;
+        ladderDerivatives(u0, v1, v2, v3, v4, wc, Vt, VtInv,
+                           capScale1_, capScale2_, capScale3_, capScale4_,
+                           dv1_1, dv2_1, dv3_1, dv4_1);
+
+        float v1a = v1 + 0.5f * h * dv1_1, v2a = v2 + 0.5f * h * dv2_1;
+        float v3a = v3 + 0.5f * h * dv3_1, v4a = v4 + 0.5f * h * dv4_1;
+        float ua = feedbackFor(v4a);
+        float dv1_2, dv2_2, dv3_2, dv4_2;
+        ladderDerivatives(ua, v1a, v2a, v3a, v4a, wc, Vt, VtInv,
+                           capScale1_, capScale2_, capScale3_, capScale4_,
+                           dv1_2, dv2_2, dv3_2, dv4_2);
+
+        float v1b = v1 + 0.5f * h * dv1_2, v2b = v2 + 0.5f * h * dv2_2;
+        float v3b = v3 + 0.5f * h * dv3_2, v4b = v4 + 0.5f * h * dv4_2;
+        float ub = feedbackFor(v4b);
+        float dv1_3, dv2_3, dv3_3, dv4_3;
+        ladderDerivatives(ub, v1b, v2b, v3b, v4b, wc, Vt, VtInv,
+                           capScale1_, capScale2_, capScale3_, capScale4_,
+                           dv1_3, dv2_3, dv3_3, dv4_3);
+
+        float v1c = v1 + h * dv1_3, v2c = v2 + h * dv2_3;
+        float v3c = v3 + h * dv3_3, v4c = v4 + h * dv4_3;
+        float uc = feedbackFor(v4c);
+        float dv1_4, dv2_4, dv3_4, dv4_4;
+        ladderDerivatives(uc, v1c, v2c, v3c, v4c, wc, Vt, VtInv,
+                           capScale1_, capScale2_, capScale3_, capScale4_,
+                           dv1_4, dv2_4, dv3_4, dv4_4);
+
+        fLadderV1_ = v1 + (h / 6.0f) * (dv1_1 + 2.0f * dv1_2 + 2.0f * dv1_3 + dv1_4);
+        fLadderV2_ = v2 + (h / 6.0f) * (dv2_1 + 2.0f * dv2_2 + 2.0f * dv2_3 + dv2_4);
+        fLadderV3_ = v3 + (h / 6.0f) * (dv3_1 + 2.0f * dv3_2 + 2.0f * dv3_3 + dv3_4);
+        fLadderV4_ = v4 + (h / 6.0f) * (dv4_1 + 2.0f * dv4_2 + 2.0f * dv4_3 + dv4_4);
+
+        float stageOut = fLadderV4_ / 0.05f;
+        stageOut = outputCoupling_.lowpass(stageOut, outCouplingAlpha);
+        out += stageOut / static_cast<float>(kOS);
     }
 
-    // Final state restoration before true state update step
-    stage1_.setState(savedS1);
-    stage2_.setState(savedS2);
-    stage3_.setState(savedS3);
-    stage4_.setState(savedS4);
-    hpfFeedback_.setState(savedHpfState);
-
-    // Final forward pass updating capacitor memory
-    float y1 = stage1_.process(x1, g1);
-    float y2 = stage2_.process(y1, g2);
-    float y3 = stage3_.process(y2, g3);
-    float y4 = stage4_.process(y3, g4);
-
-    hpfFeedback_.process(y4);
-
-    return y4;
-}
-
-float Filter::processSample(float input, float cutoffHz, float resonance) {
-    float oversampledSamples[4];
-
-    for (int i = 0; i < 2; ++i) {
-        float inVal = (i == 0) ? input * 2.0f : 0.0f;
-        upBuffer1_[upIdx1_] = inVal;
-
-        float stage1Out = 0.0f;
-        for (int tap = 0; tap < FIR_TAPS; ++tap) {
-            int idx = (upIdx1_ - tap + FIR_TAPS) % FIR_TAPS;
-            stage1Out += upBuffer1_[idx] * FIR_COEFFS[tap];
-        }
-        upIdx1_ = (upIdx1_ + 1) % FIR_TAPS;
-
-        for (int j = 0; j < 2; ++j) {
-            float inVal2 = (j == 0) ? stage1Out * 2.0f : 0.0f;
-            upBuffer2_[upIdx2_] = inVal2;
-
-            float stage2Out = 0.0f;
-            for (int tap = 0; tap < FIR_TAPS; ++tap) {
-                int idx = (upIdx2_ - tap + FIR_TAPS) % FIR_TAPS;
-                stage2Out += upBuffer2_[idx] * FIR_COEFFS[tap];
-            }
-            upIdx2_ = (upIdx2_ + 1) % FIR_TAPS;
-
-            oversampledSamples[i * 2 + j] = stage2Out;
-        }
-    }
-
-    float filterOut[4];
-    for (int k = 0; k < 4; ++k) {
-        filterOut[k] = processOversampledSample(oversampledSamples[k], cutoffHz, resonance);
-    }
-
-    float downStage1[2];
-    for (int k = 0; k < 2; ++k) {
-        downBuffer1_[downIdx1_] = filterOut[k * 2];
-        downIdx1_ = (downIdx1_ + 1) % FIR_TAPS;
-        downBuffer1_[downIdx1_] = filterOut[k * 2 + 1];
-        downIdx1_ = (downIdx1_ + 1) % FIR_TAPS;
-
-        float outVal = 0.0f;
-        for (int tap = 0; tap < FIR_TAPS; ++tap) {
-            int idx = (downIdx1_ - 1 - tap + FIR_TAPS) % FIR_TAPS;
-            outVal += downBuffer1_[idx] * FIR_COEFFS[tap];
-        }
-        downStage1[k] = outVal;
-    }
-
-    downBuffer2_[downIdx2_] = downStage1[0];
-    downIdx2_ = (downIdx2_ + 1) % FIR_TAPS;
-    downBuffer2_[downIdx2_] = downStage1[1];
-    downIdx2_ = (downIdx2_ + 1) % FIR_TAPS;
-
-    float finalOut = 0.0f;
-    for (int tap = 0; tap < FIR_TAPS; ++tap) {
-        int idx = (downIdx2_ - 1 - tap + FIR_TAPS) % FIR_TAPS;
-        finalOut += downBuffer2_[idx] * FIR_COEFFS[tap];
-    }
-
-    return finalOut;
+    return out;
 }
 
 } // namespace syrebas

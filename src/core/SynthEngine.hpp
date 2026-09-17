@@ -8,8 +8,10 @@
 namespace syrebas {
 
 enum class EmulationMode {
-    Accurate = 0,
-    Simplified = 1
+    Accurate = 0,  // 4x oversampled coupled diode ladder (RK2)
+    Faithful = 1   // 8x oversampled coupled diode ladder (RK4) with pole spreading
+                   // and coupling poles, tracking the hardware more closely at
+                   // higher CPU cost
 };
 
 struct SynthParameters {
