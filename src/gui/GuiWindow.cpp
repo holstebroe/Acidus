@@ -60,56 +60,72 @@ void GuiWindow::updateKnobValuesFromPlugin() {
     }
 }
 
-void GuiWindow::drawSyrebasTitle(Graphics& g, int x, int y) {
+void GuiWindow::drawSyrebasTitle(Graphics& g, int x, int y, uint32_t color) {
     // S
-    g.drawRect(x, y, 22, 6, 0xFF121212);
-    g.drawRect(x, y, 6, 16, 0xFF121212);
-    g.drawRect(x, y + 15, 22, 6, 0xFF121212);
-    g.drawRect(x + 16, y + 18, 6, 17, 0xFF121212);
-    g.drawRect(x, y + 32, 22, 6, 0xFF121212);
+    g.drawRect(x, y, 22, 6, color);
+    g.drawRect(x, y, 6, 16, color);
+    g.drawRect(x, y + 15, 22, 6, color);
+    g.drawRect(x + 16, y + 18, 6, 17, color);
+    g.drawRect(x, y + 32, 22, 6, color);
 
     // y
     int yX = x + 28;
-    g.drawRect(yX, y + 12, 5, 12, 0xFF121212);
-    g.drawRect(yX + 11, y + 12, 5, 26, 0xFF121212);
-    g.drawRect(yX, y + 20, 16, 5, 0xFF121212);
-    g.drawRect(yX, y + 33, 16, 5, 0xFF121212);
+    g.drawRect(yX, y + 12, 5, 12, color);
+    g.drawRect(yX + 11, y + 12, 5, 26, color);
+    g.drawRect(yX, y + 20, 16, 5, color);
+    g.drawRect(yX, y + 33, 16, 5, color);
 
     // r
     int rX = x + 54;
-    g.drawRect(rX, y + 12, 5, 26, 0xFF121212);
-    g.drawRect(rX, y + 12, 14, 5, 0xFF121212);
-    g.drawRect(rX + 12, y + 15, 5, 8, 0xFF121212);
+    g.drawRect(rX, y + 12, 5, 26, color);
+    g.drawRect(rX, y + 12, 14, 5, color);
+    g.drawRect(rX + 12, y + 15, 5, 8, color);
 
     // e
     int eX = x + 75;
-    g.drawRect(eX, y + 12, 16, 5, 0xFF121212);
-    g.drawRect(eX, y + 12, 5, 26, 0xFF121212);
-    g.drawRect(eX, y + 22, 14, 5, 0xFF121212);
-    g.drawRect(eX, y + 33, 16, 5, 0xFF121212);
+    g.drawRect(eX, y + 12, 16, 5, color);
+    g.drawRect(eX, y + 12, 5, 26, color);
+    g.drawRect(eX, y + 22, 14, 5, color);
+    g.drawRect(eX, y + 33, 16, 5, color);
 
     // b
     int bX = x + 97;
-    g.drawRect(bX, y, 5, 38, 0xFF121212);
-    g.drawRect(bX, y + 18, 16, 5, 0xFF121212);
-    g.drawRect(bX + 12, y + 21, 5, 14, 0xFF121212);
-    g.drawRect(bX, y + 33, 16, 5, 0xFF121212);
+    g.drawRect(bX, y, 5, 38, color);
+    g.drawRect(bX, y + 18, 16, 5, color);
+    g.drawRect(bX + 12, y + 21, 5, 14, color);
+    g.drawRect(bX, y + 33, 16, 5, color);
 
     // a
     int aX = x + 119;
-    g.drawRect(aX, y + 18, 14, 5, 0xFF121212);
-    g.drawRect(aX + 11, y + 18, 5, 20, 0xFF121212);
-    g.drawRect(aX, y + 26, 14, 4, 0xFF121212);
-    g.drawRect(aX, y + 33, 14, 5, 0xFF121212);
-    g.drawRect(aX, y + 26, 4, 12, 0xFF121212);
+    g.drawRect(aX, y + 18, 14, 5, color);
+    g.drawRect(aX + 11, y + 18, 5, 20, color);
+    g.drawRect(aX, y + 26, 14, 4, color);
+    g.drawRect(aX, y + 33, 14, 5, color);
+    g.drawRect(aX, y + 26, 4, 12, color);
 
     // s
     int s2X = x + 139;
-    g.drawRect(s2X, y + 18, 14, 4, 0xFF121212);
-    g.drawRect(s2X, y + 18, 4, 9, 0xFF121212);
-    g.drawRect(s2X, y + 25, 14, 4, 0xFF121212);
-    g.drawRect(s2X + 10, y + 27, 4, 9, 0xFF121212);
-    g.drawRect(s2X, y + 34, 14, 4, 0xFF121212);
+    g.drawRect(s2X, y + 18, 14, 4, color);
+    g.drawRect(s2X, y + 18, 4, 9, color);
+    g.drawRect(s2X, y + 25, 14, 4, color);
+    g.drawRect(s2X + 10, y + 27, 4, 9, color);
+    g.drawRect(s2X, y + 34, 14, 4, color);
+}
+
+bool GuiWindow::isInLogoPanel(int x, int y) const {
+    const int dividerX = 530;
+    return x >= dividerX && x < static_cast<int>(width_) &&
+           y >= 14 && y <= static_cast<int>(height_) - 14;
+}
+
+void GuiWindow::toggleEmulationMode() {
+    if (!plugin_) return;
+    double current = 0.0;
+    plugin_->paramsValue(PARAM_MODE, &current);
+    double newVal = (current >= 0.5) ? 0.0 : 1.0;
+    plugin_->onBeginEditFromGui(PARAM_MODE);
+    plugin_->onParamValueFromGui(PARAM_MODE, newVal);
+    plugin_->onEndEditFromGui(PARAM_MODE);
 }
 
 void GuiWindow::renderFrame() {
@@ -148,8 +164,12 @@ void GuiWindow::renderFrame() {
         }
     }
 
-    // 3. Draw Title Logo "Syrebas"
-    drawSyrebasTitle(g, 545, 65);
+    // 3. Draw Title Logo "Syrebas" - dark green in Faithful mode, black in Accurate.
+    // Doubles as a click target (see handleMouseDown) that toggles the engine mode.
+    double modeVal = 0.0;
+    if (plugin_) plugin_->paramsValue(PARAM_MODE, &modeVal);
+    uint32_t logoColor = (modeVal >= 0.5) ? 0xFF006400 : 0xFF121212;
+    drawSyrebasTitle(g, 545, 65, logoColor);
 
     // 4. Downsample hiResBuffer_ (2x2 box filter) into pixelBuffer_
     pixelBuffer_.resize(width_ * height_);
@@ -179,6 +199,13 @@ void GuiWindow::renderFrame() {
 
 void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
     lastShiftState_ = isShift;
+
+    if (isInLogoPanel(x, y)) {
+        toggleEmulationMode();
+        renderFrame();
+        return;
+    }
+
     for (size_t i = 0; i < controls_.size(); ++i) {
         auto& ctrl = controls_[i];
         if (ctrl.type == ControlType::Knob) {
