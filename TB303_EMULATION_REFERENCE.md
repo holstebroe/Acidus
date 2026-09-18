@@ -433,6 +433,8 @@ These additional networks contribute additional poles.
 A detailed circuit analysis identifies approximately **six further high-pass/coupling poles** associated with the surrounding filter circuitry.
 
 > **Correction (2026):** secondary summaries of Stinchcombe's analysis disagree on the exact count and corner — "six further poles" with a composite HPF effect near **8 Hz** in one summary, **10 Hz** in another (Electronic Music Wiki). Treat "six poles" and the exact corner as order-of-magnitude, not a verified constant; what's solid is that the effect sits in the **single-digit-to-low-tens-of-Hz** range and is itself resonant (it boosts, not just rolls off, as Resonance increases) — see `TB303_RESEARCH_COMPENDIUM.md` §6.
+>
+> **Implemented (2026-09):** `Filter::processFaithfulSample` now models 2 of these poles explicitly, as a fixed ~9 Hz (plausible range 5–15 Hz) coupling-pole network inside the resonance feedback loop, replacing an earlier, unsourced 150–250 Hz version. See `TB303_PARAMETER_CONFIDENCE.md` for the full rationale and remaining gap (only 2 of the order-of-magnitude ~6 poles are modeled).
 
 Therefore a serious emulation should not reduce the whole VCF to:
 

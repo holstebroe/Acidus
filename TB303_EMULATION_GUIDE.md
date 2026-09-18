@@ -41,7 +41,8 @@ The TB-303 filter is physically a 4-pole diode-ladder network in which the stage
 - Passband compression at high resonance (the filter loses gain/bass as resonance increases). **[CONFIRMED — directional, well-corroborated by multiple sources]**
 
 ### Resonance Bass Drop & Feedback HPF
-- **[UNSOURCED / CONTRADICTED]** A feedback high-pass filter that dynamically sweeps its corner between 150 Hz and 250 Hz as Resonance increases (with 0.01 µF / 100 kΩ component values) — no source consulted supports either the specific component values or the 150–250 Hz range. Research instead points to a composite low-frequency coupling-pole structure around **8–10 Hz**, sitting *inside* the resonance feedback loop, which is itself **resonant** (it boosts sub-100 Hz content as Resonance increases, rather than only stripping it) — this is a materially different mechanism from a simple HPF that scales 150→250 Hz. See `TB303_RESEARCH_COMPENDIUM.md` §6. What is well-corroborated across sources: "resonance steals bass, except right around a boosted low-frequency coupling-pole region" — model the *mechanism*, treat the exact corner frequency and pole count as tunable.
+- **[UNSOURCED / CONTRADICTED — was; see 2026-09 update below]** A feedback high-pass filter that dynamically sweeps its corner between 150 Hz and 250 Hz as Resonance increases (with 0.01 µF / 100 kΩ component values) — no source consulted supports either the specific component values or the 150–250 Hz range. Research instead points to a composite low-frequency coupling-pole structure around **8–10 Hz**, sitting *inside* the resonance feedback loop, which is itself **resonant** (it boosts sub-100 Hz content as Resonance increases, rather than only stripping it) — this is a materially different mechanism from a simple HPF that scales 150→250 Hz. See `TB303_RESEARCH_COMPENDIUM.md` §6. What is well-corroborated across sources: "resonance steals bass, except right around a boosted low-frequency coupling-pole region" — model the *mechanism*, treat the exact corner frequency and pole count as tunable.
+- **[2026-09 UPDATE — IMPLEMENTED, ESTIMATE]** `Filter::processFaithfulSample` (`src/core/Filter.cpp`) now models this as 2 cascaded one-pole HPF stages at a fixed ~9 Hz corner (`resCouplingHz_` in `Filter.hpp`, plausible range **5–15 Hz**) inside the resonance feedback loop, replacing the old 150→250 Hz sweep. `Filter::processAccurateSample` intentionally keeps the old, differently-calibrated approximation unchanged, since it's a separately-tuned mode users already like. See `TB303_PARAMETER_CONFIDENCE.md` for the full before/after rationale and stability validation.
 
 ---
 
@@ -118,7 +119,7 @@ When an accented step triggers, three things happen simultaneously, sourced from
 | Diode filter capacitor values | Per-stage spread | e.g. 10/15/33/10 nF | **UNSOURCED** |
 | "18 dB" vs 24 dB | Uneven pole spacing → apparent 18 dB behavior | — | **CONFIRMED** (contested but real) |
 | Self-oscillation | Stock filter does not cleanly self-oscillate | — | **CONFIRMED** |
-| Feedback low-frequency coupling pole | Resonant, boosts sub-100 Hz at high Resonance | ≈8–10 Hz (order of magnitude) | **ESTIMATE** (corrects: not 150–250 Hz) |
+| Feedback low-frequency coupling pole | Resonant, boosts sub-100 Hz at high Resonance | ≈8–10 Hz (order of magnitude); implemented as 2-pole ~9 Hz (range 5–15 Hz) in Faithful mode, 2026-09 | **ESTIMATE, IMPLEMENTED** (corrects: not 150–250 Hz) |
 | Cutoff pot range | Exponential, knob → Hz | ≈200 Hz–2.5 kHz (community estimate) | **UNSOURCED** |
 | VCO reference cal. | A key, 2-octave ratio | 110 Hz, 4:1 ± 0.5% | **CONFIRMED** |
 | Pitch law | 1 V/oct, 6-bit DAC | ±3 mV/oct tolerance | **CONFIRMED** |
