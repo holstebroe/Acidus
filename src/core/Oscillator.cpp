@@ -22,6 +22,7 @@ void Oscillator::setSampleRate(double sampleRate) {
     double fcLpf = 14000.0;
     lpfSawCoeff_ = 1.0 - std::exp(-2.0 * 3.14159265358979323846 * fcLpf / sampleRate_);
 
+    recomputeCouplingAlpha();
     resetFilterStates();
 }
 
@@ -92,37 +93,34 @@ float Oscillator::processNextSample() {
 
     // --- Shared saw/square coupling-network HPF ---------------------------
     // Confidence: ESTIMATE (mechanism/region CONFIRMED by research, exact
-    // corner/pitch-tracking law NOT sourced - see
-    // TB303_RESEARCH_COMPENDIUM.md Section 5 and TB303_PARAMETER_CONFIDENCE.md).
+    // corner NOT sourced - see TB303_RESEARCH_COMPENDIUM.md Section 5 and
+    // TB303_PARAMETER_CONFIDENCE.md).
     //
     // Previously this HPF was applied to the square wave only, fixed at
-    // 150 Hz. Research found neither claim holds up: Olney's analysis of
-    // reference recordings found that a high-passed square resembles the
-    // *reference saw*, and a high-passed saw resembles the *reference
-    // square*, with the effective corner sitting around 80-115 Hz and
-    // tracking pitch - i.e. this is a property of the shared oscillator/VCF
-    // coupling-capacitor network acting on *both* waveforms after the
-    // waveform selector, not a square-specific filter, and not at 150 Hz.
+    // 150 Hz - wrong on both counts: Olney's analysis of reference
+    // recordings found that a high-passed square resembles the reference
+    // saw and vice versa, i.e. this is a property of the shared oscillator/
+    // VCF coupling-capacitor network acting on *both* waveforms after the
+    // waveform selector, not a square-specific filter, and Olney's
+    // reconstruction used corners around 80-115 Hz, not 150 Hz.
     //
-    // Implemented here as a single one-pole HPF applied to whichever
-    // waveform is currently selected (both saw and square pass through it -
-    // the saw's own 14 kHz LPF/quadratic-bend stage above is unaffected and
-    // still saw-only, since that part of the model isn't in question here).
-    // The corner tracks pitch using the same exponential-in-frequency shape
-    // already used for the duty-cycle curve above (reused for consistency,
-    // not because it's independently sourced for this stage): it swings
-    // +-15% around the tunable `couplingBaseHz_` reference, low at low
-    // pitch and high at high pitch, which lands close to the observed
-    // ~80-115 Hz region when `couplingBaseHz_` is left at its ~98 Hz
-    // default. Exposed as a CLAP parameter ("Osc Coupling Freq") so the
-    // reference corner (and therefore the whole tracked range) can be
-    // retuned by ear; plausible range 70-120 Hz.
-    double pitchFactor = 1.0 - std::exp(-currentFreq_ / 180.0); // 0 (low pitch) .. ~1 (high pitch)
-    double couplingHz = static_cast<double>(couplingBaseHz_) * (0.85 + 0.30 * pitchFactor);
-    couplingHz = std::min(std::max(couplingHz, 40.0), 200.0);
-    double couplingAlpha = std::exp(-2.0 * 3.14159265358979323846 * couplingHz / sampleRate_);
-
-    double hpfOut = couplingAlpha * (couplingHpfY1_ + raw - couplingHpfX1_);
+    // 2026-09 correction: this project tried making the corner track pitch
+    // (swinging +-15% around a ~98 Hz reference, per the 80-115 Hz figure
+    // above), which caused a large, audible regression - at ordinary TB-303
+    // bass pitches (e.g. a 65 Hz C2, a 49 Hz G1) that corner sat AT OR ABOVE
+    // the fundamental, so the "coupling network" was instead cutting into or
+    // removing the played note's own fundamental. Cross-checked against
+    // RobinSchmidt/Open303, a well-regarded, independently ear/measurement-
+    // tuned open-source TB-303 emulation: its equivalent stage
+    // (`highpass1.setCutoff(44.486)`, its "pre-filter highpass" applied to
+    // the oscillator signal ahead of the main VCF) uses a FIXED corner, not
+    // pitch-tracking, at roughly half of even the low end of the 80-115 Hz
+    // figure. Reverted to a single, fixed one-pole HPF (both saw and square
+    // pass through it; the saw's own 14 kHz LPF/quadratic-bend stage above
+    // is unaffected) at a corner well below normal TB-303 playing range.
+    // Plausible range 30-60 Hz, default 44.5 Hz (Open303's exact value),
+    // exposed as the CLAP parameter "Osc Coupling Freq".
+    double hpfOut = couplingAlpha_ * (couplingHpfY1_ + raw - couplingHpfX1_);
     couplingHpfX1_ = raw;
     couplingHpfY1_ = hpfOut;
 

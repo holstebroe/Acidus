@@ -44,17 +44,19 @@ public:
 
     // "Faithful" mode: implicit trapezoidal solve (Newton-Raphson, tridiagonal
     // Jacobian) of the coupled diode-ladder at 8x oversampling, with per-stage
-    // capacitor pole spreading, input/output coupling poles, and a 2-pole
-    // resonance-loop coupling-pole network (~9 Hz, ESTIMATE, plausible range
-    // 5-15 Hz) standing in for the several further high-pass/coupling poles
-    // the real VCF's surrounding network adds inside the resonance feedback
-    // path -- see the implementation comment in Filter.cpp for full sourcing.
+    // capacitor pole spreading, input/output coupling poles, and a one-pole
+    // resonance-loop coupling-pole network (base ~150 Hz + up to +100 Hz with
+    // Resonance, ESTIMATE) standing in for the several further high-pass/
+    // coupling poles the real VCF's surrounding network adds inside the
+    // resonance feedback path -- see the implementation comment in Filter.cpp
+    // for full sourcing (2026-09: corrected back to this region after an
+    // earlier ~9 Hz attempt caused a large, audible regression).
     float processFaithfulSample(float input, float cutoffHz, float resonance);
 
     // Faithful-mode-only tunables, exposed as CLAP parameters for
     // experimentation (not on the plugin's own GUI). See
     // TB303_PARAMETER_CONFIDENCE.md for the full rationale on each.
-    void setResCouplingHz(float hz) { resCouplingHz_ = hz; }           // plausible range 5-15 Hz
+    void setResCouplingHz(float hz) { resCouplingHz_ = hz; }           // plausible range 100-250 Hz
     void setFeedbackGainCeiling(float k) { feedbackGainCeiling_ = k; } // plausible range 20-40
 
 private:
@@ -76,15 +78,11 @@ private:
     float fLadderV2_{0.0f};
     float fLadderV3_{0.0f};
     float fLadderV4_{0.0f};
-    // Resonance-loop coupling-pole network state (2 cascaded one-pole HPF
-    // stages sitting *inside* the resonance feedback path -- see the
-    // extensive comment above processFaithfulSample() in Filter.cpp for the
-    // confidence rationale). Stage 1: fHpFbStateX1_/Y1_. Stage 2 (cascaded
-    // on stage 1's output): fHpFbStateX2_/Y2_.
+    // Resonance-loop coupling-pole network state (single one-pole HPF sitting
+    // *inside* the resonance feedback path -- see the extensive comment above
+    // processFaithfulSample() in Filter.cpp for the confidence rationale).
     float fHpFbStateX1_{0.0f};
     float fHpFbStateY1_{0.0f};
-    float fHpFbStateX2_{0.0f};
-    float fHpFbStateY2_{0.0f};
     float prevFaithfulInput_{0.0f};
     OnePole inputCoupling_;   // ~20 Hz HPF ahead of the ladder (input DC-block cap)
     OnePole outputCoupling_;  // ~20 kHz LPF after the ladder (stray/buffer bandwidth)
@@ -114,11 +112,19 @@ private:
     const float capScale3_{0.3030f};
     const float capScale4_{1.0000f};
 
-    // Resonance-loop coupling-pole corner (Hz), Faithful mode only. ESTIMATE
-    // - plausible range 5-15 Hz, default 9 Hz. Full rationale and sourcing in
-    // processFaithfulSample()'s implementation comment in Filter.cpp. Not
-    // const: exposed as a CLAP parameter (SynthParameters::resCouplingHz).
-    float resCouplingHz_{9.0f};
+    // Resonance-loop coupling-pole base corner (Hz), Faithful mode only
+    // (actual corner used is this plus up to +100 Hz scaled by Resonance --
+    // see processFaithfulSample()). ESTIMATE - plausible range 100-250 Hz,
+    // default 150 Hz. Cross-checked against RobinSchmidt/Open303's
+    // `TeeBeeFilter::setFeedbackHighpassCutoff(150.0)`, a well-regarded,
+    // independently ear/measurement-tuned open-source TB-303 emulation,
+    // which uses a fixed 150 Hz here -- far better-supported than the ~9 Hz
+    // this project tried in 2026-09 based on two thin secondary-source
+    // summaries, which caused a large, audible regression (excessive
+    // low-frequency feedback energy driving the per-stage tanh saturation
+    // much harder than intended). Not const: exposed as a CLAP parameter
+    // (SynthParameters::resCouplingHz).
+    float resCouplingHz_{150.0f};
 
     // Feedback loop gain ceiling, Faithful mode only (kFb = resNorm *
     // feedbackGainCeiling_). BEST GUESS / calibration knob, not a circuit

@@ -136,8 +136,8 @@ SyrebasClap::SyrebasClap(const clap_host_t* host) : host_(host) {
     // Experimental/calibration parameters (not on the GUI) - defaults match
     // SynthParameters' in-code defaults in SynthEngine.hpp; see
     // TB303_PARAMETER_CONFIDENCE.md for the sourcing/uncertainty behind each.
-    paramValues_[PARAM_OSC_COUPLING_HZ] = 98.0;
-    paramValues_[PARAM_RES_COUPLING_HZ] = 9.0;
+    paramValues_[PARAM_OSC_COUPLING_HZ] = 44.5;
+    paramValues_[PARAM_RES_COUPLING_HZ] = 150.0;
     paramValues_[PARAM_FILTER_FEEDBACK_GAIN] = 36.0;
     paramValues_[PARAM_RES_CUTOFF_BLEED] = 0.15;
     paramValues_[PARAM_VEG_DECAY_SEC] = 3.5;
@@ -390,16 +390,16 @@ bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) 
         case PARAM_OSC_COUPLING_HZ:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Osc Coupling Freq");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Oscillator");
-            paramInfo->min_value = 70.0;
-            paramInfo->max_value = 120.0;
-            paramInfo->default_value = 98.0;
+            paramInfo->min_value = 30.0;
+            paramInfo->max_value = 60.0;
+            paramInfo->default_value = 44.5;
             break;
         case PARAM_RES_COUPLING_HZ:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Res Coupling Freq");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
-            paramInfo->min_value = 5.0;
-            paramInfo->max_value = 15.0;
-            paramInfo->default_value = 9.0;
+            paramInfo->min_value = 100.0;
+            paramInfo->max_value = 250.0;
+            paramInfo->default_value = 150.0;
             break;
         case PARAM_FILTER_FEEDBACK_GAIN:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Feedback Gain");

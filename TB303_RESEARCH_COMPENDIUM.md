@@ -346,3 +346,21 @@ A useful sanity habit: whenever a specific number from this document (or from th
 - Eddy Bergman, DIY TB-303 VCF build notes (component-matching methodology, corroborates the low-frequency resonance/bass-loss behavior) — [eddybergman.com/2025/03/TB303-VCF.html](https://www.eddybergman.com/2025/03/TB303-VCF.html)
 
 **Note on `TB303_EMULATION_REFERENCE.md`:** treated throughout this document as a secondary, AI-generated source of unknown provenance — useful for its qualitative modeling instincts, cross-checked and corrected against the primary sources above wherever it made specific numeric claims (§12).
+
+## 16. Addendum (2026-09): a cross-check against RobinSchmidt/Open303, and a correction to §6
+
+Two specific numbers from this compendium — the "≈8–10 Hz" resonance-loop coupling-pole corner and an implied pitch-tracking law for the oscillator/VCF coupling network — were implemented in this project's code and produced a **large, audible regression**: the emulation sounded markedly less like a real TB-303 than before the change, confirmed by direct comparison against reference recordings.
+
+Investigating this led to **RobinSchmidt/Open303** (`github.com/RobinSchmidt/Open303`, `Source/DSPCode/`), a well-regarded, independently ear/measurement-tuned open-source TB-303 emulation that many other emulators (including commercial ones) are informally benchmarked against. Its actual shipped, working constants directly contradict the two secondary-source summaries this compendium's §6 relied on:
+
+- **Resonance feedback-loop highpass**: `TeeBeeFilter::setFeedbackHighpassCutoff(150.0)` — a single one-pole highpass **fixed at 150 Hz**, not resonance-swept, and nowhere near 8–10 Hz.
+- **Oscillator/pre-filter highpass**: `highpass1.setCutoff(44.486)` — applied to the oscillator signal ahead of the main VCF, **fixed**, not pitch-tracking.
+- Additionally, Open303 has a **post-filter highpass** (`highpass2.setCutoff(24.167)`), an **allpass** (`allpass.setCutoff(14.008)`), and a narrow **notch** (`notch.setFrequency(7.5164)`, bandwidth `4.7`) — all applied *outside* the resonance feedback loop, in series with the signal. This is a plausible, concrete way the "several further coupling poles" from §6 could actually be realized in a working emulation: not as an 8–10 Hz element *inside* the resonance loop's gain path (which is what caused the regression), but as low-frequency notch/allpass shaping applied downstream of it.
+
+**Revised guidance, superseding §6 where they conflict:**
+
+- Treat "≈8–10 Hz composite coupling pole inside the resonance feedback loop" as **not corroborated** by this cross-check. Anchor the resonance feedback-loop highpass around **100–250 Hz** (150 Hz as a trustworthy default) instead.
+- Treat "the oscillator/VCF coupling network tracks pitch" as **not corroborated**. A **fixed** corner around 30–60 Hz (44.5 Hz as a trustworthy default) is better-supported.
+- The "several further poles" claim itself is not contradicted — Open303's notch/allpass/post-filter-highpass stages are evidence *for* it — but they belong **outside** the resonance loop's gain path, not inside it.
+
+**Methodological lesson:** this compendium's own §1 already warned that "no public source gives full SPICE-level component values... where a number is an estimate rather than a documented spec, it's marked *(approx., not directly sourced)*." The 8–10 Hz figure was exactly such an estimate (from two secondary summaries of Stinchcombe's analysis, not from Stinchcombe's own page or the factory service notes directly), and it was implemented and shipped without being validated against any working reference implementation or real audio. Where a concrete, sound-validated reference implementation exists for a parameter this compendium is uncertain about, prefer cross-checking against it before implementing a "best guess" derived purely from text.

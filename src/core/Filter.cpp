@@ -45,7 +45,6 @@ void Filter::reset() {
 
     fLadderV1_ = fLadderV2_ = fLadderV3_ = fLadderV4_ = 0.0f;
     fHpFbStateX1_ = fHpFbStateY1_ = 0.0f;
-    fHpFbStateX2_ = fHpFbStateY2_ = 0.0f;
     prevFaithfulInput_ = 0.0f;
     inputCoupling_.reset();
     outputCoupling_.reset();
@@ -157,57 +156,43 @@ float Filter::processFaithfulSample(float input, float cutoffHz, float resonance
     float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
 
     // --- Resonance-loop coupling-pole network -----------------------------
-    // Confidence: ESTIMATE (mechanism/order-of-magnitude CONFIRMED by
-    // research, exact corner/pole-count NOT sourced -- see
-    // TB303_RESEARCH_COMPENDIUM.md Section 6 and TB303_PARAMETER_CONFIDENCE.md).
+    // Confidence: ESTIMATE. Corrected 2026-09 after a regression: an earlier
+    // version of this comment argued (from two thin secondary-source
+    // summaries of Stinchcombe's analysis) that the real VCF's surrounding
+    // coupling poles collapse to an effective corner around 8-10 Hz, and set
+    // this to a 2-pole ~9 Hz network. That was wrong in practice: at typical
+    // TB-303 bassline cutoffs, it let nearly the *entire* ladder output back
+    // into the feedback loop (previously only content above ~150-250 Hz did),
+    // which -- combined with the tanh saturation already present in every
+    // ladder stage -- drove the loop into a much harsher, over-resonant
+    // regime than the real instrument, an audible regression confirmed
+    // against reference recordings.
     //
-    // The real VCF has "approximately six further high-pass/coupling poles"
-    // surrounding the core 4-pole ladder (Stinchcombe's analysis, via
-    // secondary summaries), whose *combined* effect behaves like an HPF in
-    // series with the main low-pass, sitting inside the same resonance
-    // feedback loop -- and becomes resonant there, boosting rather than only
-    // attenuating sub-100 Hz content as Resonance increases. Secondary
-    // sources disagree on the exact corner: ~8 Hz (Learning Modular's
-    // summary of Stinchcombe) vs ~10 Hz (Electronic Music Wiki); no source
-    // gives a pole count or topology for the surrounding network.
+    // Cross-checked against RobinSchmidt/Open303 (github.com/RobinSchmidt/Open303,
+    // Source/DSPCode/rosic_Open303.cpp), a well-regarded, independently
+    // ear/measurement-tuned open-source TB-303 emulation: its
+    // `TeeBeeFilter::setFeedbackHighpassCutoff(150.0)` uses a single one-pole
+    // highpass fixed at 150 Hz in exactly this position (inside the
+    // resonance feedback loop, not resonance-swept). That is far
+    // better-supported than this project's own ~9 Hz attempt, so this
+    // constant is reverted to the same ~150 Hz region (with the resonance-
+    // dependent +100 Hz widening this project already had before either
+    // change, kept as-is since Open303 doesn't rule it out, only doesn't use
+    // it) and de-cascaded back to a single one-pole stage.
     //
-    // This was previously modeled as a single one-pole HPF whose corner swept
-    // 150->250 Hz with Resonance -- a figure with no traceable source and
-    // roughly 15-25x too high a frequency. At typical TB-303 bassline cutoffs
-    // (150-800 Hz), that wrongly stripped most of the ladder's own output out
-    // of the feedback path before it could resonate, damping exactly the
-    // "squelchy acid bass" cutoff range the instrument is known for.
-    //
-    // Modeled here as 2 cascaded one-pole highpass stages (12 dB/oct) at a
-    // single fixed corner, still inside the same feedback loop as before --
-    // a deliberately simplified stand-in for an unknown ~6-pole network, not
-    // a literal circuit derivation. The resonant "boost near the pole" effect
-    // emerges from the feedback loop dynamics themselves (same mechanism as
-    // the main ladder's resonance peak at cutoff) once the corner sits at the
-    // right frequency, without needing a separate boost stage.
-    //
-    // Plausible range for the corner: 5-15 Hz. This is the single
-    // highest-leverage "sounds more like a real 303" knob identified by
-    // TB303_PARAMETER_CONFIDENCE.md -- try values across this range by ear.
-    // Pole count (2 here) is itself a BEST GUESS trade-off between "more than
-    // one pole, since the real network is clearly more complex than a single
-    // RC" and "don't pretend to model 6 individually-placed, unsourced poles."
-    // Increasing to 3-4 cascaded stages is a cheap (mono synth, negligible
-    // CPU either way) experiment worth trying if 2 poles doesn't sound sharp
-    // enough at the transition into the boosted region.
-    const float resCouplingAlpha = 1.0f / (1.0f + 2.0f * 3.14159265358979323846f * resCouplingHz_ * dt);
+    // Plausible range for the base corner: 100-250 Hz. Treat 150 Hz as a
+    // trustworthy anchor (Open303's exact value) rather than a wide-open
+    // guess -- prefer small adjustments around it over another large jump.
+    const float resCouplingHz = resCouplingHz_ + 100.0f * resNorm;
+    const float resCouplingAlpha = 1.0f / (1.0f + 2.0f * 3.14159265358979323846f * resCouplingHz * dt);
 
     // Feedback loop gain. BEST GUESS / calibration knob -- not a circuit
     // value. Chosen so the ladder approaches but does not cleanly
     // self-oscillate (CONFIRMED principle: Wikipedia's spec sheet states the
-    // stock filter is non-self-oscillating). Because the coupling-pole fix
-    // above lets much more of the ladder's own bass-register output back
-    // into the loop than the old 150-250 Hz version did, this constant is
-    // more likely to need re-tuning than before -- if self-oscillation
-    // happens too easily at moderate cutoff/resonance settings, try lower
-    // values first. Plausible range: 20-40, default 36 -- now a tunable
-    // member (feedbackGainCeiling_, set via setFeedbackGainCeiling()) rather
-    // than a hardcoded literal, exposed as a CLAP parameter.
+    // stock filter is non-self-oscillating). Plausible range: 20-40, default
+    // 36 -- a tunable member (feedbackGainCeiling_, set via
+    // setFeedbackGainCeiling()) rather than a hardcoded literal, exposed as a
+    // CLAP parameter.
     float kFb = resNorm * feedbackGainCeiling_;
 
     // BJT thermal-voltage-referenced tanh steepness. The 26 mV base is
@@ -248,31 +233,27 @@ float Filter::processFaithfulSample(float input, float cutoffHz, float resonance
         float h = dt;
         float v1 = fLadderV1_, v2 = fLadderV2_, v3 = fLadderV3_, v4 = fLadderV4_;
 
-        // Commit both coupling-pole stages' one-pole state once per
-        // oversample step (from the pre-step v4), then reuse that committed
-        // state to estimate the feedback voltage at each Newton iterate's
-        // predicted v4 without advancing the filter's history multiple times
-        // per sample. This "freeze history, linearize within the step"
-        // pattern is numerically safe here because the coupling-pole time
-        // constant (tau ~= 1/(2*pi*9Hz) ~= 17.7 ms) is enormous relative to
-        // the oversampled step (dt ~= 2.8 us at 8x/44.1kHz, dt/tau ~= 1.6e-4)
-        // -- so treating it explicitly instead of folding it into the
-        // implicit Newton-Raphson solve costs negligible accuracy. Embedding
-        // it into the implicit solve would be a substantial restructuring
-        // (the tridiagonal Jacobian below would need 2 more rows/columns)
-        // for no audible benefit at this timescale separation.
-        float hp1_0 = resCouplingAlpha * (fHpFbStateY1_ + v4 - fHpFbStateX1_);
+        // Commit the coupling-pole's one-pole state once per oversample step
+        // (from the pre-step v4), then reuse that committed state to estimate
+        // the feedback voltage at each Newton iterate's predicted v4 without
+        // advancing the filter's history multiple times per sample. This
+        // "freeze history, linearize within the step" pattern is numerically
+        // safe here because the coupling-pole time constant (tau ~= 1/(2*pi*
+        // 150Hz) ~= 1.1 ms) is still large relative to the oversampled step
+        // (dt ~= 2.8 us at 8x/44.1kHz, dt/tau ~= 2.5e-3) -- so treating it
+        // explicitly instead of folding it into the implicit Newton-Raphson
+        // solve costs negligible accuracy. Embedding it into the implicit
+        // solve would be a substantial restructuring (the tridiagonal
+        // Jacobian below would need another row/column) for no audible
+        // benefit at this timescale separation.
+        float hpOut0 = resCouplingAlpha * (fHpFbStateY1_ + v4 - fHpFbStateX1_);
         fHpFbStateX1_ = v4;
-        fHpFbStateY1_ = hp1_0;
-        float hp2_0 = resCouplingAlpha * (fHpFbStateY2_ + hp1_0 - fHpFbStateX2_);
-        fHpFbStateX2_ = hp1_0;
-        fHpFbStateY2_ = hp2_0;
-        float u0 = inSample - hp2_0 * kFb;
+        fHpFbStateY1_ = hpOut0;
+        float u0 = inSample - hpOut0 * kFb;
 
         auto feedbackFor = [&](float v4pred) {
-            float hp1 = resCouplingAlpha * (fHpFbStateY1_ + v4pred - fHpFbStateX1_);
-            float hp2 = resCouplingAlpha * (fHpFbStateY2_ + hp1 - fHpFbStateX2_);
-            return inSample - hp2 * kFb;
+            float hpOut = resCouplingAlpha * (fHpFbStateY1_ + v4pred - fHpFbStateX1_);
+            return inSample - hpOut * kFb;
         };
 
         // f(v) at the start of the step (u0, v_old), used as the fixed half of the

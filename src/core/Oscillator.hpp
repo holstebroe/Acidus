@@ -27,12 +27,14 @@ public:
 
     void resetFilterStates();
 
-    // Reference corner (Hz) for the shared saw/square coupling-network HPF
-    // below. ESTIMATE, exposed as a CLAP parameter for experimentation
+    // Corner (Hz) for the shared saw/square coupling-network HPF below.
+    // ESTIMATE, exposed as a CLAP parameter for experimentation
     // ("Experimental/Oscillator" > "Osc Coupling Freq"). Plausible range:
-    // 70-120 Hz. See processNextSample()'s implementation comment for the
-    // full sourcing/confidence rationale.
-    void setCouplingHz(float hz) { couplingBaseHz_ = hz; }
+    // 30-60 Hz. See processNextSample()'s implementation comment for the
+    // full sourcing/confidence rationale (2026-09: corrected down from an
+    // 83-113 Hz pitch-tracking law that was cutting into TB-303 bass
+    // fundamentals).
+    void setCouplingHz(float hz) { couplingHz_ = hz; recomputeCouplingAlpha(); }
 
 private:
     double sampleRate_{44100.0};
@@ -57,10 +59,17 @@ private:
     // the implementation comment in Oscillator.cpp for the full sourcing.
     double couplingHpfX1_{0.0};
     double couplingHpfY1_{0.0};
+    double couplingAlpha_{0.0};
 
-    // ESTIMATE - plausible range 70-120 Hz, default 98 Hz. Reference corner for
-    // the pitch-tracking coupling-network HPF; see Oscillator.cpp.
-    float couplingBaseHz_{98.0f};
+    // ESTIMATE - plausible range 30-60 Hz, default 44.5 Hz (cross-checked
+    // against RobinSchmidt/Open303's `highpass1.setCutoff(44.486)`, its
+    // "pre-filter highpass" applied to the oscillator signal ahead of the
+    // main VCF). Fixed - does NOT track pitch; see Oscillator.cpp.
+    float couplingHz_{44.5f};
+
+    void recomputeCouplingAlpha() {
+        couplingAlpha_ = std::exp(-2.0 * 3.14159265358979323846 * static_cast<double>(couplingHz_) / sampleRate_);
+    }
 
     static double noteToFreq(int note) {
         return 440.0 * std::pow(2.0, (note - 69) / 12.0);
