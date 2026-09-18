@@ -1,4 +1,3 @@
-````markdown
 # Roland TB-303 Accurate Emulation Guide & Technical Specification
 
 This document is intended as a **reference specification for a circuit-informed Roland TB-303 emulation**, with emphasis on reproducing the behavior of an original early-production TB-303 rather than merely reproducing its conventional synthesizer block diagram.
