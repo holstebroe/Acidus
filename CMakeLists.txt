@@ -5,6 +5,22 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Whole-program/link-time optimization lets the linker fold identical CLAP
+# vtable trampolines (/OPT:ICF) and drop unreferenced code (/OPT:REF), which
+# matters a lot for a plugin this small. Only apply it in Release-type
+# builds: it slows down incremental Debug builds for no benefit there.
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+if(ipo_supported AND CMAKE_BUILD_TYPE MATCHES "Release")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
+
+if(MSVC)
+    # Default Release linker behavior already implies /OPT:REF /OPT:ICF
+    # (no /DEBUG), but state it explicitly so it doesn't depend on that.
+    add_link_options($<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)
+endif()
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/clap/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
@@ -36,6 +52,18 @@ elseif(APPLE)
     set(GUI_LIBS ${COCOA_LIBRARY})
 elseif(WIN32)
     set(GUI_LIBS gdi32 user32)
+endif()
+
+# The GUI (60 Hz redraw) and CLAP host-glue code never run in the audio
+# callback, so optimizing them for size instead of speed costs nothing where
+# performance actually matters, while shrinking the shipped .clap. The DSP
+# core keeps the default speed-optimized flags.
+if(MSVC)
+    set_source_files_properties(${GUI_SOURCES} ${CLAP_SOURCES} PROPERTIES
+        COMPILE_OPTIONS "$<$<CONFIG:Release>:/O1>")
+else()
+    set_source_files_properties(${GUI_SOURCES} ${CLAP_SOURCES} PROPERTIES
+        COMPILE_OPTIONS "$<$<CONFIG:Release>:-Os>")
 endif()
 
 # Syrebas CLAP plugin library module

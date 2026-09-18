@@ -5,7 +5,6 @@
 #include <cmath>
 #include <cstring>
 #include <algorithm>
-#include <iostream>
 
 #if defined(__linux__) && !defined(__APPLE__)
 #include <X11/Xlib.h>
