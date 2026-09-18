@@ -1,0 +1,114 @@
+# TB-303 Emulation — Parameter Confidence Table
+
+This document cross-references the actual constants used in `src/core/` (`Oscillator`, `Filter`, `Envelope`, `SynthEngine`) against `TB303_RESEARCH_COMPENDIUM.md`. It answers two questions: **which numbers in the code are close to documented/measured hardware values (safe to trust), and which are tuned-by-feel placeholders (worth experimenting with until the "Faithful" engine matches a real 303)?**
+
+Confidence levels:
+
+- 🟢 **Confirmed** — matches a factory-service-notes value or a primary circuit analysis directly.
+- 🟡 **Estimate** — a plausible value, order-of-magnitude or mechanism confirmed, exact number not independently sourced.
+- 🔴 **Unsourced / free parameter** — no source found; treat as a pure calibration knob.
+
+Both the "Accurate" and "Faithful" engines share the oscillator (`Oscillator.cpp`) and the CV-summing stage (`SynthEngine.cpp`); they differ only in the filter core (`Filter::processAccurateSample` vs `Filter::processFaithfulSample`). Where a row applies to only one filter mode, it's noted in the Notes column.
+
+## Oscillator (`src/core/Oscillator.cpp`)
+
+| Parameter | Code location / constant | Code value | Research value / estimate | Confidence | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Slide lag time constant | `slideTimeSec` (`setSampleRate`, L15) | 60 ms | **60 ms**, stock (Whittle/Devil Fish manual) | 🟢 Confirmed | Exact match — do not change without a reason. |
+| A-key reference frequency | `noteToFreq` (L48, standard 12-TET, A4=440 Hz) | 440 Hz @ MIDI 69 → 110 Hz two octaves down | 110 Hz at the "A" key, 4:1 ± 0.5% over two octaves | 🟢 Confirmed (via standard 12-TET math, equivalent to a true 1 V/oct law) | Continuous double-precision math, not the real 6-bit DAC's quantization — see "Not emulated" below. |
+| Saw LPF corner | `fcLpf` (L19) | 14000 Hz | No source found | 🔴 Unsourced | Explicitly flagged for removal in `TB303_EMULATION_REFERENCE.md` §93 as *not* an authoritative hardware definition. Real oscillator-buffer rounding plausibly exists; 14 kHz specifically is invented. |
+| Saw quadratic bend | inline in `processNextSample` (L79-81) | `x - 0.05·x²` | No source found | 🔴 Unsourced | Same status as above; a cheap saturation stand-in, not a measured curve. |
+| Square HPF corner | `fcHpf` (L23) | 150 Hz, **square only** | Research points to ≈80–115 Hz, tracking pitch, applied to a *shared* oscillator↔VCF coupling network (affects both waveforms) | 🔴 Contradicted | This is the clearest oscillator-stage mismatch between code and research: wrong frequency region *and* wrong scope (square-only vs. shared-coupling). |
+| Square duty cycle | `duty = 0.45 + 0.25·exp(-freq/180)`, clamped [0.45, 0.70] (L86-87) | 45%→70% across the pitch range | 45% (high pitch) → 70–71% (low pitch) | 🟡 Estimate (endpoints confirmed, curve shape/180 Hz time-constant is a fit) | The *direction and endpoints* are right per Whittle/Olney — the exponential-in-frequency shape between them is this project's own curve-fit, not sourced. |
+| Square amplitude | `rawSq = ±0.75` (L89) vs. saw's post-distortion ≈±0.95-1.0 | square quieter than saw | Saw and square should have independently measured/estimated (non-normalized) drive levels into the filter | 🟡 Estimate (direction right, magnitude unsourced) | The concept ("saw drives the filter harder than square") is implemented; the specific 0.75 ratio is a guess. |
+
+## Filter — shared constants (`src/core/Filter.hpp` / `.cpp`)
+
+| Parameter | Code location / constant | Code value | Research value / estimate | Confidence | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Ladder capacitor pole-spread ratios | `capScale1_..4_` (`Filter.hpp` L78-81) | 1.0 / 0.667 / 0.303 / 1.0 (from an assumed 10/15/33/10 nF stage spread) | No component-level capacitor values found in any source consulted | 🔴 Unsourced | Only used by `processFaithfulSample`. The *idea* of unequal stage capacitors (uneven poles → apparent-18dB behavior) is well-supported; these specific ratios are not. |
+| BJT thermal-voltage scale | `Vt` / `Vt_inv` (both filter modes) | `Vt = 0.052` (≈2×26 mV), `Vt_inv = 19.23` | Real transistor Vt ≈ 26 mV is textbook-correct; the ×2 "effective" scale factor is an implementation choice for the tanh steepness, not a documented circuit parameter | 🟡 Estimate | The 26 mV base is physically grounded; the doubling is a tuning choice for the ladder's inter-stage tanh nonlinearity. |
+| Filter cutoff clamp | `std::min(std::max(cutoffHz, 20.0f), 18000.0f)` (both modes) | 20 Hz–18 kHz | No documented VCF frequency range | 🔴 Unsourced | Purely a numerical-stability clamp; also note `SynthEngine.cpp` clamps to 15 kHz before calling the filter (L117) — the two ceilings disagree (18 kHz vs 15 kHz), which is harmless but worth reconciling. |
+| Input signal level into ladder | `inSample = currIn * 0.05f` (both modes) | 0.05 (assumed ~50 mV RMS oscillator level) | Not sourced to a measured VCO output level | 🔴 Unsourced | Internal scale factor for the Vt-referenced nonlinearity; changing it changes how hard the ladder saturates. |
+| Oversampling factor | `oversampledRateAccurate_` / `oversampledRateFaithful_` | 4× / 8× | "Prefer 4× minimum, 8× or higher" | 🟢 Confirmed as a general DSP-quality guideline (not 303-specific) | Reasonable, matches general nonlinear-ladder practice cited in the original reference doc. |
+
+## Filter — Accurate mode only (`processAccurateSample`)
+
+| Parameter | Code location / constant | Code value | Research value / estimate | Confidence | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Feedback HPF corner (resonance-dependent) | `hpfCutoff = 150.0f + 100.0f * resNorm` (L62) | 150 Hz → 250 Hz as Resonance 0→1 | Research: composite coupling-pole corner is ≈**8–10 Hz**, not 150–250 Hz, and it is itself **resonant** (boosts, doesn't just cut, sub-100 Hz content near that corner) | 🔴 Contradicted | The single largest filter-model gap flagged by research: wrong frequency region by more than an order of magnitude, and missing the "boosts near the pole" resonant behavior entirely (this HPF only ever attenuates). |
+| Feedback gain coefficient | `kFb = resNorm * 33.0f` (L66) | up to 33 | Not a circuit value — a tuning constant chosen to keep the ladder below clean self-oscillation | 🔴 Unsourced (by design — calibration knob) | Correctly *behaves* consistently with "no clean self-oscillation" (🟢 confirmed principle), but the numeric ceiling itself is tuned by ear, not derived. |
+| RK2 (midpoint) ODE solver | whole function | — | — | — | An implementation/numerical-method choice, not a hardware parameter; no accuracy claim either way. |
+
+## Filter — Faithful mode only (`processFaithfulSample`)
+
+| Parameter | Code location / constant | Code value | Research value / estimate | Confidence | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Feedback HPF corner | `hpfCutoff = 150.0f + 100.0f * resNorm` (L143) | 150 Hz → 250 Hz | Same as Accurate mode — see above | 🔴 Contradicted | Faithful mode was supposed to be the more circuit-accurate engine, but it reuses the same wrong-region feedback HPF as Accurate mode. This is the highest-value single fix identified by this review. |
+| Feedback gain coefficient | `kFb = resNorm * 36.0f` (L149) | up to 36 (slightly higher ceiling than Accurate's 33, by design, per the code comment) | Tuning constant, not sourced | 🔴 Unsourced (calibration knob) | — |
+| Input coupling HPF | `inCouplingAlpha` from 20 Hz (L155) | 20 Hz one-pole DC block ahead of ladder | Research confirms a real input coupling/DC-block network exists, but gives no specific corner | 🟡 Estimate | Reasonable placeholder for "the filter doesn't have perfectly flat sub-bass response" (confirmed qualitative claim); 20 Hz itself is a guess. |
+| Output coupling LPF | `outCouplingAlpha` from 20000 Hz (L157) | 20 kHz one-pole after ladder | Represents "extra high-frequency coupling poles" qualitatively; no specific corner sourced | 🟡 Estimate | Same status — plausible, unverified. |
+| Newton-Raphson iteration count | `kNewtonIters = 3` (L163) | 3 | — | — | Numerical-method choice; affects solve accuracy/CPU cost, not a hardware parameter. |
+| Extra ladder-surrounding coupling poles (beyond the one input + one output pole above) | *(not present)* | 2 total (in + out) | Research: "approximately six further high-pass/coupling poles" (order-of-magnitude, not exact — see below), several of which are specifically inside the *resonance feedback loop* and resonant | 🔴 **Missing** | See "Not emulated" section — this is the most structurally significant gap between the Faithful engine and the research's recommended topology. |
+
+## Envelope (`src/core/Envelope.cpp`)
+
+| Parameter | Code location / constant | Code value | Research value / estimate | Confidence | Notes |
+| --- | --- | --- | --- | --- | --- |
+| MEG (VCF) attack | `0.0035` s in `updateCoefficients` (L26) | 3.5 ms | "Very fast," no specific ms figure sourced | 🟡 Estimate | Order-of-magnitude plausible. |
+| MEG decay range | `vcfDecayTimeSec_ = 0.20 * pow(12.5, d)` (`setDecay`, L20) | 200 ms → 2.5 s | ≈200 ms–2–2.5 s, plausible working target, not confirmed against stock service notes | 🟡 Estimate | Do not treat as more authoritative than a reference recording; also do **not** substitute the Devil Fish's 30 ms–3 s range (that's an explicitly modified range). |
+| Accent MEG decay override | `kAccentDecayTimeSec = 0.20f` (`Envelope.hpp` L42) | fixed 200 ms | Confirmed *mechanism* (bypass Decay pot, use its CCW-end value); the CCW-end value itself is the same unconfirmed 200 ms estimate above | 🟡 Estimate | Self-consistent with the MEG decay range row above — correct by construction, but only as accurate as that row's 200 ms floor is. |
+| VCA (VEG) attack | `0.003` s (L41) | 3 ms | "Very fast," no specific ms figure sourced | 🟡 Estimate | — |
+| VCA gate-high decay (t60) | `3.5f` in `vcaGateHighDecayCoeff_` (L43) | 3.5 s to -60 dB | No stock figure found; Whittle says only "rather long." 3–4 s is a reasonable estimate window | 🟡 Estimate | Sits squarely inside the plausible-but-unsourced 3–4 s range research flags — reasonable, but worth ear-tuning. |
+| VCA gate-off quick-drain | `quickDrainTimeSec = 0.016f` (L45) | 16 ms to -60 dB | ≈15–20 ms, unsourced estimate ("8 ms + 8 ms" in the older reference doc) | 🟡 Estimate | — |
+| Accent Sweep RC (charge/discharge) | `0.047` s in both coeffs (L49-50) | τ ≈ 47 ms | **47 kΩ × 1 µF ≈ 47 ms** | 🟢 Confirmed | Exact match to Whittle's sourced component values for the direct charge path. Note: the real circuit's time constant *varies with the Resonance knob* (via the 100 kΩ second-gang resistance) — the code uses one fixed 47 ms for both charge and discharge regardless of Resonance; see "Not emulated." |
+| Accent→VCA RC smoothing | `0.00155` s (L53) | τ ≈ 1.55 ms | **47 kΩ × 0.033 µF ≈ 1.55 ms** | 🟢 Confirmed | Exact match to Whittle's sourced accent-VCA network values. |
+
+## SynthEngine — CV/current summing (`src/core/SynthEngine.cpp`)
+
+| Parameter | Code location / constant | Code value | Research value / estimate | Confidence | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Accent velocity threshold | `velocity >= 0.8f` (`noteOn`, L29) | 0.8 | Confirmed as an *implementation convenience* only — the real 303 has no velocity sensitivity at all | 🟢 Confirmed as the right kind of thing to do (explicitly recommended pattern) | The threshold value itself (0.8 vs. any other) is a UX choice, not a hardware number. |
+| Cutoff/Env Mod pot taper | `cNorm*cNorm`, `envModNorm*envModNorm` (L84-85) | quadratic ("audio taper") | Factory parts list: Cutoff and Env Mod pots are **50 kΩ, "A" taper** | 🟢 Confirmed as the right taper *family*; the exact curve shape for "A taper" is not itself specified numerically anywhere | — |
+| Base cutoff CV range | `cv_base = 3.64385f * cTaper` (L88) | 3.644 octaves ≈ 200 Hz→2.5 kHz | No source for a specific cutoff Hz range | 🔴 Unsourced | Directly derived from the same unconfirmed 200 Hz–2.5 kHz figure flagged in `TB303_EMULATION_GUIDE.md` §3. |
+| Env Mod baseline offset | `cv_offset = envModTaper * 0.80735f` (L90) | ≈+350 Hz equivalent at base cutoff | Mechanism (bias-shift) confirmed; Hz magnitude not sourced | 🟡 Estimate (mechanism), 🔴 Unsourced (magnitude) | Correctly implements "Env Mod pushes baseline cutoff, not just envelope depth" as a *concept* — the 350 Hz-equivalent size of that push is a guess. |
+| Env Mod sweep depth | `cv_envmod = ... * 3.5f` (L102) | up to 3.5 octaves ≈ 7.5 kHz sweep at base | Mechanism confirmed (anti-log current, Q10/Q11); Hz magnitude not sourced | 🟡 / 🔴 same split as above | — |
+| Accent forces Env Mod to 100% | `effectiveEnvMod = noteAccent ? 1.0f : envModNorm` (faithful mode, L98-99) | binary override | Research: accent routes MEG through the *separate* Accent Sweep RC path, in parallel with the normal Env Mod path — not literally an override of the Env Mod knob | 🟡 Approximation | A reasonable simplification that gets the qualitative "accent pushes the filter harder" result, but isn't the documented mechanism (a parallel current path, not a knob override). Accurate mode instead blends by the Accent knob (`envModNorm + (1-envModNorm)*accentNorm`, L99) — also unsourced but arguably closer in spirit to a *summed* contribution. |
+| Accent Sweep / Resonance-gang blend | `directAccentPortion` / `sweepCapPortion` weighted by `resNorm * 0.7f` (L105-106) | 0.7 mixing coefficient | Mechanism confirmed (Resonance's 2nd gang sets how much of the accent signal is direct vs. capacitor-smoothed); the 0.7 weighting curve is not sourced | 🟡 Estimate (mechanism), 🔴 Unsourced (0.7 coefficient) | — |
+| Accent Sweep→cutoff scaling | `* 1.5f` (accented) / `* 0.75f` (non-accented residual) (L110) | tuning gains | Not sourced | 🔴 Unsourced | Pure calibration knobs controlling how strongly the sweep signal reaches the filter. |
+| Resonance→cutoff CV bleed | `(1.0f - 0.15f * resNorm)` (L116) | up to 15% cutoff reduction | **Not addressed by any source consulted** — not confirmed, not denied, simply absent from the research | 🔴 Unsourced | This is a candidate for removal or re-derivation: the confirmed Resonance/cutoff interaction is *only* the Accent Sweep gang coupling above, not a separate global CV-bleed term. Worth A/B testing with and without this line. |
+| Effective cutoff clamp | `[20.0f, 15000.0f]` (L117) | 20 Hz–15 kHz | — | — | Disagrees with the Filter class's own internal 18 kHz ceiling (harmless, since `SynthEngine`'s tighter 15 kHz clamp always applies first, but worth reconciling for clarity). |
+| VCA accent-current contribution | `vcaGain += accentVcaVal * accentNorm * 0.8f` (L126) | control-current summation, 0.8 scaling | **Confirmed mechanism**: control-current summation via the 47 kΩ/0.033 µF network, *not* a fixed-dB step | 🟢 Confirmed (mechanism) / 🔴 Unsourced (0.8 magnitude) | This is a case where the code is *more* correct than `TB303_EMULATION_GUIDE.md`'s old "+6 dB" framing — the implementation already does the right kind of thing; only the 0.8 scale factor is a guess. |
+| Asymmetric VCA saturation | `tanh(x*1.1)` positive / `tanh(x*0.9)` negative (L131) | asymmetric clipping | Confirmed *qualitative* claim (transistor stages have different positive/negative headroom); exact 1.1/0.9 asymmetry not sourced | 🟡 Estimate (mechanism), 🔴 Unsourced (magnitude) | — |
+
+## Summary: what's most trustworthy vs. most worth experimenting with
+
+**High confidence — leave alone unless a reference recording disagrees:**
+- Slide time constant (60 ms)
+- A=110 Hz / 4:1 octave VCO calibration
+- Accent Sweep RC (47 ms) and Accent→VCA RC (1.55 ms) time constants
+- Square duty-cycle endpoints (45%→70%)
+- Accent-VCA-as-control-current-summation (not fixed dB) — already implemented correctly
+- Dual-gang Resonance → Accent Sweep coupling (mechanism, not exact blend weight)
+
+**Biggest opportunities to improve accuracy (in priority order):**
+1. **Feedback HPF frequency** (`hpfCutoff = 150 + 100·resNorm`, both filter modes): wrong region by >10×. Research says the composite coupling-pole corner is ≈8–10 Hz, and — unlike the current implementation — it should be *resonant* (boost, not just cut) near that corner. This single change is likely the highest-leverage fix for matching the real "resonance steals bass except near a low sub-bass hump" character.
+2. **Missing extra coupling poles in Faithful mode**: only 2 of the "several" (≈6, order-of-magnitude) surrounding poles are modeled (one input HPF, one output LPF). Faithful mode's main value proposition over Accurate mode is closer circuit fidelity, so this is where added complexity would pay off most.
+3. **Square-only 150 Hz HPF in the oscillator**: research says this coloration isn't square-specific and isn't at 150 Hz — it's a shared saw/square coupling effect around 80–115 Hz that tracks pitch. Worth revisiting both the scope (apply to saw too, or move it into a shared post-selector coupling stage) and the frequency.
+4. **Resonance→cutoff 15% CV bleed** in `SynthEngine.cpp`: not corroborated by any source at all. Worth an A/B listening test with it disabled — it may be masking or duplicating the (also present) Accent-Sweep/Resonance-gang interaction.
+5. **Saw 14 kHz LPF + quadratic bend, and the general shape of the oscillator waveshaper**: unsourced but low-risk to leave as-is (cheap, plausible-sounding, not contradicted — just not confirmed).
+
+## Important parameter values that are **not emulated at all**
+
+These are documented hardware behaviors (confirmed or reasonably well-supported by the research) with **no corresponding code** in this project:
+
+1. **Sequencer clock/gate timing (24 ppqn, 3.5:2.5 gate ratio, tied/extended-note gate merging).** 🟢 Confirmed, high-confidence spec — but this project has no internal step sequencer; `SynthEngine::noteOn`/`noteOff` are driven directly by whatever gate timing the MIDI host (DAW) sends. If a host sends a plain 50%-length note, the characteristic 3.5:2.5 staccato feel is absent. Slide detection (`isSlide = isNoteActive_` in `SynthEngine.cpp` L26) is a generic MIDI-legato proxy, not the documented "slide flag belongs to note A, portamento starts at note B" sequencer semantics — it happens to produce similar-looking behavior for simple overlapping-note MIDI, but there's no explicit per-step slide flag, no "rest" concept distinct from silence, and no tied/extended-note gate-merging logic.
+2. **6-bit pitch DAC quantization.** The real hardware pitch CV is generated by a 6-bit DAC (≈83 mV/semitone-class resolution before the ±3 mV trim tolerance). The oscillator here uses full double-precision floating point, i.e. effectively infinite pitch resolution — a strictly "smoother" instrument than the original in this one respect.
+3. **Component-level variation and calibration drift.** `TB303_EMULATION_REFERENCE.md` §49 explicitly recommends small, slow per-instance variation in transistor Vbe/beta, capacitor value/leakage, resistor tolerance, and trim-pot settings for realism. None of this is implemented — every parameter is deterministic and identical run to run.
+4. **Temperature drift** (§50) and **analogue noise floor** (§51). Neither is implemented; the signal path is fully deterministic and noiseless.
+5. **A measured/derived BA662-style transconductance curve.** The VCA is `signal × envelope`, boosted by the accent control-current term, then passed through an asymmetric `tanh`. This gets the qualitative shape right (soft ceiling, not a hard linear multiply) but doesn't model an actual current-controlled-transconductance curve derived from the V662A reissue datasheet (§10 of the compendium).
+6. **The dedicated Env Mod bias transistor (Q9) shifting the filter's DC operating point**, distinct from simply adding a CV term. The current implementation approximates this as an additive `cv_offset`/`cv_envmod` term in the same octave-CV sum as everything else, which gets the *qualitative* "small knob movement, big audible sweep" behavior in the right ballpark but doesn't model a literal bias-point shift interacting with the ladder's own nonlinear transfer curve.
+7. **Resonance-dependent Accent Sweep time constant.** The real circuit's effective RC time constant for the accent-sweep capacitor varies continuously with the Resonance knob (via the 100 kΩ second-gang resistance) — the code uses one fixed 47 ms time constant for the capacitor regardless of Resonance, and instead expresses the Resonance/Accent-Sweep interaction entirely through a separate output-mixing weight (`resNorm * 0.7f` in `SynthEngine.cpp`). This is a reasonable approximation of the *result* but not the *mechanism*.
+8. **Diode/transistor Vf asymmetry.** The factory parts list includes at least one **germanium** diode (1S-188FM, Vf ≈ 0.3 V) alongside several **silicon** diode/transistor types (Vf ≈ 0.6 V), implying non-uniform forward-voltage behavior somewhere in the signal path. The filter's nonlinearity uses one uniform `Vt`/`tanh` shape for all four ladder stages and the feedback path; no per-stage or per-junction Vf asymmetry is modeled.
+9. **Output/mixer coupling stage and stated output impedances** (10 kΩ line out, 8–30 Ω headphone out). Not relevant to a plugin's internal signal path, but worth noting as explicitly out of scope rather than accidentally omitted.
+10. **Factory calibration-mode targets** (TM1–TM6 trim checkpoints, §11 of the compendium). There's no software "calibration mode" that could be validated against these checkpoints (e.g. exposing internal `vco_scale`/`filter_bias`-style hidden parameters, as the older reference doc's §53 recommends). All current parameters are the seven front-panel controls only.

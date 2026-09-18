@@ -1,123 +1,141 @@
 # Roland TB-303 Accurate Emulation Guide & Technical Specifications
 
-This document details the exact hardware non-linearities, exact knob scaling behaviors, component-level circuit quirks, envelope dynamics, filter topologies, and sequencer slide logic required to accurately emulate the Roland TB-303 bass synthesizer.
+This document details the hardware non-linearities, knob scaling behaviors, component-level circuit quirks, envelope dynamics, filter topology, and sequencer slide logic used to emulate the Roland TB-303 bass synthesizer.
+
+> **2026 update.** This document was originally AI-written from general knowledge, without citations, and several of its specific numbers turned out to be unsourced or directly contradicted once checked against the Roland factory Service Notes and the two primary technical analyses (Tim Stinchcombe's filter derivation, Robin Whittle's circuit writeups) — see `TB303_RESEARCH_COMPENDIUM.md` for the full sourced write-up and `TB303_PARAMETER_CONFIDENCE.md` for how every number below maps onto the actual constants in `src/core/`. Each item below is now tagged:
+>
+> - **[CONFIRMED]** — verified against the factory service notes or a primary circuit analysis.
+> - **[ESTIMATE]** — a plausible value with no direct citation; a reasonable calibration target, not a spec.
+> - **[UNSOURCED / LIKELY INVENTED]** — no source found for this specific number; several are directly contradicted by research. Treat as a free calibration knob, tune by ear against reference recordings.
 
 ---
 
 ## 1. Oscillator Core & Wave Shaper (Imperfect Waveforms)
 
-The TB-303 does not have two independent oscillators. It features a single negative-going sawtooth integrator. The Square wave is created by sending the sawtooth through a single-transistor differential comparator wrapper.
+The TB-303 does not have two independent oscillators. **[CONFIRMED]** It features a single negative-going sawtooth integrator. The Square wave is created by sending the sawtooth through a transistor waveshaping stage. **[CONFIRMED — structure; "single-transistor differential comparator" is this document's paraphrase, not a cited circuit detail]**
 
 ### Sawtooth Wave
 - Direction: Negative-going ramp (y = -(1 - 2 * phase)).
-- Rounding: Passed through a 1-pole passive low-pass filter fixed at 14 kHz to round sharp peaks and dampen ultra-high harmonics.
-- Bending / Saturation: Subjected to mild quadratic distortion due to transistor buffer loading:
-  f(x) = x - 0.05 * x^2
+- Rounding: passed through a 1-pole passive low-pass filter fixed at 14 kHz to round sharp peaks. **[UNSOURCED / LIKELY INVENTED]** — no source gives this figure; the earlier `TB303_EMULATION_REFERENCE.md` explicitly lists "a fixed 14 kHz one-pole LPF" as something to *avoid* presenting as an authoritative hardware definition (its §93/§3.1). Some rounding from real transistor-buffer loading is plausible; the specific 14 kHz corner is not verified.
+- Bending / Saturation: mild quadratic distortion, `f(x) = x - 0.05 * x^2`. **[UNSOURCED / LIKELY INVENTED]** — same status; also explicitly flagged for removal in `TB303_EMULATION_REFERENCE.md` §3.1/§93. Keep as a real-time-cheap saturation stand-in for "some oscillator nonlinearity exists," but do not treat the exponent or coefficient as measured.
 
 ### Square / Pulse Wave
-- Generation Quirk: The square wave is derived directly from the processed sawtooth. It inherits the 14 kHz rounding and the quadratic bending on its transitions.
-- Duty Cycle: Asymmetric pulse wave with a duty cycle fixed between 45% and 47% (~46%).
-- High-Pass Phase Shift / Tilt: Passed through a 1-pole high-pass coupling capacitor filter fixed at 150 Hz. This aggressively tilts the top and bottom flat portions of the pulse wave. This phase distortion shifts the peak-to-peak amplitude, causing the square wave to drive the filter inputs into asymmetric distortion differently than the sawtooth.
+- Generation: derived directly from the processed sawtooth via the transistor waveshaper; inherits whatever rounding/bending the saw stage applies.
+- Duty cycle: **pitch-dependent**, not fixed — **[CONFIRMED, and this corrects the document's own earlier claim]**. Robin Whittle's analysis (independently corroborated by Andrew Olney's modular reconstruction) puts it at roughly **45%** at higher pitches, widening to roughly **70–71%** at the lowest oscillator frequencies. A fixed 45–47% duty cycle across the whole range is not accurate and should not be used.
+- High-pass "tilt": the square (and, per the corrected research, the saw as well) passes through a coupling-capacitor network shared with the VCF input, whose corner sits in roughly the **80–115 Hz region and tracks pitch** — **[ESTIMATE, better-supported region]** — not a fixed, square-only 150 Hz HPF. **[The original "square-only, fixed 150 Hz" framing is now UNSOURCED / CONTRADICTED]**: research indicates the high-pass-like coloration is a property of the shared oscillator→VCF coupling network affecting *both* waveforms (a high-passed square resembles the reference saw and vice versa), not a filter bolted onto the square path alone.
 
 ---
 
 ## 2. Diode Ladder Filter (VCF) Topology
 
-The TB-303 filter is physically a 4-pole diode ladder network, but its biasing configuration creates unique attenuation characteristics.
+The TB-303 filter is physically a 4-pole diode-ladder network in which the stages are **not** isolated by unity-gain buffers, so each stage loads its neighbors. **[CONFIRMED — structural point, Stinchcombe]**
 
 ### Slope Behavior
-- 4-pole diode ladder network with spread pole frequencies (capacitors scaled across stages: 10nF, 15nF, 33nF, 10nF).
-- The effective cutoff slope measures ~18 dB/octave in the primary audible frequency spectrum because the poles never align perfectly on the same cutoff frequency.
+- 4-pole diode ladder, spread pole frequencies. **[CONFIRMED — structurally 4-pole/24 dB asymptotic]**
+- Specific per-stage capacitor values (e.g. "10 nF, 15 nF, 33 nF, 10 nF") — **[UNSOURCED / LIKELY INVENTED]**. No source consulted gives component-level VCF capacitor values; the factory service notes' own VCF trim target (TM3) was not legibly recoverable from the scan consulted for the research pass. Treat any specific capacitor-ratio numbers as tunable calibration parameters, not schematic values.
+- The filter is commonly called "18 dB/octave" despite being physically 4-pole/24 dB, because the poles are unevenly spaced so the roll-off *behaves* closer to 18 dB/octave over much of the audible transition region. **[CONFIRMED as a real, contested point]** — genuinely disputed across sources, not settled; there's also an unconfirmed theory that "18 dB" was chosen to avoid an explicit comparison to the patented Moog ladder.
 
 ### Non-linear Feedback & Saturation
-- No Clean Self-Oscillation: The feedback loop will never self-oscillate as a clean sine whistle.
-- Feedback Saturation: A soft-clipping function must be placed directly in the feedback path. The hardware uses a transistor pair that clips asymmetrically before saturation:
-  Feedback(x) = tanh(x * Resonance_Gain)
-- Passband Compression: At maximum resonance gain, the feedback network actively compresses and dampens the audio signal's fundamental passband amplitude.
+- No clean self-oscillation: the stock filter does not cleanly self-oscillate into a pure sine at max resonance the way a buffered Moog-style ladder does. **[CONFIRMED — Wikipedia's spec sheet states this explicitly]**
+- A soft-clipping nonlinearity belongs *inside* the feedback path (not just at the output). **[CONFIRMED — directional]**; the specific functional form (`tanh`, its gain coefficient, symmetry) is an implementation choice, not a documented circuit equation.
+- Passband compression at high resonance (the filter loses gain/bass as resonance increases). **[CONFIRMED — directional, well-corroborated by multiple sources]**
 
 ### Resonance Bass Drop & Feedback HPF
-- A high-pass filter (0.01uF capacitor into a 100kOhm load) sits directly inside the feedback loop path.
-- As the Resonance knob is turned clockwise (0.0 to 1.0), the cutoff frequency of this feedback HPF dynamically scales between 150 Hz and 250 Hz, stripping low-frequency energy exclusively from the resonance feedback path, causing the low-end of the overall synth sound to thin out significantly.
+- **[UNSOURCED / CONTRADICTED]** A feedback high-pass filter that dynamically sweeps its corner between 150 Hz and 250 Hz as Resonance increases (with 0.01 µF / 100 kΩ component values) — no source consulted supports either the specific component values or the 150–250 Hz range. Research instead points to a composite low-frequency coupling-pole structure around **8–10 Hz**, sitting *inside* the resonance feedback loop, which is itself **resonant** (it boosts sub-100 Hz content as Resonance increases, rather than only stripping it) — this is a materially different mechanism from a simple HPF that scales 150→250 Hz. See `TB303_RESEARCH_COMPENDIUM.md` §6. What is well-corroborated across sources: "resonance steals bass, except right around a boosted low-frequency coupling-pole region" — model the *mechanism*, treat the exact corner frequency and pole count as tunable.
 
 ---
 
 ## 3. Knob Ranges, Voltages & Parameter Interactivity
 
-In the physical unit, the pots scale internal Control Voltages (CV) that bleed into each other. Standard independent parameter mappings will fail to match real knob positions.
+In the physical unit, the pots scale internal control voltages that interact through analogue summing networks — front-panel positions do not map to independent DSP parameters. **[CONFIRMED as a general principle]**
 
 ### Cutoff Pot & Tuning Calibration
-- Absolute Floor: With Cutoff, Env Mod, and Decay at 0, the absolute lowest cutoff frequency floor is ~200 Hz.
-- Base Cutoff Pot Range: Exponential mapping from 200 Hz (fully CCW, 0.0) to 2.5 kHz (fully CW, 1.0):
-  Base_Cutoff = 200 * 12.5^(Cutoff_Knob_Value)
+- Absolute floor / exponential range (e.g. "200 Hz fully CCW to 2.5 kHz fully CW", `Base_Cutoff = 200 * 12.5^knob`) — **[UNSOURCED / LIKELY INVENTED]**. No source consulted (including the factory service notes' own calibration procedure, which targets a transient/oscillation behavior rather than an absolute Hz range) confirms a specific cutoff frequency range. This remains a reasonable, commonly-used community estimate — treat it as a calibration target to verify against a reference recording, not a documented spec.
+- VCO reference calibration (**not** the VCF cutoff range): **A = 110 Hz**, **two-octave interval = 4:1 ± 0.5%** — **[CONFIRMED]**, taken verbatim from the factory service notes' VCO trim procedure (TM4 reference trim, TM5 width trim).
+- Pitch law: **1.000 V/octave**, calibrated to **±3 mV** tolerance, via a 6-bit pitch DAC — **[CONFIRMED]**, from the CV-Out spec (+1 V to +5 V, 1 V/octave) and the TM6 CV-calibration checkpoint.
 
 ### Env Mod Pot & Cross-Modulation Interaction
-- The Ceiling: Scales the peak filter envelope sweep depth. At maximum (1.0), the envelope sweeps the cutoff up to 7.5 kHz.
-- The Interaction Quirk: The Env Mod knob actively offsets the baseline cutoff. Turning the Env Mod knob clockwise pushes the static baseline cutoff frequency up even if the envelope is sitting at 0. 
-  Cutoff_Offset = Env_Mod_Knob_Value * 350 Hz
+- The *mechanism* — Env Mod both scales the MEG's contribution to filter cutoff **and** shifts the filter's DC bias point, via a dedicated bias transistor (Q9) and an anti-log current converter (Q10/Q11) — is **[CONFIRMED]**, documented explicitly in the factory service notes under "VCF Envelope Modulation." Do not implement this as `cutoff_Hz += envelope * envModDepth`.
+- The specific numbers ("sweeps cutoff up to 7.5 kHz at max," "+350 Hz baseline offset per knob unit") — **[UNSOURCED / LIKELY INVENTED]**. No Hz figures for Env Mod's range are given by any source consulted. Keep the *current-domain, bias-shifting* architecture; treat the Hz-equivalent magnitudes as free calibration parameters.
 
 ### Resonance / Cutoff Interactivity (CV Bleed)
-- Negative control-voltage bleed occurs directly inside the VCF biasing circuit. As Resonance increases from 0.0 to 1.0, the baseline cutoff frequency is pulled down by up to 15%:
-  Effective_Cutoff = (Base_Cutoff + Cutoff_Offset) * (1.0 - (0.15 * Resonance))
+- A claim that increasing Resonance pulls the baseline cutoff down by up to 15% via CV bleed — **[UNSOURCED / LIKELY INVENTED]**. This specific interaction and its 15% figure were not found in, or contradicted by, any source consulted; it is not addressed in the research at all. What *is* confirmed is a different, related effect: the Resonance pot's **second gang** feeds the Accent Sweep network (§4 below), not a global cutoff-CV bleed. If a resonance→cutoff coupling exists in the stock circuit, it was not identified in this research pass — treat this parameter as speculative and validate/remove it against reference recordings.
 
 ---
 
 ## 4. Envelopes & Accent Circuits
 
-The TB-303 uses discrete resistor-capacitor (RC) discharging circuits with gated state logic.
+The TB-303 uses discrete RC discharging circuits with gated state logic, not ADSR blocks. **[CONFIRMED as a general principle]**
 
 ### Sequencer Step Gate Rules
-- Normal Step (No Slide): Gate remains HIGH for exactly 50% of the 16th-note step duration. Gate drops LOW for the remaining 50% of the step.
-- Slid Step (Slide = True): Gate remains HIGH for 100% of the step duration, tying seamlessly into the next step.
+- Normal step (no slide): gate HIGH for **3.5 of 6 clock pulses**, LOW for the remaining 2.5 — **[CONFIRMED]**, from the 24-ppqn / 6-pulses-per-16th-note clock structure (Whittle, independently corroborated by Olney). **This document's earlier "exactly 50%" claim was wrong** — the correct ratio is 3.5:2.5, not 3:3.
+- Slid step: gate remains HIGH for the full step, tying into the next step. **[CONFIRMED]**
 
-### VCA Amplitude Envelope (A-D-Gated State Logic)
-Operates on two distinct circuit phases:
-1. Phase 1: Gate = HIGH
-   - Attack: 3.0ms exponential RC curve rise to peak 1.0.
-   - Decay: As long as Gate remains HIGH, slow exponential discharge toward 0.0 with a 4.0-second time constant (tau).
-2. Phase 2: Gate = LOW (Quick Drain Correction)
-   - When Note-Off occurs (Gate = LOW), a transistor disconnects the power rail. The capacitor drains immediately through a parallel resistor. Override the time constant to discharge to silence (-60 dB) within 15ms to 20ms (~18ms).
+### VCA Amplitude Envelope (Gated State Logic)
+Two circuit phases, both **[CONFIRMED]** as a mechanism:
+1. Gate HIGH: fast attack, then slow exponential discharge toward 0 for as long as gate stays high.
+2. Gate LOW: a quick-drain path discharges the VCA rapidly rather than continuing the slow decay.
 
-### VCF Filter Envelope (MEG - Main Envelope Generator)
-Completely decoupled from the VCA quick drain logic:
-1. Phase 1: Gate = HIGH
-   - Attack: Fixed exponential RC curve at 3.5ms up to 1.0.
-   - Decay: Exponential decay toward 0.0. Mapped exponentially to the Decay knob position from 200ms (fully CCW) to 2.5 seconds (fully CW).
-2. Phase 2: Gate = LOW (Uninterrupted Decay)
-   - When Note-Off occurs, the VCF envelope does NOT reset or snap. It continues tracking along its exponential decay path toward 0.0 at the rate specified by the Decay knob, ignoring the note-off event.
+Specific numbers:
+- Attack ≈3 ms — **[ESTIMATE]**, order-of-magnitude "very fast," not independently sourced to a specific millisecond figure.
+- Gate-HIGH decay time constant — **[UNSOURCED ESTIMATE]**. No primary source gives a specific stock VEG (Volume Envelope Generator) time constant; Whittle describes it only as "rather long." Treat any single value (3 s, 3.5 s, 4 s) as a calibration target, not a spec — do not present any one of them as more authoritative than another without a reference recording to check against.
+- Gate-LOW quick-drain time (≈15–20 ms) — **[UNSOURCED ESTIMATE]**. Plausible order of magnitude, not found in any source consulted.
+
+### VCF Filter Envelope (MEG — Main Envelope Generator)
+Decoupled from the VCA's quick-drain logic — **[CONFIRMED]**: on gate-off, the MEG does **not** reset or snap; it continues along its existing exponential decay toward 0, ignoring note-off entirely (only the front-panel Decay setting, or the accent override below, governs its rate).
+- Attack ≈3–3.5 ms — **[ESTIMATE]**, same status as the VCA attack above.
+- Decay range mapped exponentially to the Decay knob, roughly 200 ms (fully CCW) to 2–2.5 s (fully CW) — **[ESTIMATE, plausible working target]**. Not independently confirmed against the stock service notes (whose VCF calibration procedure targets a transient/oscillation behavior at the trimmer, not the Decay pot's end-stops). Do **not** borrow the Devil Fish manual's 30 ms–3 s range for this — that is an explicitly *modified* range, not stock.
 
 ### Accent Logic & Energy Accumulation
-When an accented step is triggered (velocity >= 0.8):
-- VCF Decay Override: Forces the filter decay time constant directly to its absolute minimum (~200ms), ignoring the physical position of the Decay knob.
-- VCF Env Depth: Forces Env Mod depth to 100% for that note trigger, producing a sharp frequency "chirp".
-- VCA Saturation Boost: Applies a +6 dB gain boost into the VCA stage, driving heavy asymmetric tanh clipping in the output stage.
-- The Capacitor Accumulation Quirk: If multiple Accents are triggered in rapid succession, the Accent capacitor cannot discharge fully between notes. This causes the baseline filter cutoff to temporarily drift upward by an extra 100 Hz to 300 Hz over the course of 3 to 4 consecutive accented notes, creating a rising tension effect.
+When an accented step triggers, three things happen simultaneously, sourced from the MEG through a switch closed only on accented steps — **[CONFIRMED topology, Whittle]**:
+- **VCF Decay Override [CONFIRMED mechanism]**: the Decay pot is bypassed; MEG runs at the same short, fixed decay it would use if Decay were fully CCW (i.e. the low end of the Decay range above — not necessarily an independently-fixed "200 ms," but whatever that low end actually is).
+- **VCF Env Depth "forced to 100%"** — **[UNSOURCED framing]**. The confirmed mechanism is that the Accent Sweep circuit routes MEG into the filter through a *second*, RC-shaped path (below) in parallel with the normal Env Mod path — not literally forcing the Env Mod knob's own depth to 100%. Model it as an added current-summing contribution, not a knob override.
+- **VCA gain boost "+6 dB"** — **[UNSOURCED / CONTRADICTED]**. Research confirms the accent's contribution to the VCA is a **control-current summation** — the MEG's short decay envelope added into the VCA's control current through an RC network of **47 kΩ + 0.033 µF** (a real, sourced component pair — τ ≈ 1.55 ms) — not a fixed +6 dB gain multiply. A fixed-dB step will not reproduce the softened, envelope-shaped accent loudness the real circuit produces.
+- **Accent Sweep capacitor accumulation [CONFIRMED mechanism, exact topology sourced]**: MEG → diode → 47 kΩ → the anti-clockwise end of a 100 kΩ pot (this pot is the **second gang of the Resonance pot** — not an independent Accent-only element) → wiper → 100 kΩ mixing resistor → filter cutoff-current summing node, with a **1 µF** capacitor to ground at the pot's clockwise end. This capacitor does not fully discharge between closely-spaced accented notes, so consecutive accents produce a *rising* series of filter peaks. The direct-path time constant is τ ≈ 47 kΩ × 1 µF ≈ **47 ms**, further shaped by the 100 kΩ Resonance-gang resistance and diode nonlinearity (so the effective time constant varies continuously with the Resonance knob). The specific "cutoff drifts up by 100–300 Hz over 3–4 accents" figure in the original spec is **[UNSOURCED / LIKELY INVENTED]** — no Hz magnitude for this effect was found; the mechanism (rising accent peaks from persistent capacitor charge) is real, the Hz number is not.
 
 ---
 
 ## 5. Sequencer Slide Logic
 
 ### Pitch Glide
-- When a Slide is active between notes, target frequency passes through a 1-pole lag filter with an RC time constant tracking between 60ms and 80ms (~70ms).
+- Slide passes the target pitch through a 1-pole lag filter with RC time constant **60 ms** — **[CONFIRMED]**, explicitly documented in Whittle's Devil Fish manual as the *stock* value (before the mod extends it). The earlier "60–80 ms (~70 ms)" range in this document softened a number that is actually pinned down; use 60 ms.
 
 ### Re-Trigger Logic (Legato vs. Staccato)
-- Slide = False (Non-Slid Note): Retriggers both VCF and VCA envelopes to start their attack phases from their current voltage levels (smooth retrigger catching the existing tail, rather than zeroing out).
-- Slide = True (Slid Note): Does NOT trigger the attack phase of either envelope. The VCF envelope continues its natural exponential decay uninterrupted, while the VCA envelope gate remains high.
+- Non-slid note: produces a genuine new gate/trigger event for both envelopes. **[CONFIRMED]** Whether the envelopes literally reset to 0 or continue from their current (not-yet-fully-discharged) capacitor voltage is a real analogue-memory effect that should be preserved — **[CONFIRMED as a mechanism]**; closely-spaced retriggers should start from wherever the capacitor actually is, not from a hard-coded zero.
+- Slid note: **does not** retrigger either envelope's attack phase. **[CONFIRMED]** MEG continues its natural exponential decay uninterrupted; the VCA gate remains open (no attack retrigger, no gate-off). Oscillator phase is never reset by a slide.
 
 ---
 
 ## Summary Matrix
 
-| Parameter / Module | Characteristic / Behavior | Formula / Value |
-| :--- | :--- | :--- |
-| Sawtooth | Negative-going, 14 kHz LPF, quadratic curve | f(x) = x - 0.05x^2 |
-| Square | Asymmetric duty cycle, derived from Saw, 150 Hz HPF tilt | Duty 46%, 1-pole 150 Hz HPF phase tilt |
-| Diode Filter Slope | 4-pole diode ladder network | Effective ~18 dB/octave due to pole spreading |
-| Filter Feedback Sat | Feedback path non-linear clipping | Feedback(x) = tanh(x * ResGain) |
-| Resonance Bass Drop| Dynamic feedback HPF cutoff | 150 Hz to 250 Hz based on Resonance knob |
-| Cutoff Pot Range | Exponential mapping (zero env mod) | 200 Hz to 2.5 kHz |
-| Env Mod Cutoff Offset| Knob position raises baseline cutoff | Cutoff_Offset = Env_Mod_Knob * 350 Hz |
-| Cutoff/Res CV Bleed | Baseline cutoff reduction | Effective_Cutoff = (Base + Offset) * (1.0 - 0.15 * Res) |
-| VCF Env Attack/Decay| Fixed RC attack, Decay knob range | Attack 3.5ms; Decay 200ms to 2.5s; Uninterrupted by Note-Off |
-| VCA Env Attack/Decay| Fixed RC attack, Gate HIGH / LOW decay | Attack 3.0ms; Gate HIGH tau = 4.0s; Gate LOW quick drain = ~18ms |
-| Accent Behavior | Decay floor override, max Env Mod, VCA boost, cap accumulation | VCF Decay = 200ms; +6 dB VCA boost; Cutoff accumulator drift |
-| Slide Pitch Glide | 1-pole lag filter | RC time constant 60ms to 80ms (~70ms) |
+| Parameter / Module | Characteristic / Behavior | Formula / Value | Confidence |
+| :--- | :--- | :--- | :--- |
+| Oscillator count | Single VCO, no detune, continuous phase | — | **CONFIRMED** |
+| Square duty cycle | Pitch-dependent | ≈45% (high pitch) → ≈70–71% (low pitch) | **CONFIRMED** |
+| Saw 14 kHz LPF + quadratic bend | Rounding/saturation stand-in | `x - 0.05x²` after 14 kHz LPF | **UNSOURCED** |
+| Oscillator/VCF coupling "HPF" | Shared coupling network, both waveforms, pitch-tracking | ≈80–115 Hz, tracks pitch | **ESTIMATE** (corrects: not square-only, not fixed 150 Hz) |
+| Diode filter structure | 4-pole, unbuffered, loaded stages | — | **CONFIRMED** |
+| Diode filter capacitor values | Per-stage spread | e.g. 10/15/33/10 nF | **UNSOURCED** |
+| "18 dB" vs 24 dB | Uneven pole spacing → apparent 18 dB behavior | — | **CONFIRMED** (contested but real) |
+| Self-oscillation | Stock filter does not cleanly self-oscillate | — | **CONFIRMED** |
+| Feedback low-frequency coupling pole | Resonant, boosts sub-100 Hz at high Resonance | ≈8–10 Hz (order of magnitude) | **ESTIMATE** (corrects: not 150–250 Hz) |
+| Cutoff pot range | Exponential, knob → Hz | ≈200 Hz–2.5 kHz (community estimate) | **UNSOURCED** |
+| VCO reference cal. | A key, 2-octave ratio | 110 Hz, 4:1 ± 0.5% | **CONFIRMED** |
+| Pitch law | 1 V/oct, 6-bit DAC | ±3 mV/oct tolerance | **CONFIRMED** |
+| Env Mod mechanism | Bias-shift + anti-log current, not Hz offset | Q9 bias, Q10/Q11 anti-log pair | **CONFIRMED** |
+| Env Mod Hz magnitude | Sweep depth / baseline offset | e.g. +350 Hz, up to 7.5 kHz | **UNSOURCED** |
+| Resonance→cutoff CV bleed | Global cutoff reduction with Resonance | 15% | **UNSOURCED** (not addressed by any source) |
+| Resonance pot | Dual-gang 50 kΩ | Gang 2 → Accent Sweep | **CONFIRMED** (factory parts list) |
+| Gate timing | Non-slide 1/16 step | 3.5 of 6 clock pulses ON | **CONFIRMED** (corrects: not 50/50) |
+| VCF (MEG) attack | Fast RC rise | ≈3–3.5 ms | **ESTIMATE** |
+| VCF (MEG) decay range | Decay-knob-mapped | ≈200 ms–2–2.5 s | **ESTIMATE** |
+| VCF gate-off behavior | Uninterrupted decay, no reset | — | **CONFIRMED** |
+| VCA (VEG) attack | Fast RC rise | ≈3 ms | **ESTIMATE** |
+| VCA (VEG) gate-high decay | Slow exponential | 3–4 s (no fixed figure sourced) | **UNSOURCED ESTIMATE** |
+| VCA gate-off quick drain | Fast discharge on note-off | ≈15–20 ms | **UNSOURCED ESTIMATE** |
+| Accent → VCA path | Control-current summation, RC-softened | 47 kΩ + 0.033 µF (τ≈1.55 ms) | **CONFIRMED** |
+| Accent VCA "+6 dB" | Fixed gain step | — | **UNSOURCED / CONTRADICTED** |
+| Accent → filter (Accent Sweep) | Diode + RC + dual-gang-Resonance pot + capacitor memory | 47 kΩ, 1 µF (τ≈47 ms direct path), 100 kΩ ×2 | **CONFIRMED** (exact topology) |
+| Accent cutoff drift magnitude | Rising accent peaks | 100–300 Hz over 3–4 accents | **UNSOURCED** (mechanism confirmed, Hz figure not) |
+| Slide time constant | Pitch lag | 60 ms (stock) | **CONFIRMED** |
+| Slide envelope behavior | No retrigger, gate stays high | — | **CONFIRMED** |

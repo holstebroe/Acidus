@@ -10,6 +10,8 @@ A large part of the TB-303 sound comes from the interaction between the oscillat
 
 The original Roland service documentation identifies the sound-generating sections as a VCO, VCF, VCA, envelope generators and mixer, and shows the actual discrete transistor/diode circuitry, including the BA662A VCA, matched transistor pairs, oscillator trim circuitry and filter ladder. The front-panel controls are not independent DSP parameters: several operate through analog current/voltage summing networks and therefore interact. The service documentation also specifies a 1 V/octave CV system, a six-clock-pulse 1/16-note timing structure, and detailed oscillator and filter calibration procedures.
 
+> **2026 update — cross-checked against primary sources.** This document was AI-written from general knowledge and, while its qualitative modeling advice (the "do not do X" warnings throughout) holds up, several of its *specific numbers* turned out to be either borrowed from the Devil Fish mod (not stock hardware) or invented-sounding round figures presented with more confidence than the underlying sources support. `TB303_RESEARCH_COMPENDIUM.md` cross-checks every specific claim in this document against the Roland factory Service Notes, Tim Stinchcombe's filter analysis, and Robin Whittle's circuit writeups, and should be treated as authoritative wherever the two disagree. `TB303_PARAMETER_CONFIDENCE.md` maps the resulting confidence levels onto the actual constants used in `src/core/`. The most consequential corrections are inline below (§10, §13); see the compendium's §12 for the full list.
+
 ---
 
 # 0. Reference Hardware Definition
@@ -398,6 +400,8 @@ The poles are therefore widely separated rather than coincident.
 
 This is a much better approximation to the TB-303's linearized filter than simply cascading four identical Butterworth one-poles.
 
+> **Correction (2026):** these normalized pole values are a reasonable illustrative idealization, not measured or independently sourced data — no traceable derivation for these exact numbers was found. Treat the *shape* (one pole well separated from the other three, not four coincident poles) as the useful claim; do not hard-code `-0.13, -1.04, -2.33, -3.24` as ground truth. See `TB303_RESEARCH_COMPENDIUM.md` §6.
+
 ---
 
 # 9. Why the Filter Is Often Called an "18 dB/octave" Filter
@@ -427,6 +431,8 @@ The TB-303 VCF contains numerous coupling capacitors and associated resistive ne
 These additional networks contribute additional poles.
 
 A detailed circuit analysis identifies approximately **six further high-pass/coupling poles** associated with the surrounding filter circuitry.
+
+> **Correction (2026):** secondary summaries of Stinchcombe's analysis disagree on the exact count and corner — "six further poles" with a composite HPF effect near **8 Hz** in one summary, **10 Hz** in another (Electronic Music Wiki). Treat "six poles" and the exact corner as order-of-magnitude, not a verified constant; what's solid is that the effect sits in the **single-digit-to-low-tens-of-Hz** range and is itself resonant (it boosts, not just rolls off, as Resonance increases) — see `TB303_RESEARCH_COMPENDIUM.md` §6.
 
 Therefore a serious emulation should not reduce the whole VCF to:
 
@@ -525,7 +531,9 @@ Do not simply clamp the filter output whenever resonance approaches 1.0.
 
 The resonance feedback path contains frequency-dependent coupling.
 
-A useful model includes a high-pass/coupling component in the feedback path, approximately in the region of the low hundreds of Hz.
+A useful model includes a high-pass/coupling component in the feedback path.
+
+> **Correction (2026):** "the region of the low hundreds of Hz" is not supported by any source found — the composite coupling-pole corner referenced in §10 is closer to **8–10 Hz**, a very different design target. See `TB303_RESEARCH_COMPENDIUM.md` §6.
 
 However, this should **not** be reduced to the simple assertion:
 
@@ -728,6 +736,8 @@ maximum ≈ 2.5 s
 
 Other measurements/documentation commonly place the upper practical value closer to approximately 2 s.
 
+> **Correction (2026):** this range is a plausible working target, not a figure confirmed against the stock service notes — the factory calibration procedure sets a *transient/oscillation* target at the VCF trimmer, not the Decay pot's end-stop times. The Devil Fish manual's 30 ms–3 s figure is for its own *modified* decay range and should not be borrowed as a stock value. See `TB303_RESEARCH_COMPENDIUM.md` §8.
+
 For emulation, use the actual circuit-equivalent RC curve rather than a linear interpolation in seconds.
 
 A reasonable nominal mapping is:
@@ -807,6 +817,8 @@ Documentation associated with the original circuit places the normal VEG decay i
 
 rather than the 4.0 s fixed value in the earlier specification.
 
+> **Correction (2026):** no primary source gives a specific stock VEG time constant — Whittle only describes it as "rather long." Treat 3–4 s as an unsourced estimate, not a documented spec, and prefer calibrating it against a reference recording. See `TB303_RESEARCH_COMPENDIUM.md` §8.
+
 ---
 
 # 22. VCA Gate-Off Envelope
@@ -835,6 +847,8 @@ Measurements reported for original-style circuitry place the end behavior around
 ```
 
 being a useful descriptive approximation.
+
+> **Correction (2026):** this ≈16 ms / 8+8 ms figure was not found in any source consulted for the 2026 research pass. It's a plausible order of magnitude but should not be hard-coded as a spec — treat it as a calibration target. See `TB303_RESEARCH_COMPENDIUM.md` §8.
 
 This should be treated as an analogue transition rather than:
 
