@@ -17,6 +17,20 @@ struct GuiParamEvent {
 };
 
 // Parameter IDs
+//
+// PARAM_CUTOFF..PARAM_MODE (0-7) are the seven front-panel-equivalent
+// controls the plugin's own GUI draws knobs/switches for (see
+// GuiWindow.cpp's hardcoded control list).
+//
+// PARAM_OSC_COUPLING_HZ..PARAM_VCA_GATE_OFF_MS (8-13) are experimental
+// calibration parameters for the "Faithful" engine's least-sourced
+// constants (see TB303_PARAMETER_CONFIDENCE.md and TB303_RESEARCH_COMPENDIUM.md
+// for the full rationale on each). They are deliberately NOT drawn by the
+// plugin's GUI -- GuiWindow.cpp only ever references the IDs above -- but
+// they ARE ordinary automatable CLAP parameters, so a host's generic
+// parameter list (e.g. REAPER's FX parameter list / "Show FX chain" without
+// the plugin's custom UI open) can see and automate them for by-ear
+// retuning against real hardware or a reference recording.
 enum ParamId : clap_id {
     PARAM_CUTOFF = 0,
     PARAM_RESONANCE = 1,
@@ -26,7 +40,16 @@ enum ParamId : clap_id {
     PARAM_WAVEFORM = 5,
     PARAM_VOLUME = 6,
     PARAM_MODE = 7,
-    PARAM_COUNT = 8
+
+    // Experimental / calibration-only parameters (not on the plugin GUI).
+    PARAM_OSC_COUPLING_HZ = 8,      // Oscillator.hpp - plausible range 70-120 Hz
+    PARAM_RES_COUPLING_HZ = 9,      // Filter.hpp (Faithful mode) - plausible range 5-15 Hz
+    PARAM_FILTER_FEEDBACK_GAIN = 10,// Filter.hpp (Faithful mode) - plausible range 20-40
+    PARAM_RES_CUTOFF_BLEED = 11,    // SynthEngine.cpp - plausible range 0-30%
+    PARAM_VEG_DECAY_SEC = 12,       // Envelope.hpp - plausible range 2.5-5.0 s
+    PARAM_VCA_GATE_OFF_MS = 13,     // Envelope.hpp - plausible range 10-25 ms
+
+    PARAM_COUNT = 14
 };
 
 enum MidiParamId : clap_id {

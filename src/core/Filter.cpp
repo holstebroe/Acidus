@@ -205,8 +205,10 @@ float Filter::processFaithfulSample(float input, float cutoffHz, float resonance
     // into the loop than the old 150-250 Hz version did, this constant is
     // more likely to need re-tuning than before -- if self-oscillation
     // happens too easily at moderate cutoff/resonance settings, try lower
-    // values first. Plausible range: 20-40.
-    float kFb = resNorm * 36.0f;
+    // values first. Plausible range: 20-40, default 36 -- now a tunable
+    // member (feedbackGainCeiling_, set via setFeedbackGainCeiling()) rather
+    // than a hardcoded literal, exposed as a CLAP parameter.
+    float kFb = resNorm * feedbackGainCeiling_;
 
     // BJT thermal-voltage-referenced tanh steepness. The 26 mV base is
     // CONFIRMED textbook physics for a bipolar junction; the x2 "effective"

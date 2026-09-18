@@ -23,6 +23,20 @@ struct SynthParameters {
     Waveform waveform{Waveform::Saw};
     float masterVolume{0.8f};
     EmulationMode mode{EmulationMode::Accurate};
+
+    // --- Experimental / calibration parameters ---------------------------
+    // Not on the plugin's own GUI (see TB303_PARAMETER_CONFIDENCE.md) -
+    // exposed only as CLAP parameters (host generic parameter list) for
+    // by-ear retuning against a real TB-303 or reference recording. Each
+    // default is this project's current best estimate within the plausible
+    // range documented alongside its CLAP paramsInfo() entry in
+    // SyrebasClap.cpp and in the class that actually uses it.
+    float oscCouplingHz{98.0f};        // Oscillator.hpp - plausible range 70-120 Hz
+    float resCouplingHz{9.0f};         // Filter.hpp (Faithful mode) - plausible range 5-15 Hz
+    float filterFeedbackGain{36.0f};   // Filter.hpp (Faithful mode) - plausible range 20-40
+    float resCutoffBleed{0.15f};       // SynthEngine.cpp - plausible range 0.0-0.30 (0-30%)
+    float vegDecaySec{3.5f};           // Envelope.hpp - plausible range 2.5-5.0 s
+    float vcaGateOffMs{16.0f};         // Envelope.hpp - plausible range 10-25 ms
 };
 
 class SynthEngine {

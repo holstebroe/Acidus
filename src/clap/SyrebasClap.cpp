@@ -133,6 +133,16 @@ SyrebasClap::SyrebasClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_VOLUME] = 0.8;
     paramValues_[PARAM_MODE] = 0.0; // 0 = Accurate, 1 = Faithful
 
+    // Experimental/calibration parameters (not on the GUI) - defaults match
+    // SynthParameters' in-code defaults in SynthEngine.hpp; see
+    // TB303_PARAMETER_CONFIDENCE.md for the sourcing/uncertainty behind each.
+    paramValues_[PARAM_OSC_COUPLING_HZ] = 98.0;
+    paramValues_[PARAM_RES_COUPLING_HZ] = 9.0;
+    paramValues_[PARAM_FILTER_FEEDBACK_GAIN] = 36.0;
+    paramValues_[PARAM_RES_CUTOFF_BLEED] = 0.15;
+    paramValues_[PARAM_VEG_DECAY_SEC] = 3.5;
+    paramValues_[PARAM_VCA_GATE_OFF_MS] = 16.0;
+
     syncParamsToEngine();
 }
 
@@ -183,6 +193,14 @@ void SyrebasClap::syncParamsToEngine() {
     params.waveform = (paramValues_[PARAM_WAVEFORM] >= 0.5) ? Waveform::Square : Waveform::Saw;
     params.masterVolume = static_cast<float>(paramValues_[PARAM_VOLUME]);
     params.mode = (paramValues_[PARAM_MODE] >= 0.5) ? EmulationMode::Faithful : EmulationMode::Accurate;
+
+    // Experimental/calibration parameters (not on the GUI).
+    params.oscCouplingHz = static_cast<float>(paramValues_[PARAM_OSC_COUPLING_HZ]);
+    params.resCouplingHz = static_cast<float>(paramValues_[PARAM_RES_COUPLING_HZ]);
+    params.filterFeedbackGain = static_cast<float>(paramValues_[PARAM_FILTER_FEEDBACK_GAIN]);
+    params.resCutoffBleed = static_cast<float>(paramValues_[PARAM_RES_CUTOFF_BLEED]);
+    params.vegDecaySec = static_cast<float>(paramValues_[PARAM_VEG_DECAY_SEC]);
+    params.vcaGateOffMs = static_cast<float>(paramValues_[PARAM_VCA_GATE_OFF_MS]);
 }
 
 void SyrebasClap::handleEvent(const clap_event_header_t* header) {
@@ -363,6 +381,55 @@ bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) 
             paramInfo->max_value = 1.0;
             paramInfo->default_value = 0.0; // 0 = Accurate, 1 = Faithful
             break;
+
+        // --- Experimental / calibration parameters (not drawn by the plugin's
+        // own GUI -- see the ParamId enum comment in SyrebasClap.hpp). Ranges
+        // and defaults are this project's current best estimate within the
+        // plausible range documented in TB303_PARAMETER_CONFIDENCE.md; use a
+        // host's generic parameter list to retune them by ear. ---
+        case PARAM_OSC_COUPLING_HZ:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Osc Coupling Freq");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Oscillator");
+            paramInfo->min_value = 70.0;
+            paramInfo->max_value = 120.0;
+            paramInfo->default_value = 98.0;
+            break;
+        case PARAM_RES_COUPLING_HZ:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Res Coupling Freq");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 5.0;
+            paramInfo->max_value = 15.0;
+            paramInfo->default_value = 9.0;
+            break;
+        case PARAM_FILTER_FEEDBACK_GAIN:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Feedback Gain");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 20.0;
+            paramInfo->max_value = 40.0;
+            paramInfo->default_value = 36.0;
+            break;
+        case PARAM_RES_CUTOFF_BLEED:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Res->Cutoff Bleed");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 0.30;
+            paramInfo->default_value = 0.15;
+            break;
+        case PARAM_VEG_DECAY_SEC:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Decay Time");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 2.5;
+            paramInfo->max_value = 5.0;
+            paramInfo->default_value = 3.5;
+            break;
+        case PARAM_VCA_GATE_OFF_MS:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gate-Off Tail");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 10.0;
+            paramInfo->max_value = 25.0;
+            paramInfo->default_value = 16.0;
+            break;
+
         default:
             return false;
     }
@@ -468,6 +535,14 @@ bool SyrebasClap::paramsValueToText(clap_id paramId, double value, char* outBuff
         snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Square" : "Saw");
     } else if (paramId == PARAM_MODE) {
         snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Faithful" : "Accurate");
+    } else if (paramId == PARAM_OSC_COUPLING_HZ || paramId == PARAM_RES_COUPLING_HZ) {
+        snprintf(outBuffer, outBufferCapacity, "%.1f Hz", value);
+    } else if (paramId == PARAM_RES_CUTOFF_BLEED) {
+        snprintf(outBuffer, outBufferCapacity, "%.1f %%", value * 100.0);
+    } else if (paramId == PARAM_VEG_DECAY_SEC) {
+        snprintf(outBuffer, outBufferCapacity, "%.2f s", value);
+    } else if (paramId == PARAM_VCA_GATE_OFF_MS) {
+        snprintf(outBuffer, outBufferCapacity, "%.1f ms", value);
     } else {
         snprintf(outBuffer, outBufferCapacity, "%.2f", value);
     }
@@ -499,6 +574,10 @@ bool SyrebasClap::paramsTextToValue(clap_id paramId, const char* paramValueText,
         else *outValue = std::log(hz / 200.0) / std::log(12.5);
         return true;
     }
+    if (paramId == PARAM_RES_CUTOFF_BLEED) {
+        *outValue = std::atof(paramValueText) / 100.0;
+        return true;
+    }
     *outValue = std::atof(paramValueText);
     return true;
 }
@@ -522,12 +601,21 @@ bool SyrebasClap::stateSave(const clap_ostream_t* stream) {
 
 bool SyrebasClap::stateLoad(const clap_istream_t* stream) {
     if (!stream) return false;
-    int64_t readBytes = stream->read(stream, paramValues_, sizeof(paramValues_));
-    if (readBytes == sizeof(paramValues_)) {
-        syncParamsToEngine();
-        return true;
-    }
-    return false;
+    // Read into a scratch buffer pre-filled with the current (default) values,
+    // so a project saved by an older plugin version -- with fewer parameters
+    // than PARAM_COUNT, e.g. before the experimental calibration parameters
+    // were added -- still loads its 8 original parameters correctly, while
+    // the newer ones simply keep their in-code defaults instead of failing
+    // the whole load.
+    double buffer[PARAM_COUNT];
+    std::memcpy(buffer, paramValues_, sizeof(buffer));
+    int64_t readBytes = stream->read(stream, buffer, sizeof(buffer));
+    if (readBytes <= 0) return false;
+    uint32_t numDoublesRead = static_cast<uint32_t>(readBytes) / sizeof(double);
+    if (numDoublesRead > PARAM_COUNT) numDoublesRead = PARAM_COUNT;
+    std::memcpy(paramValues_, buffer, numDoublesRead * sizeof(double));
+    syncParamsToEngine();
+    return true;
 }
 
 // CLAP Plugin Entry Point

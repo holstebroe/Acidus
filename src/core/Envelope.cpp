@@ -37,13 +37,19 @@ void Envelope::updateCoefficients() {
         vcfDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (vcfDecayTimeSec_ / 6.907755f)));
     }
 
-    // VCA Attack: 3.0ms RC curve (Section 21)
+    // VCA Attack: 3.0ms RC curve. ESTIMATE (order-of-magnitude "very fast",
+    // not independently sourced to this exact figure).
     vcaAttackCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.003));
-    // VCA Gate HIGH Phase 1 Decay: 3.5s slow discharge time constant (Section 21)
-    vcaGateHighDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (3.5f / 6.907755f)));
-    // VCA Gate LOW Phase 2 Quick Drain: discharge to silence in 16ms (Section 22)
-    float quickDrainTimeSec = 0.016f;
-    vcaQuickDrainCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (quickDrainTimeSec / 6.907755f)));
+    // VCA Gate HIGH Phase 1 Decay: slow discharge time constant. UNSOURCED
+    // ESTIMATE - no primary source gives a specific stock VEG figure (Whittle
+    // says only "rather long"); plausible range 2.5-5.0 s, default 3.5 s.
+    // Tunable via setVegDecaySec() / SynthParameters::vegDecaySec (CLAP
+    // parameter), see Envelope.hpp.
+    vcaGateHighDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (vegDecaySec_ / 6.907755f)));
+    // VCA Gate LOW Phase 2 Quick Drain: discharge to silence. UNSOURCED
+    // ESTIMATE - plausible range 10-25 ms, default 16 ms. Tunable via
+    // setVcaGateOffMs() / SynthParameters::vcaGateOffMs (CLAP parameter).
+    vcaQuickDrainCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (vcaGateOffSec_ / 6.907755f)));
 
     // Accent Sweep RC (47 kOhm + 1 uF -> tau ~ 47ms)
     accentChargeCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.047));

@@ -52,6 +52,14 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     env_.setFaithfulAccentDecay(params_.mode == EmulationMode::Faithful);
     env_.setDecay(params_.decay);
 
+    // Experimental/calibration parameters (CLAP-only, not on the plugin GUI -
+    // see SynthParameters in SynthEngine.hpp and TB303_PARAMETER_CONFIDENCE.md).
+    osc_.setCouplingHz(params_.oscCouplingHz);
+    filter_.setResCouplingHz(params_.resCouplingHz);
+    filter_.setFeedbackGainCeiling(params_.filterFeedbackGain);
+    env_.setVegDecaySec(params_.vegDecaySec);
+    env_.setVcaGateOffMs(params_.vcaGateOffMs);
+
     for (int i = 0; i < numFrames; ++i) {
         if (!env_.isActive() && !isNoteActive_) {
             if (outLeft) outLeft[i] = 0.0f;
@@ -112,8 +120,14 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // Control Voltage Summing in control-current (exponential octave) domain
         float cv_total = cv_base + cv_offset + cv_envmod + cv_accent;
 
-        // Convert CV to frequency with Resonance CV Bleed (up to 15% reduction)
-        float effectiveCutoff = 200.0f * std::pow(2.0f, cv_total) * (1.0f - (0.15f * resNorm));
+        // Convert CV to frequency with Resonance CV Bleed. UNSOURCED / not
+        // addressed by any research source consulted (TB303_PARAMETER_CONFIDENCE.md) -
+        // plausible range 0-30%, default 15%. Tunable via
+        // SynthParameters::resCutoffBleed (CLAP parameter); try 0 to A/B
+        // whether this term is doing anything useful versus the (separately
+        // modeled) Accent-Sweep/Resonance-gang interaction above.
+        float resBleed = std::min(std::max(params_.resCutoffBleed, 0.0f), 1.0f);
+        float effectiveCutoff = 200.0f * std::pow(2.0f, cv_total) * (1.0f - (resBleed * resNorm));
         float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 15000.0f);
 
         float filterOut = faithfulMode

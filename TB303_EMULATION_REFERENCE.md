@@ -295,6 +295,8 @@ That is too specific and generally incorrect as a representation of the circuit.
 
 The familiar similarity between some high-passed square/saw recordings is a consequence of the surrounding analogue coupling network.
 
+> **Implemented (2026-09):** `Oscillator::processNextSample` now applies a single, shared coupling-network HPF to whichever waveform is currently selected, with a pitch-tracking corner around 80-115 Hz (default `couplingBaseHz_ = 98 Hz`, plausible range 70-120 Hz, exposed as the CLAP parameter "Osc Coupling Freq") -- replacing an earlier square-only, fixed-150 Hz version. See `TB303_RESEARCH_COMPENDIUM.md` Section 5 and `TB303_PARAMETER_CONFIDENCE.md`.
+
 The final oscillator waveform entering the filter should be the result of:
 
 ```text

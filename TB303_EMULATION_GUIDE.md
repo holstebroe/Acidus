@@ -23,6 +23,7 @@ The TB-303 does not have two independent oscillators. **[CONFIRMED]** It feature
 - Generation: derived directly from the processed sawtooth via the transistor waveshaper; inherits whatever rounding/bending the saw stage applies.
 - Duty cycle: **pitch-dependent**, not fixed — **[CONFIRMED, and this corrects the document's own earlier claim]**. Robin Whittle's analysis (independently corroborated by Andrew Olney's modular reconstruction) puts it at roughly **45%** at higher pitches, widening to roughly **70–71%** at the lowest oscillator frequencies. A fixed 45–47% duty cycle across the whole range is not accurate and should not be used.
 - High-pass "tilt": the square (and, per the corrected research, the saw as well) passes through a coupling-capacitor network shared with the VCF input, whose corner sits in roughly the **80–115 Hz region and tracks pitch** — **[ESTIMATE, better-supported region]** — not a fixed, square-only 150 Hz HPF. **[The original "square-only, fixed 150 Hz" framing is now UNSOURCED / CONTRADICTED]**: research indicates the high-pass-like coloration is a property of the shared oscillator→VCF coupling network affecting *both* waveforms (a high-passed square resembles the reference saw and vice versa), not a filter bolted onto the square path alone.
+- **[2026-09 UPDATE — IMPLEMENTED, ESTIMATE]** `Oscillator::processNextSample` (`src/core/Oscillator.cpp`) now applies a single one-pole HPF to whichever waveform is currently selected (both saw and square pass through it), with a pitch-tracking corner swinging ±15% around a tunable reference (`couplingBaseHz_`, default 98 Hz, plausible range **70–120 Hz** — exposed as the CLAP parameter "Osc Coupling Freq"), landing close to the observed 80–115 Hz region at the default. The saw's separate 14 kHz LPF/quadratic-bend stage above is unaffected. See `TB303_PARAMETER_CONFIDENCE.md` for the full rationale and stability validation.
 
 ---
 
@@ -114,7 +115,7 @@ When an accented step triggers, three things happen simultaneously, sourced from
 | Oscillator count | Single VCO, no detune, continuous phase | — | **CONFIRMED** |
 | Square duty cycle | Pitch-dependent | ≈45% (high pitch) → ≈70–71% (low pitch) | **CONFIRMED** |
 | Saw 14 kHz LPF + quadratic bend | Rounding/saturation stand-in | `x - 0.05x²` after 14 kHz LPF | **UNSOURCED** |
-| Oscillator/VCF coupling "HPF" | Shared coupling network, both waveforms, pitch-tracking | ≈80–115 Hz, tracks pitch | **ESTIMATE** (corrects: not square-only, not fixed 150 Hz) |
+| Oscillator/VCF coupling "HPF" | Shared coupling network, both waveforms, pitch-tracking | ≈80–115 Hz, tracks pitch; implemented as shared 1-pole ±15%-around-98Hz (range 70–120 Hz), 2026-09 | **ESTIMATE, IMPLEMENTED** (corrects: not square-only, not fixed 150 Hz) |
 | Diode filter structure | 4-pole, unbuffered, loaded stages | — | **CONFIRMED** |
 | Diode filter capacitor values | Per-stage spread | e.g. 10/15/33/10 nF | **UNSOURCED** |
 | "18 dB" vs 24 dB | Uneven pole spacing → apparent 18 dB behavior | — | **CONFIRMED** (contested but real) |

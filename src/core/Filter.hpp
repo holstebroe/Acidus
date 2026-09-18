@@ -51,6 +51,12 @@ public:
     // path -- see the implementation comment in Filter.cpp for full sourcing.
     float processFaithfulSample(float input, float cutoffHz, float resonance);
 
+    // Faithful-mode-only tunables, exposed as CLAP parameters for
+    // experimentation (not on the plugin's own GUI). See
+    // TB303_PARAMETER_CONFIDENCE.md for the full rationale on each.
+    void setResCouplingHz(float hz) { resCouplingHz_ = hz; }           // plausible range 5-15 Hz
+    void setFeedbackGainCeiling(float k) { feedbackGainCeiling_ = k; } // plausible range 20-40
+
 private:
     double sampleRate_{44100.0};
     double oversampledRateAccurate_{176400.0};
@@ -109,9 +115,16 @@ private:
     const float capScale4_{1.0000f};
 
     // Resonance-loop coupling-pole corner (Hz), Faithful mode only. ESTIMATE
-    // - plausible range 5-15 Hz. Full rationale and sourcing in
-    // processFaithfulSample()'s implementation comment in Filter.cpp.
-    const float resCouplingHz_{9.0f};
+    // - plausible range 5-15 Hz, default 9 Hz. Full rationale and sourcing in
+    // processFaithfulSample()'s implementation comment in Filter.cpp. Not
+    // const: exposed as a CLAP parameter (SynthParameters::resCouplingHz).
+    float resCouplingHz_{9.0f};
+
+    // Feedback loop gain ceiling, Faithful mode only (kFb = resNorm *
+    // feedbackGainCeiling_). BEST GUESS / calibration knob, not a circuit
+    // value - plausible range 20-40, default 36. Exposed as a CLAP parameter
+    // (SynthParameters::filterFeedbackGain).
+    float feedbackGainCeiling_{36.0f};
 };
 
 } // namespace syrebas
