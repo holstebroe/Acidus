@@ -1,18 +1,11 @@
-#ifndef SYREBAS_SYNTH_ENGINE_HPP
-#define SYREBAS_SYNTH_ENGINE_HPP
+#ifndef ACIDUS_SYNTH_ENGINE_HPP
+#define ACIDUS_SYNTH_ENGINE_HPP
 
 #include "Oscillator.hpp"
 #include "Envelope.hpp"
 #include "Filter.hpp"
 
-namespace syrebas {
-
-enum class EmulationMode {
-    Accurate = 0,  // 4x oversampled coupled diode ladder (RK2)
-    Faithful = 1   // 8x oversampled coupled diode ladder (RK4) with pole spreading
-                   // and coupling poles, tracking the hardware more closely at
-                   // higher CPU cost
-};
+namespace acidus {
 
 struct SynthParameters {
     float cutoff{0.5f};        // Knob range 0.0 to 1.0
@@ -22,22 +15,15 @@ struct SynthParameters {
     float accent{0.5f};        // Knob range 0.0 to 1.0
     Waveform waveform{Waveform::Saw};
     float masterVolume{0.8f};
-    EmulationMode mode{EmulationMode::Accurate};
 
     // --- Experimental / calibration parameters ---------------------------
-    // Not on the plugin's own GUI (see TB303_PARAMETER_CONFIDENCE.md) -
-    // exposed only as CLAP parameters (host generic parameter list) for
-    // by-ear retuning against a real TB-303 or reference recording. Each
-    // default is this project's current best estimate within the plausible
-    // range documented alongside its CLAP paramsInfo() entry in
-    // SyrebasClap.cpp and in the class that actually uses it.
     float oscCouplingHz{44.5f};        // Oscillator.hpp - plausible range 30-60 Hz
-    float resCouplingHz{150.0f};       // Filter.hpp (Faithful mode) - plausible range 100-250 Hz
-    float filterFeedbackGain{15.3f};   // Filter.hpp (Faithful mode) - plausible range 12-17 (2026-09-19: corrected, see kLadderCriticalGain_ in Filter.hpp)
+    float resCouplingHz{150.0f};       // Filter.hpp - plausible range 100-250 Hz
+    float filterFeedbackGain{15.3f};   // Filter.hpp - plausible range 12-17
     float resCutoffBleed{0.15f};       // SynthEngine.cpp - plausible range 0.0-0.30 (0-30%)
     float vegDecaySec{3.5f};           // Envelope.hpp - plausible range 2.5-5.0 s
-    float vcaGateOffMs{1.0f};          // Envelope.hpp - plausible range 1-5 ms (2026-09-19: corrected, see setVcaGateOffMs())
-    float vcaGateOffAccentMs{50.0f};   // Envelope.hpp - plausible range 30-80 ms (2026-09-19: new, see setVcaGateOffAccentMs())
+    float vcaGateOffMs{1.0f};          // Envelope.hpp - plausible range 1-5 ms
+    float vcaGateOffAccentMs{50.0f};   // Envelope.hpp - plausible range 30-80 ms
 };
 
 class SynthEngine {
@@ -74,6 +60,6 @@ private:
     float vcaReleaseCoeff_{0.0f};
 };
 
-} // namespace syrebas
+} // namespace acidus
 
-#endif // SYREBAS_SYNTH_ENGINE_HPP
+#endif // ACIDUS_SYNTH_ENGINE_HPP

@@ -1,9 +1,9 @@
-#ifndef SYREBAS_OSCILLATOR_HPP
-#define SYREBAS_OSCILLATOR_HPP
+#ifndef ACIDUS_OSCILLATOR_HPP
+#define ACIDUS_OSCILLATOR_HPP
 
 #include <cmath>
 
-namespace syrebas {
+namespace acidus {
 
 enum class Waveform {
     Saw = 0,
@@ -27,13 +27,6 @@ public:
 
     void resetFilterStates();
 
-    // Corner (Hz) for the shared saw/square coupling-network HPF below.
-    // ESTIMATE, exposed as a CLAP parameter for experimentation
-    // ("Experimental/Oscillator" > "Osc Coupling Freq"). Plausible range:
-    // 30-60 Hz. See processNextSample()'s implementation comment for the
-    // full sourcing/confidence rationale (2026-09: corrected down from an
-    // 83-113 Hz pitch-tracking law that was cutting into TB-303 bass
-    // fundamentals).
     void setCouplingHz(float hz) { couplingHz_ = hz; recomputeCouplingAlpha(); }
 
 private:
@@ -46,25 +39,13 @@ private:
     bool isSliding_{false};
     double slideCoeff_{0.0};
 
-    // Saw rounding/saturation. BEST GUESS / UNSOURCED (see TB303_RESEARCH_COMPENDIUM.md
-    // Section 12: neither the 14 kHz corner nor the quadratic-bend coefficient below
-    // traces to any source consulted). Kept as a cheap, plausible-sounding saturation
-    // stand-in; not exposed as a tunable this round since it isn't contradicted by
-    // research, just unconfirmed.
     double lpfSawCoeff_{0.0};
     double lpfSawState_{0.0};
 
-    // Shared saw/square coupling-network HPF state (single set of state, since
-    // only one waveform is generated at a time per Oscillator instance). See
-    // the implementation comment in Oscillator.cpp for the full sourcing.
     double couplingHpfX1_{0.0};
     double couplingHpfY1_{0.0};
     double couplingAlpha_{0.0};
 
-    // ESTIMATE - plausible range 30-60 Hz, default 44.5 Hz (cross-checked
-    // against RobinSchmidt/Open303's `highpass1.setCutoff(44.486)`, its
-    // "pre-filter highpass" applied to the oscillator signal ahead of the
-    // main VCF). Fixed - does NOT track pitch; see Oscillator.cpp.
     float couplingHz_{44.5f};
 
     void recomputeCouplingAlpha() {
@@ -76,6 +57,6 @@ private:
     }
 };
 
-} // namespace syrebas
+} // namespace acidus
 
-#endif // SYREBAS_OSCILLATOR_HPP
+#endif // ACIDUS_OSCILLATOR_HPP

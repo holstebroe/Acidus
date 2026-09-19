@@ -12,12 +12,10 @@ void writeWav(const std::string& filename, const std::vector<float>& samples, in
     int chunkSize = 36 + dataSize;
     int byteRate = sampleRate * 2;
 
-    // RIFF Header
     file.write("RIFF", 4);
     file.write(reinterpret_cast<const char*>(&chunkSize), 4);
     file.write("WAVE", 4);
 
-    // fmt chunk
     file.write("fmt ", 4);
     int subchunk1Size = 16;
     short audioFormat = 1; // PCM
@@ -33,7 +31,6 @@ void writeWav(const std::string& filename, const std::vector<float>& samples, in
     file.write(reinterpret_cast<const char*>(&blockAlign), 2);
     file.write(reinterpret_cast<const char*>(&bitsPerSample), 2);
 
-    // data chunk
     file.write("data", 4);
     file.write(reinterpret_cast<const char*>(&dataSize), 4);
 
@@ -46,18 +43,17 @@ void writeWav(const std::string& filename, const std::vector<float>& samples, in
     std::cout << "Wrote " << filename << " (" << samples.size() << " samples)\n";
 }
 
-static float runTestForMode(syrebas::EmulationMode mode, const std::string& wavFilename) {
-    syrebas::SynthEngine engine;
+int main() {
+    acidus::SynthEngine engine;
     engine.setSampleRate(44100.0);
 
     auto& params = engine.getParams();
-    params.mode = mode;
     params.cutoff = 0.4f;
     params.resonance = 0.85f;
     params.envMod = 0.8f;
     params.decay = 0.5f;
     params.accent = 0.9f;
-    params.waveform = syrebas::Waveform::Saw;
+    params.waveform = acidus::Waveform::Saw;
     params.masterVolume = 0.8f;
 
     std::vector<float> audioBuffer;
@@ -107,7 +103,7 @@ static float runTestForMode(syrebas::EmulationMode mode, const std::string& wavF
         currentSample += frameSize;
     }
 
-    writeWav(wavFilename, audioBuffer, sampleRate);
+    writeWav("test_acidus.wav", audioBuffer, sampleRate);
 
     bool hasNonZeroOutput = false;
     float maxAbs = 0.0f;
@@ -121,25 +117,15 @@ static float runTestForMode(syrebas::EmulationMode mode, const std::string& wavF
     }
 
     if (!hasNonZeroOutput) {
-        std::cerr << "ERROR: Audio buffer is silent for " << wavFilename << "!\n";
-        exit(1);
+        std::cerr << "ERROR: Audio buffer is silent for test_acidus.wav!\n";
+        return 1;
     }
 
     if (maxAbs > 1.5f) {
-        std::cerr << "ERROR: Output clipped abnormally for " << wavFilename << "! Max abs: " << maxAbs << "\n";
-        exit(1);
+        std::cerr << "ERROR: Output clipped abnormally! Max abs: " << maxAbs << "\n";
+        return 1;
     }
 
-    return maxAbs;
-}
-
-int main() {
-    float accurateMax = runTestForMode(syrebas::EmulationMode::Accurate, "test_syrebas_accurate.wav");
-    std::cout << "Accurate mode DSP test completed. Max peak amplitude: " << accurateMax << "\n";
-
-    float faithfulMax = runTestForMode(syrebas::EmulationMode::Faithful, "test_syrebas_faithful.wav");
-    std::cout << "Faithful mode DSP test completed. Max peak amplitude: " << faithfulMax << "\n";
-
-    std::cout << "All DSP tests completed successfully.\n";
+    std::cout << "Acidus DSP test completed. Max peak amplitude: " << maxAbs << "\n";
     return 0;
 }

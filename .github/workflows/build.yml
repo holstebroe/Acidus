@@ -1,4 +1,4 @@
-name: Build Syrebas CLAP Plugin
+name: Build Acidus CLAP Plugin
 
 on:
   push:
@@ -34,12 +34,12 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: syrebas-${{ runner.os }}
+        name: acidus-${{ runner.os }}
         path: |
-          build/syrebas.clap
-          build/Release/syrebas.clap
-          build/syrebas.vst3
-          build/Release/syrebas.vst3
+          build/acidus.clap
+          build/Release/acidus.clap
+          build/acidus.vst3
+          build/Release/acidus.vst3
         if-no-files-found: ignore
 
   release:
@@ -54,27 +54,27 @@ jobs:
     - name: Download Linux Artifact
       uses: actions/download-artifact@v4
       with:
-        name: syrebas-Linux
+        name: acidus-Linux
         path: release-raw/Linux
 
     - name: Download Windows Artifact
       uses: actions/download-artifact@v4
       with:
-        name: syrebas-Windows
+        name: acidus-Windows
         path: release-raw/Windows
 
     - name: Download macOS Artifact
       uses: actions/download-artifact@v4
       with:
-        name: syrebas-macOS
+        name: acidus-macOS
         path: release-raw/macOS
 
     - name: Package Archives for Release
       run: |
         mkdir dist
-        cd release-raw/Linux && zip -r ../../dist/Syrebas-Linux-${{ github.ref_name }}.zip . && cd ../..
-        cd release-raw/Windows && zip -r ../../dist/Syrebas-Windows-${{ github.ref_name }}.zip . && cd ../..
-        cd release-raw/macOS && zip -r ../../dist/Syrebas-macOS-${{ github.ref_name }}.zip . && cd ../..
+        cd release-raw/Linux && zip -r ../../dist/Acidus-Linux-${{ github.ref_name }}.zip . && cd ../..
+        cd release-raw/Windows && zip -r ../../dist/Acidus-Windows-${{ github.ref_name }}.zip . && cd ../..
+        cd release-raw/macOS && zip -r ../../dist/Acidus-macOS-${{ github.ref_name }}.zip . && cd ../..
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2

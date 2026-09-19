@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(Syrebas VERSION 1.0.0 LANGUAGES C CXX)
+project(Acidus VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,7 +33,7 @@ set(CORE_SOURCES
 )
 
 set(CLAP_SOURCES
-    src/clap/SyrebasClap.cpp
+    src/clap/AcidusClap.cpp
 )
 
 set(GUI_SOURCES
@@ -66,23 +66,23 @@ else()
         COMPILE_OPTIONS "$<$<CONFIG:Release>:-Os>")
 endif()
 
-# Syrebas CLAP plugin library module
-add_library(syrebas MODULE
+# Acidus CLAP plugin library module
+add_library(acidus MODULE
     ${CORE_SOURCES}
     ${CLAP_SOURCES}
     ${GUI_SOURCES}
 )
 
-set_target_properties(syrebas PROPERTIES
+set_target_properties(acidus PROPERTIES
     PREFIX ""
     SUFFIX ".clap"
-    OUTPUT_NAME "syrebas"
+    OUTPUT_NAME "acidus"
 )
 
-target_link_libraries(syrebas PRIVATE ${GUI_LIBS})
+target_link_libraries(acidus PRIVATE ${GUI_LIBS})
 
 # Standalone test executable for DSP verification
-add_executable(syrebas_dsp_test
+add_executable(acidus_dsp_test
     src/core/SynthEngine.cpp
     src/core/Oscillator.cpp
     src/core/Filter.cpp
@@ -91,18 +91,16 @@ add_executable(syrebas_dsp_test
 )
 
 # Standalone test executable for filter self-oscillation/stability sweeps
-# (see TB303_PARAMETER_CONFIDENCE.md and the header comment in the source
-# file for why this exists and how to read its output).
-add_executable(syrebas_filter_stability_test
+add_executable(acidus_filter_stability_test
     src/core/Filter.cpp
     src/filter_stability_test_main.cpp
 )
 
 # Standalone test executable for GUI frame verification
-add_executable(syrebas_gui_test
+add_executable(acidus_gui_test
     ${CORE_SOURCES}
     ${CLAP_SOURCES}
     ${GUI_SOURCES}
     src/gui_test_main.cpp
 )
-target_link_libraries(syrebas_gui_test PRIVATE ${GUI_LIBS})
+target_link_libraries(acidus_gui_test PRIVATE ${GUI_LIBS})

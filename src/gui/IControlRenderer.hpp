@@ -1,20 +1,19 @@
-#ifndef SYREBAS_I_CONTROL_RENDERER_HPP
-#define SYREBAS_I_CONTROL_RENDERER_HPP
+#ifndef ACIDUS_ICONTROL_RENDERER_HPP
+#define ACIDUS_ICONTROL_RENDERER_HPP
 
-namespace syrebas {
+namespace acidus {
 
 class Graphics;
-class Font;
 struct Control;
+class Font;
 
 class IControlRenderer {
 public:
     virtual ~IControlRenderer() = default;
-
     virtual void drawKnob(Graphics& g, const Control& ctrl, const Font& font) = 0;
     virtual void drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) = 0;
 };
 
-} // namespace syrebas
+} // namespace acidus
 
-#endif // SYREBAS_I_CONTROL_RENDERER_HPP
+#endif // ACIDUS_ICONTROL_RENDERER_HPP

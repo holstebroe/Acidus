@@ -1,7 +1,7 @@
 #include "GuiWindow.hpp"
 #include "Graphics.hpp"
 #include "ControlRenderer.hpp"
-#include "clap/SyrebasClap.hpp"
+#include "clap/AcidusClap.hpp"
 #include <cmath>
 #include <cstring>
 #include <algorithm>
@@ -18,9 +18,9 @@
 #include <windows.h>
 #endif
 
-namespace syrebas {
+namespace acidus {
 
-GuiWindow::GuiWindow(SyrebasClap* plugin)
+GuiWindow::GuiWindow(AcidusClap* plugin)
     : plugin_(plugin), controlRenderer_(std::make_unique<TB303ControlRenderer>()) {
     pixelBuffer_.resize(width_ * height_, 0xFFDBDFE1);
     initControls();
@@ -59,72 +59,77 @@ void GuiWindow::updateKnobValuesFromPlugin() {
     }
 }
 
-void GuiWindow::drawSyrebasTitle(Graphics& g, int x, int y, uint32_t color) {
-    // S
-    g.drawRect(x, y, 22, 6, color);
-    g.drawRect(x, y, 6, 16, color);
-    g.drawRect(x, y + 15, 22, 6, color);
-    g.drawRect(x + 16, y + 18, 6, 17, color);
-    g.drawRect(x, y + 32, 22, 6, color);
+void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY) {
+    // Helper lambda to draw letter primitives for ACIDUS
+    auto renderLetters = [&](Graphics& gfx, int x, int y, uint32_t color) {
+        // A
+        int aX = x;
+        gfx.drawRect(aX, y + 6, 5, 32, color);
+        gfx.drawRect(aX + 15, y + 6, 5, 32, color);
+        gfx.drawRect(aX + 4, y, 12, 6, color);
+        gfx.drawRect(aX + 4, y + 18, 12, 5, color);
 
-    // y
-    int yX = x + 28;
-    g.drawRect(yX, y + 12, 5, 12, color);
-    g.drawRect(yX + 11, y + 12, 5, 26, color);
-    g.drawRect(yX, y + 20, 16, 5, color);
-    g.drawRect(yX, y + 33, 16, 5, color);
+        // C
+        int cX = x + 24;
+        gfx.drawRect(cX, y, 5, 38, color);
+        gfx.drawRect(cX, y, 18, 6, color);
+        gfx.drawRect(cX, y + 32, 18, 6, color);
 
-    // r
-    int rX = x + 54;
-    g.drawRect(rX, y + 12, 5, 26, color);
-    g.drawRect(rX, y + 12, 14, 5, color);
-    g.drawRect(rX + 12, y + 15, 5, 8, color);
+        // I
+        int iX = x + 46;
+        gfx.drawRect(iX, y, 10, 5, color);
+        gfx.drawRect(iX + 3, y, 4, 38, color);
+        gfx.drawRect(iX, y + 33, 10, 5, color);
 
-    // e
-    int eX = x + 75;
-    g.drawRect(eX, y + 12, 16, 5, color);
-    g.drawRect(eX, y + 12, 5, 26, color);
-    g.drawRect(eX, y + 22, 14, 5, color);
-    g.drawRect(eX, y + 33, 16, 5, color);
+        // D
+        int dX = x + 60;
+        gfx.drawRect(dX, y, 5, 38, color);
+        gfx.drawRect(dX, y, 15, 6, color);
+        gfx.drawRect(dX, y + 32, 15, 6, color);
+        gfx.drawRect(dX + 15, y + 5, 5, 28, color);
 
-    // b
-    int bX = x + 97;
-    g.drawRect(bX, y, 5, 38, color);
-    g.drawRect(bX, y + 18, 16, 5, color);
-    g.drawRect(bX + 12, y + 21, 5, 14, color);
-    g.drawRect(bX, y + 33, 16, 5, color);
+        // U
+        int uX = x + 84;
+        gfx.drawRect(uX, y, 5, 34, color);
+        gfx.drawRect(uX + 15, y, 5, 34, color);
+        gfx.drawRect(uX, y + 32, 20, 6, color);
 
-    // a
-    int aX = x + 119;
-    g.drawRect(aX, y + 18, 14, 5, color);
-    g.drawRect(aX + 11, y + 18, 5, 20, color);
-    g.drawRect(aX, y + 26, 14, 4, color);
-    g.drawRect(aX, y + 33, 14, 5, color);
-    g.drawRect(aX, y + 26, 4, 12, color);
+        // S
+        int sX = x + 108;
+        gfx.drawRect(sX, y, 20, 6, color);
+        gfx.drawRect(sX, y, 5, 19, color);
+        gfx.drawRect(sX, y + 16, 20, 6, color);
+        gfx.drawRect(sX + 15, y + 18, 5, 17, color);
+        gfx.drawRect(sX, y + 32, 20, 6, color);
+    };
 
-    // s
-    int s2X = x + 139;
-    g.drawRect(s2X, y + 18, 14, 4, color);
-    g.drawRect(s2X, y + 18, 4, 9, color);
-    g.drawRect(s2X, y + 25, 14, 4, color);
-    g.drawRect(s2X + 10, y + 27, 4, 9, color);
-    g.drawRect(s2X, y + 34, 14, 4, color);
-}
+    // Glow layers (outer dim glow, inner medium glow, core acid green, core bright highlight)
+    uint32_t dimGlow    = 0xFF0A400F; // Faint dark green outer halo
+    uint32_t medGlow    = 0xFF1B8224; // Medium green inner halo
+    uint32_t acidGreen  = 0xFF39FF14; // Core Acid Green
+    uint32_t brightCore = 0xFFBFFF80; // Bright yellow-green center highlight
 
-bool GuiWindow::isInLogoPanel(int x, int y) const {
-    const int dividerX = 530;
-    return x >= dividerX && x < static_cast<int>(width_) &&
-           y >= 14 && y <= static_cast<int>(height_) - 14;
-}
+    // 1. Outer halo (pass offsets -2 to +2)
+    for (int dx = -2; dx <= 2; ++dx) {
+        for (int dy = -2; dy <= 2; ++dy) {
+            if (dx == 0 && dy == 0) continue;
+            renderLetters(g, startX + dx, startY + dy, dimGlow);
+        }
+    }
 
-void GuiWindow::toggleEmulationMode() {
-    if (!plugin_) return;
-    double current = 0.0;
-    plugin_->paramsValue(PARAM_MODE, &current);
-    double newVal = (current >= 0.5) ? 0.0 : 1.0;
-    plugin_->onBeginEditFromGui(PARAM_MODE);
-    plugin_->onParamValueFromGui(PARAM_MODE, newVal);
-    plugin_->onEndEditFromGui(PARAM_MODE);
+    // 2. Inner halo (pass offsets -1 to +1)
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            if (dx == 0 && dy == 0) continue;
+            renderLetters(g, startX + dx, startY + dy, medGlow);
+        }
+    }
+
+    // 3. Core Acid Green
+    renderLetters(g, startX, startY, acidGreen);
+
+    // 4. Subtle inner highlight line
+    renderLetters(g, startX + 1, startY + 1, brightCore);
 }
 
 void GuiWindow::renderFrame() {
@@ -163,12 +168,8 @@ void GuiWindow::renderFrame() {
         }
     }
 
-    // 3. Draw Title Logo "Syrebas" - dark green in Faithful mode, black in Accurate.
-    // Doubles as a click target (see handleMouseDown) that toggles the engine mode.
-    double modeVal = 0.0;
-    if (plugin_) plugin_->paramsValue(PARAM_MODE, &modeVal);
-    uint32_t logoColor = (modeVal >= 0.5) ? 0xFF006400 : 0xFF121212;
-    drawSyrebasTitle(g, 545, 65, logoColor);
+    // 3. Draw Title Logo "ACIDUS" in acid green with glow
+    drawAcidusTitle(g, 545, 65);
 
     // 4. Downsample hiResBuffer_ (2x2 box filter) into pixelBuffer_
     pixelBuffer_.resize(width_ * height_);
@@ -198,12 +199,6 @@ void GuiWindow::renderFrame() {
 
 void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
     lastShiftState_ = isShift;
-
-    if (isInLogoPanel(x, y)) {
-        toggleEmulationMode();
-        renderFrame();
-        return;
-    }
 
     for (size_t i = 0; i < controls_.size(); ++i) {
         auto& ctrl = controls_[i];
@@ -404,10 +399,10 @@ void GuiWindow::drawX11Frame() {
 #endif
 
 #if defined(_WIN32)
-static const wchar_t* kSyrebasClassName = L"SyrebasWindowCLASS";
+static const wchar_t* kAcidusClassName = L"AcidusWindowCLASS";
 static bool g_win32ClassRegistered = false;
 
-static LRESULT CALLBACK SyrebasWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+static LRESULT CALLBACK AcidusWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     GuiWindow* gui = reinterpret_cast<GuiWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 
     switch (msg) {
@@ -474,9 +469,9 @@ void GuiWindow::initWin32Window() {
 
     if (!g_win32ClassRegistered) {
         WNDCLASSW wc = {};
-        wc.lpfnWndProc = SyrebasWndProc;
+        wc.lpfnWndProc = AcidusWndProc;
         wc.hInstance = hInstance;
-        wc.lpszClassName = kSyrebasClassName;
+        wc.lpszClassName = kAcidusClassName;
         wc.hCursor = LoadCursor(NULL, IDC_ARROW);
         RegisterClassW(&wc);
         g_win32ClassRegistered = true;
@@ -485,7 +480,7 @@ void GuiWindow::initWin32Window() {
     HWND parent = static_cast<HWND>(parentHwnd_);
 
     hwnd_ = CreateWindowExW(
-        0, kSyrebasClassName, L"Syrebas 303",
+        0, kAcidusClassName, L"Acidus 303",
         WS_CHILD | WS_VISIBLE,
         0, 0, width_, height_,
         parent, NULL, hInstance, this
@@ -527,7 +522,7 @@ void GuiWindow::drawCocoaFrame() {}
 #endif
 
 // CLAP GUI Extension Callbacks
-const clap_plugin_gui_t g_syrebasGuiExtension = {
+const clap_plugin_gui_t g_acidusGuiExtension = {
     [](const clap_plugin_t* plugin, const char* api, bool is_floating) -> bool {
 #if defined(__linux__) && !defined(__APPLE__)
         return std::strcmp(api, CLAP_WINDOW_API_X11) == 0 && !is_floating;
@@ -551,12 +546,12 @@ const clap_plugin_gui_t g_syrebasGuiExtension = {
         return true;
     },
     [](const clap_plugin_t* plugin, const char* api, bool is_floating) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         self->createGuiWindow();
         return true;
     },
     [](const clap_plugin_t* plugin) {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         self->destroyGuiWindow();
     },
     [](const clap_plugin_t* plugin, double scale) -> bool {
@@ -579,14 +574,14 @@ const clap_plugin_gui_t g_syrebasGuiExtension = {
         return true;
     },
     [](const clap_plugin_t* plugin, uint32_t width, uint32_t height) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         if (self->getGuiWindow()) {
             return self->getGuiWindow()->setSize(width, height);
         }
         return true;
     },
     [](const clap_plugin_t* plugin, const clap_window_t* window) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         if (!self->getGuiWindow()) {
             self->createGuiWindow();
         }
@@ -597,14 +592,14 @@ const clap_plugin_gui_t g_syrebasGuiExtension = {
     },
     [](const clap_plugin_t* plugin, const char* title) {},
     [](const clap_plugin_t* plugin) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         if (self->getGuiWindow()) {
             return self->getGuiWindow()->show();
         }
         return false;
     },
     [](const clap_plugin_t* plugin) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         if (self->getGuiWindow()) {
             return self->getGuiWindow()->hide();
         }
@@ -612,4 +607,4 @@ const clap_plugin_gui_t g_syrebasGuiExtension = {
     }
 };
 
-} // namespace syrebas
+} // namespace acidus
