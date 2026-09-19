@@ -3,103 +3,75 @@
 #include "Font.hpp"
 #include "GuiWindow.hpp"
 #include <cmath>
-#include <cstring>
 #include <algorithm>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+namespace acidus {
 
-namespace syrebas {
+void TB303ControlRenderer::drawKnob(Graphics& g, const Control& ctrl, const Font& font) {
+    int cx = ctrl.x;
+    int cy = ctrl.y;
+    int r = ctrl.radius;
 
-void TB303ControlRenderer::drawKnob(Graphics& g, const Control& knob, const Font& font) {
-    // Label centered above knob
-    int labelLen = static_cast<int>(strlen(knob.label));
-    int labelX = knob.x - (labelLen * (font.getWidth() + 1)) / 2;
-    g.drawText(labelX, knob.y - knob.radius - 28, knob.label, 0xFF101010, font, 1);
+    g.fillCircle(cx + 2, cy + 3, r, 0xFF404448);
+    g.fillCircle(cx, cy, r, 0xFF181B1D);
+    g.drawCircle(cx, cy, r, 0xFF08090A, 1);
+    g.drawCircle(cx, cy, r - 3, 0xFF2A2E32, 1);
 
-    // Circular dial tick marks
-    int numTicks = 11;
-    double startAngle = 135.0 * M_PI / 180.0; // 7 o'clock
-    double totalAngle = 270.0 * M_PI / 180.0; // Clockwise to 5 o'clock
+    double minAngle = -135.0 * 3.14159265358979323846 / 180.0;
+    double maxAngle =  135.0 * 3.14159265358979323846 / 180.0;
+    double norm = (ctrl.currentVal - ctrl.minVal) / (ctrl.maxVal - ctrl.minVal);
+    norm = std::min(std::max(norm, 0.0), 1.0);
+    double angle = minAngle + norm * (maxAngle - minAngle);
 
-    for (int i = 0; i < numTicks; ++i) {
-        double norm = static_cast<double>(i) / (numTicks - 1);
-        double angle = startAngle + norm * totalAngle;
+    int pointerR1 = r - 8;
+    int pointerR2 = r - 2;
+    int px1 = cx + static_cast<int>(std::sin(angle) * pointerR1);
+    int py1 = cy - static_cast<int>(std::cos(angle) * pointerR1);
+    int px2 = cx + static_cast<int>(std::sin(angle) * pointerR2);
+    int py2 = cy - static_cast<int>(std::cos(angle) * pointerR2);
 
-        int rIn = knob.radius + 4;
-        int rOut = knob.radius + 8;
+    g.drawLine(px1, py1, px2, py2, 0xFFFFFFFF, 2);
 
-        int x1 = knob.x + static_cast<int>(std::cos(angle) * rIn);
-        int y1 = knob.y + static_cast<int>(std::sin(angle) * rIn);
-        int x2 = knob.x + static_cast<int>(std::cos(angle) * rOut);
-        int y2 = knob.y + static_cast<int>(std::sin(angle) * rOut);
-
-        g.drawLine(x1, y1, x2, y2, 0xFF202020, 1);
-
-        // 12 o'clock tick mark (i == 5) gets the iconic 303 black square above it
-        if (i == 5) {
-            g.drawRect(knob.x - 2, knob.y - knob.radius - 14, 4, 4, 0xFF101010);
-        }
+    if (ctrl.label) {
+        int textW = font.getTextWidth(ctrl.label);
+        int textX = cx - textW / 2;
+        int textY = cy - r - 18;
+        g.drawText(font, ctrl.label, textX, textY, 0xFF101010);
     }
-
-    // Outer shadow / bezel
-    g.drawCircle(knob.x + 1, knob.y + 1, knob.radius + 2, 0xFF888A8C);
-    g.drawCircle(knob.x, knob.y, knob.radius + 1, 0xFF202020);
-
-    // Knob body (Metallic fluted silver)
-    g.drawCircle(knob.x, knob.y, knob.radius, 0xFF808488);
-    g.drawCircle(knob.x, knob.y, knob.radius - 1, 0xFFB4B8BC);
-
-    // Fluted ridges around skirt
-    for (int a = 0; a < 360; a += 30) {
-        double rad = a * M_PI / 180.0;
-        int rx1 = knob.x + static_cast<int>(std::cos(rad) * (knob.radius - 4));
-        int ry1 = knob.y + static_cast<int>(std::sin(rad) * (knob.radius - 4));
-        int rx2 = knob.x + static_cast<int>(std::cos(rad) * knob.radius);
-        int ry2 = knob.y + static_cast<int>(std::sin(rad) * knob.radius);
-        g.drawLine(rx1, ry1, rx2, ry2, 0xFF606468, 1);
-    }
-
-    // Conical top face
-    g.drawCircle(knob.x, knob.y, knob.radius - 4, 0xFFD4D8DC);
-    g.drawCircleOutline(knob.x, knob.y, knob.radius - 4, 0xFF909498);
-
-    // Pointer indicator line
-    double normVal = (knob.currentVal - knob.minVal) / (knob.maxVal - knob.minVal);
-    normVal = (std::min)((std::max)(normVal, 0.0), 1.0);
-    double ptrAngle = startAngle + normVal * totalAngle;
-
-    int ptrX = knob.x + static_cast<int>(std::cos(ptrAngle) * (knob.radius - 3));
-    int ptrY = knob.y + static_cast<int>(std::sin(ptrAngle) * (knob.radius - 3));
-
-    g.drawLine(knob.x, knob.y, ptrX, ptrY, 0xFF101010, 2);
-    g.drawCircle(ptrX, ptrY, 1, 0xFF101010);
 }
 
 void TB303ControlRenderer::drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) {
-    // Label above switch
-    int labelLen = static_cast<int>(strlen(ctrl.label));
-    int labelX = ctrl.x - (labelLen * (font.getWidth() + 1)) / 2;
-    g.drawText(labelX, ctrl.y - 35, ctrl.label, 0xFF101010, font, 1);
+    int cx = ctrl.x;
+    int cy = ctrl.y;
 
-    // SAW / SQUARE labels beside positions
-    g.drawText(ctrl.x - 28, ctrl.y - 18, "SQR", 0xFF202020, font, 1);
-    g.drawText(ctrl.x - 28, ctrl.y + 10, "SAW", 0xFF202020, font, 1);
+    int slotW = 10;
+    int slotH = 26;
+    int slotX = cx - slotW / 2;
+    int slotY = cy - slotH / 2;
 
-    // Outer metal frame box
-    g.drawRect(ctrl.x - 8, ctrl.y - 20, 16, 40, 0xFF202020);
-    g.drawRect(ctrl.x - 7, ctrl.y - 19, 14, 38, 0xFF888C90);
-    g.drawRect(ctrl.x - 5, ctrl.y - 17, 10, 34, 0xFF181818);
+    g.drawRect(slotX, slotY, slotW, slotH, 0xFF101010);
+    g.fillRect(slotX + 1, slotY + 1, slotW - 2, slotH - 2, 0xFF25282A);
 
-    // Toggle handle
     bool isSquare = (ctrl.currentVal >= 0.5);
-    int handleY = isSquare ? (ctrl.y - 16) : (ctrl.y + 2);
+    int handleW = 16;
+    int handleH = 10;
+    int handleX = cx - handleW / 2;
+    int handleY = isSquare ? (cy + 2) : (cy - handleH - 2);
 
-    g.drawRect(ctrl.x - 7, handleY, 14, 14, 0xFF303030);
-    g.drawRect(ctrl.x - 6, handleY + 1, 12, 12, 0xFFE0E4E8);
-    g.drawRect(ctrl.x - 4, handleY + 3, 8, 8, 0xFFB0B4B8);
-    g.drawLine(ctrl.x - 5, handleY + 7, ctrl.x + 5, handleY + 7, 0xFF101010, 1);
+    g.fillRect(handleX + 1, handleY + 2, handleW, handleH, 0xFF404448);
+    g.fillRect(handleX, handleY, handleW, handleH, 0xFFC0C4C8);
+    g.drawRect(handleX, handleY, handleW, handleH, 0xFF101010);
+    g.drawLine(handleX + 2, handleY + handleH / 2, handleX + handleW - 2, handleY + handleH / 2, 0xFF808488, 1);
+
+    if (ctrl.label) {
+        int textW = font.getTextWidth(ctrl.label);
+        int textX = cx - textW / 2;
+        int textY = cy - 28;
+        g.drawText(font, ctrl.label, textX, textY, 0xFF101010);
+    }
+
+    g.drawText(font, "SAW", cx - 12, cy - 18, 0xFF202020);
+    g.drawText(font, "SQR", cx - 12, cy + 12, 0xFF202020);
 }
 
-} // namespace syrebas
+} // namespace acidus

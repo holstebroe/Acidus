@@ -1,13 +1,13 @@
-#include "SyrebasClap.hpp"
+#include "AcidusClap.hpp"
 #include "gui/GuiWindow.hpp"
 #include <cstring>
 #include <cstdio>
 #include <algorithm>
 
-namespace syrebas {
+namespace acidus {
 
 // Forward declarations of GUI extension functions
-extern const clap_plugin_gui_t g_syrebasGuiExtension;
+extern const clap_plugin_gui_t g_acidusGuiExtension;
 
 static const clap_plugin_note_ports_t g_notePortsExtension = {
     // count
@@ -46,32 +46,32 @@ static const clap_plugin_audio_ports_t g_audioPortsExtension = {
 static const clap_plugin_params_t g_paramsExtension = {
     // count
     [](const clap_plugin_t* plugin) -> uint32_t {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         return self->paramsCount();
     },
     // get_info
     [](const clap_plugin_t* plugin, uint32_t param_index, clap_param_info_t* param_info) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         return self->paramsInfo(param_index, param_info);
     },
     // get_value
     [](const clap_plugin_t* plugin, clap_id param_id, double* out_value) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         return self->paramsValue(param_id, out_value);
     },
     // value_to_text
     [](const clap_plugin_t* plugin, clap_id param_id, double value, char* out_buffer, uint32_t out_buffer_capacity) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         return self->paramsValueToText(param_id, value, out_buffer, out_buffer_capacity);
     },
     // text_to_value
     [](const clap_plugin_t* plugin, clap_id param_id, const char* param_value_text, double* out_value) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         return self->paramsTextToValue(param_id, param_value_text, out_value);
     },
     // flush
     [](const clap_plugin_t* plugin, const clap_input_events_t* in, const clap_output_events_t* out) {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         self->paramsFlush(in, out);
     }
 };
@@ -79,48 +79,48 @@ static const clap_plugin_params_t g_paramsExtension = {
 static const clap_plugin_state_t g_stateExtension = {
     // save
     [](const clap_plugin_t* plugin, const clap_ostream_t* stream) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         return self->stateSave(stream);
     },
     // load
     [](const clap_plugin_t* plugin, const clap_istream_t* stream) -> bool {
-        auto* self = static_cast<SyrebasClap*>(plugin->plugin_data);
+        auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
         return self->stateLoad(stream);
     }
 };
 
-SyrebasClap::SyrebasClap(const clap_host_t* host) : host_(host) {
+AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     clapPlugin_.desc = nullptr;
     clapPlugin_.plugin_data = this;
     clapPlugin_.init = [](const clap_plugin_t* plugin) -> bool {
-        return static_cast<SyrebasClap*>(plugin->plugin_data)->init();
+        return static_cast<AcidusClap*>(plugin->plugin_data)->init();
     };
     clapPlugin_.destroy = [](const clap_plugin_t* plugin) {
-        static_cast<SyrebasClap*>(plugin->plugin_data)->destroy();
+        static_cast<AcidusClap*>(plugin->plugin_data)->destroy();
     };
     clapPlugin_.activate = [](const clap_plugin_t* plugin, double sample_rate, uint32_t min_frames, uint32_t max_frames) -> bool {
-        return static_cast<SyrebasClap*>(plugin->plugin_data)->activate(sample_rate, min_frames, max_frames);
+        return static_cast<AcidusClap*>(plugin->plugin_data)->activate(sample_rate, min_frames, max_frames);
     };
     clapPlugin_.deactivate = [](const clap_plugin_t* plugin) {
-        static_cast<SyrebasClap*>(plugin->plugin_data)->deactivate();
+        static_cast<AcidusClap*>(plugin->plugin_data)->deactivate();
     };
     clapPlugin_.start_processing = [](const clap_plugin_t* plugin) -> bool {
-        return static_cast<SyrebasClap*>(plugin->plugin_data)->startProcessing();
+        return static_cast<AcidusClap*>(plugin->plugin_data)->startProcessing();
     };
     clapPlugin_.stop_processing = [](const clap_plugin_t* plugin) {
-        static_cast<SyrebasClap*>(plugin->plugin_data)->stopProcessing();
+        static_cast<AcidusClap*>(plugin->plugin_data)->stopProcessing();
     };
     clapPlugin_.reset = [](const clap_plugin_t* plugin) {
-        static_cast<SyrebasClap*>(plugin->plugin_data)->reset();
+        static_cast<AcidusClap*>(plugin->plugin_data)->reset();
     };
     clapPlugin_.process = [](const clap_plugin_t* plugin, const clap_process_t* process) -> clap_process_status {
-        return static_cast<SyrebasClap*>(plugin->plugin_data)->process(process);
+        return static_cast<AcidusClap*>(plugin->plugin_data)->process(process);
     };
     clapPlugin_.get_extension = [](const clap_plugin_t* plugin, const char* id) -> const void* {
-        return static_cast<SyrebasClap*>(plugin->plugin_data)->getExtension(id);
+        return static_cast<AcidusClap*>(plugin->plugin_data)->getExtension(id);
     };
     clapPlugin_.on_main_thread = [](const clap_plugin_t* plugin) {
-        static_cast<SyrebasClap*>(plugin->plugin_data)->onMainThread();
+        static_cast<AcidusClap*>(plugin->plugin_data)->onMainThread();
     };
 
     // Initialize default parameter values
@@ -131,60 +131,56 @@ SyrebasClap::SyrebasClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_ACCENT] = 0.5;
     paramValues_[PARAM_WAVEFORM] = 0.0; // 0 = Saw, 1 = Square
     paramValues_[PARAM_VOLUME] = 0.8;
-    paramValues_[PARAM_MODE] = 0.0; // 0 = Accurate, 1 = Faithful
 
-    // Experimental/calibration parameters (not on the GUI) - defaults match
-    // SynthParameters' in-code defaults in SynthEngine.hpp; see
-    // TB303_PARAMETER_CONFIDENCE.md for the sourcing/uncertainty behind each.
     paramValues_[PARAM_OSC_COUPLING_HZ] = 44.5;
     paramValues_[PARAM_RES_COUPLING_HZ] = 150.0;
-    paramValues_[PARAM_FILTER_FEEDBACK_GAIN] = 15.3; // 2026-09-19: was 36.0, self-oscillated (see Filter.hpp)
+    paramValues_[PARAM_FILTER_FEEDBACK_GAIN] = 15.3;
     paramValues_[PARAM_RES_CUTOFF_BLEED] = 0.15;
     paramValues_[PARAM_VEG_DECAY_SEC] = 3.5;
-    paramValues_[PARAM_VCA_GATE_OFF_MS] = 1.0; // 2026-09-19: was 16.0, see Envelope.hpp setVcaGateOffMs()
-    paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS] = 50.0; // 2026-09-19: new, see Envelope.hpp setVcaGateOffAccentMs()
+    paramValues_[PARAM_VCA_GATE_OFF_MS] = 1.0;
+    paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS] = 50.0;
 
     syncParamsToEngine();
 }
 
-bool SyrebasClap::init() {
+bool AcidusClap::init() {
     return true;
 }
 
-void SyrebasClap::destroy() {
+void AcidusClap::destroy() {
     destroyGuiWindow();
     delete this;
 }
 
-void SyrebasClap::createGuiWindow() {
+void AcidusClap::createGuiWindow() {
     if (!guiWindow_) {
         guiWindow_ = std::make_unique<GuiWindow>(this);
     }
 }
 
-void SyrebasClap::destroyGuiWindow() {
+void AcidusClap::destroyGuiWindow() {
     guiWindow_.reset();
 }
 
-bool SyrebasClap::activate(double sampleRate, uint32_t minFrames, uint32_t maxFrames) {
+bool AcidusClap::activate(double sampleRate, uint32_t minFrames, uint32_t maxFrames) {
     engine_.setSampleRate(sampleRate);
     engine_.reset();
     return true;
 }
 
-void SyrebasClap::deactivate() {}
+void AcidusClap::deactivate() {}
 
-bool SyrebasClap::startProcessing() {
+bool AcidusClap::startProcessing() {
     return true;
 }
 
-void SyrebasClap::stopProcessing() {}
+void AcidusClap::stopProcessing() {}
 
-void SyrebasClap::reset() {
+void AcidusClap::reset() {
     engine_.reset();
 }
 
-void SyrebasClap::syncParamsToEngine() {
+void AcidusClap::syncParamsToEngine() {
     auto& params = engine_.getParams();
     params.cutoff = static_cast<float>(paramValues_[PARAM_CUTOFF]);
     params.resonance = static_cast<float>(paramValues_[PARAM_RESONANCE]);
@@ -193,9 +189,7 @@ void SyrebasClap::syncParamsToEngine() {
     params.accent = static_cast<float>(paramValues_[PARAM_ACCENT]);
     params.waveform = (paramValues_[PARAM_WAVEFORM] >= 0.5) ? Waveform::Square : Waveform::Saw;
     params.masterVolume = static_cast<float>(paramValues_[PARAM_VOLUME]);
-    params.mode = (paramValues_[PARAM_MODE] >= 0.5) ? EmulationMode::Faithful : EmulationMode::Accurate;
 
-    // Experimental/calibration parameters (not on the GUI).
     params.oscCouplingHz = static_cast<float>(paramValues_[PARAM_OSC_COUPLING_HZ]);
     params.resCouplingHz = static_cast<float>(paramValues_[PARAM_RES_COUPLING_HZ]);
     params.filterFeedbackGain = static_cast<float>(paramValues_[PARAM_FILTER_FEEDBACK_GAIN]);
@@ -205,7 +199,7 @@ void SyrebasClap::syncParamsToEngine() {
     params.vcaGateOffAccentMs = static_cast<float>(paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS]);
 }
 
-void SyrebasClap::handleEvent(const clap_event_header_t* header) {
+void AcidusClap::handleEvent(const clap_event_header_t* header) {
     if (header->space_id != CLAP_CORE_EVENT_SPACE_ID) return;
 
     if (header->type == CLAP_EVENT_NOTE_ON) {
@@ -234,11 +228,10 @@ void SyrebasClap::handleEvent(const clap_event_header_t* header) {
             else if (data1 == MIDI_PARAM_ACCENT) paramId = PARAM_ACCENT;
             else if (data1 == MIDI_PARAM_WAVEFORM) paramId = PARAM_WAVEFORM;
             else if (data1 == MIDI_PARAM_VOLUME) paramId = PARAM_VOLUME;
-            else if (data1 == MIDI_PARAM_MODE) paramId = PARAM_MODE;
 
             if (paramId < PARAM_COUNT) {
                 double normVal = static_cast<double>(data2) / 127.0;
-                if (paramId == PARAM_WAVEFORM || paramId == PARAM_MODE) {
+                if (paramId == PARAM_WAVEFORM) {
                     normVal = (data2 >= 64) ? 1.0 : 0.0;
                 }
                 paramValues_[paramId] = normVal;
@@ -259,7 +252,7 @@ void SyrebasClap::handleEvent(const clap_event_header_t* header) {
     }
 }
 
-clap_process_status SyrebasClap::process(const clap_process_t* process) {
+clap_process_status AcidusClap::process(const clap_process_t* process) {
     const uint32_t numFrames = process->frames_count;
     const uint32_t numEvents = process->in_events ? process->in_events->size(process->in_events) : 0;
     uint32_t eventIndex = 0;
@@ -272,7 +265,6 @@ clap_process_status SyrebasClap::process(const clap_process_t* process) {
                       : nullptr;
 
     for (uint32_t frame = 0; frame < numFrames; ) {
-        // Handle events scheduled at or before current frame
         while (eventIndex < numEvents) {
             const clap_event_header_t* hdr = process->in_events->get(process->in_events, eventIndex);
             if (hdr->time > frame) break;
@@ -302,22 +294,22 @@ clap_process_status SyrebasClap::process(const clap_process_t* process) {
     return CLAP_PROCESS_CONTINUE;
 }
 
-const void* SyrebasClap::getExtension(const char* id) {
+const void* AcidusClap::getExtension(const char* id) {
     if (std::strcmp(id, CLAP_EXT_NOTE_PORTS) == 0) return &g_notePortsExtension;
     if (std::strcmp(id, CLAP_EXT_AUDIO_PORTS) == 0) return &g_audioPortsExtension;
     if (std::strcmp(id, CLAP_EXT_PARAMS) == 0) return &g_paramsExtension;
     if (std::strcmp(id, CLAP_EXT_STATE) == 0) return &g_stateExtension;
-    if (std::strcmp(id, CLAP_EXT_GUI) == 0) return &g_syrebasGuiExtension;
+    if (std::strcmp(id, CLAP_EXT_GUI) == 0) return &g_acidusGuiExtension;
     return nullptr;
 }
 
-void SyrebasClap::onMainThread() {}
+void AcidusClap::onMainThread() {}
 
-uint32_t SyrebasClap::paramsCount() const {
+uint32_t AcidusClap::paramsCount() const {
     return PARAM_COUNT;
 }
 
-bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) const {
+bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) const {
     if (paramIndex >= PARAM_COUNT) return false;
 
     std::memset(paramInfo, 0, sizeof(*paramInfo));
@@ -375,20 +367,7 @@ bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) 
             paramInfo->max_value = 1.0;
             paramInfo->default_value = 0.8;
             break;
-        case PARAM_MODE:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Engine Mode");
-            snprintf(paramInfo->module, sizeof(paramInfo->module), "Main");
-            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 1.0;
-            paramInfo->default_value = 0.0; // 0 = Accurate, 1 = Faithful
-            break;
 
-        // --- Experimental / calibration parameters (not drawn by the plugin's
-        // own GUI -- see the ParamId enum comment in SyrebasClap.hpp). Ranges
-        // and defaults are this project's current best estimate within the
-        // plausible range documented in TB303_PARAMETER_CONFIDENCE.md; use a
-        // host's generic parameter list to retune them by ear. ---
         case PARAM_OSC_COUPLING_HZ:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Osc Coupling Freq");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Oscillator");
@@ -406,12 +385,6 @@ bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) 
         case PARAM_FILTER_FEEDBACK_GAIN:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Feedback Gain");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
-            // 2026-09-19: range corrected from 20-40 (self-oscillates within
-            // this whole range, see TB303_FILTER_AUDIT_2026-09-19.md) to
-            // 12-17, bounded by the analytically confirmed critical
-            // (self-oscillation) gain of 17 for this ladder topology
-            // (Filter.hpp's kLadderCriticalGain_). Do not raise max_value to
-            // or above 17 without re-verifying with syrebas_filter_stability_test.
             paramInfo->min_value = 12.0;
             paramInfo->max_value = 17.0;
             paramInfo->default_value = 15.3;
@@ -433,10 +406,6 @@ bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) 
         case PARAM_VCA_GATE_OFF_MS:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gate-Off Tail");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
-            // 2026-09-19: range corrected from an unsourced 10-25ms to 1-5ms,
-            // cross-checked against Open303's normalAmpRelease=1.0ms (see
-            // TB303_PARAMETER_CONFIDENCE.md and Envelope.hpp's
-            // setVcaGateOffMs() doc comment).
             paramInfo->min_value = 1.0;
             paramInfo->max_value = 5.0;
             paramInfo->default_value = 1.0;
@@ -444,10 +413,6 @@ bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) 
         case PARAM_VCA_GATE_OFF_ACCENT_MS:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gate-Off Tail (Accent)");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
-            // 2026-09-19: new -- accented notes get a distinctly longer
-            // release than normal notes on real hardware (Open303's
-            // accentAmpRelease=50.0ms vs. normalAmpRelease=1.0ms); this
-            // project previously used one fixed gate-off time for both.
             paramInfo->min_value = 30.0;
             paramInfo->max_value = 80.0;
             paramInfo->default_value = 50.0;
@@ -459,13 +424,13 @@ bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) 
     return true;
 }
 
-bool SyrebasClap::paramsValue(clap_id paramId, double* outValue) {
+bool AcidusClap::paramsValue(clap_id paramId, double* outValue) {
     if (paramId >= PARAM_COUNT || !outValue) return false;
     *outValue = paramValues_[paramId];
     return true;
 }
 
-void SyrebasClap::requestHostFlush() {
+void AcidusClap::requestHostFlush() {
     if (host_) {
         const auto* host_params = static_cast<const clap_host_params_t*>(
             host_->get_extension(host_, CLAP_EXT_PARAMS));
@@ -477,7 +442,7 @@ void SyrebasClap::requestHostFlush() {
     }
 }
 
-void SyrebasClap::onBeginEditFromGui(clap_id paramId) {
+void AcidusClap::onBeginEditFromGui(clap_id paramId) {
     if (paramId >= PARAM_COUNT) return;
     {
         std::lock_guard<std::mutex> lock(outEventQueueMutex_);
@@ -486,7 +451,7 @@ void SyrebasClap::onBeginEditFromGui(clap_id paramId) {
     requestHostFlush();
 }
 
-void SyrebasClap::onParamValueFromGui(clap_id paramId, double value) {
+void AcidusClap::onParamValueFromGui(clap_id paramId, double value) {
     if (paramId >= PARAM_COUNT) return;
     paramValues_[paramId] = value;
     syncParamsToEngine();
@@ -497,7 +462,7 @@ void SyrebasClap::onParamValueFromGui(clap_id paramId, double value) {
     requestHostFlush();
 }
 
-void SyrebasClap::onEndEditFromGui(clap_id paramId) {
+void AcidusClap::onEndEditFromGui(clap_id paramId) {
     if (paramId >= PARAM_COUNT) return;
     {
         std::lock_guard<std::mutex> lock(outEventQueueMutex_);
@@ -506,11 +471,11 @@ void SyrebasClap::onEndEditFromGui(clap_id paramId) {
     requestHostFlush();
 }
 
-void SyrebasClap::setParamValueFromGui(clap_id paramId, double value) {
+void AcidusClap::setParamValueFromGui(clap_id paramId, double value) {
     onParamValueFromGui(paramId, value);
 }
 
-void SyrebasClap::pushPendingOutputEvents(const clap_output_events_t* out) {
+void AcidusClap::pushPendingOutputEvents(const clap_output_events_t* out) {
     if (!out) return;
     std::vector<GuiParamEvent> pending;
     {
@@ -547,7 +512,7 @@ void SyrebasClap::pushPendingOutputEvents(const clap_output_events_t* out) {
     }
 }
 
-bool SyrebasClap::paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity) {
+bool AcidusClap::paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity) {
     if (paramId >= PARAM_COUNT || !outBuffer || outBufferCapacity == 0) return false;
 
     if (paramId == PARAM_CUTOFF) {
@@ -556,8 +521,6 @@ bool SyrebasClap::paramsValueToText(clap_id paramId, double value, char* outBuff
         snprintf(outBuffer, outBufferCapacity, "%.1f Hz", hz);
     } else if (paramId == PARAM_WAVEFORM) {
         snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Square" : "Saw");
-    } else if (paramId == PARAM_MODE) {
-        snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Faithful" : "Accurate");
     } else if (paramId == PARAM_OSC_COUPLING_HZ || paramId == PARAM_RES_COUPLING_HZ) {
         snprintf(outBuffer, outBufferCapacity, "%.1f Hz", value);
     } else if (paramId == PARAM_RES_CUTOFF_BLEED) {
@@ -572,18 +535,10 @@ bool SyrebasClap::paramsValueToText(clap_id paramId, double value, char* outBuff
     return true;
 }
 
-bool SyrebasClap::paramsTextToValue(clap_id paramId, const char* paramValueText, double* outValue) {
+bool AcidusClap::paramsTextToValue(clap_id paramId, const char* paramValueText, double* outValue) {
     if (paramId >= PARAM_COUNT || !paramValueText || !outValue) return false;
     if (paramId == PARAM_WAVEFORM) {
         if (std::strstr(paramValueText, "Square") || std::strstr(paramValueText, "square")) {
-            *outValue = 1.0;
-        } else {
-            *outValue = 0.0;
-        }
-        return true;
-    }
-    if (paramId == PARAM_MODE) {
-        if (std::strstr(paramValueText, "Faithful") || std::strstr(paramValueText, "faithful")) {
             *outValue = 1.0;
         } else {
             *outValue = 0.0;
@@ -605,7 +560,7 @@ bool SyrebasClap::paramsTextToValue(clap_id paramId, const char* paramValueText,
     return true;
 }
 
-void SyrebasClap::paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out) {
+void AcidusClap::paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out) {
     if (in) {
         uint32_t size = in->size(in);
         for (uint32_t i = 0; i < size; ++i) {
@@ -616,20 +571,14 @@ void SyrebasClap::paramsFlush(const clap_input_events_t* in, const clap_output_e
     pushPendingOutputEvents(out);
 }
 
-bool SyrebasClap::stateSave(const clap_ostream_t* stream) {
+bool AcidusClap::stateSave(const clap_ostream_t* stream) {
     if (!stream) return false;
     int64_t written = stream->write(stream, paramValues_, sizeof(paramValues_));
     return written == sizeof(paramValues_);
 }
 
-bool SyrebasClap::stateLoad(const clap_istream_t* stream) {
+bool AcidusClap::stateLoad(const clap_istream_t* stream) {
     if (!stream) return false;
-    // Read into a scratch buffer pre-filled with the current (default) values,
-    // so a project saved by an older plugin version -- with fewer parameters
-    // than PARAM_COUNT, e.g. before the experimental calibration parameters
-    // were added -- still loads its 8 original parameters correctly, while
-    // the newer ones simply keep their in-code defaults instead of failing
-    // the whole load.
     double buffer[PARAM_COUNT];
     std::memcpy(buffer, paramValues_, sizeof(buffer));
     int64_t readBytes = stream->read(stream, buffer, sizeof(buffer));
@@ -642,24 +591,24 @@ bool SyrebasClap::stateLoad(const clap_istream_t* stream) {
 }
 
 // CLAP Plugin Entry Point
-static const char* g_syrebasFeatures[] = {
+static const char* g_acidusFeatures[] = {
     CLAP_PLUGIN_FEATURE_INSTRUMENT,
     CLAP_PLUGIN_FEATURE_SYNTHESIZER,
     CLAP_PLUGIN_FEATURE_STEREO,
     nullptr
 };
 
-static const clap_plugin_descriptor_t g_syrebasDescriptor = {
+static const clap_plugin_descriptor_t g_acidusDescriptor = {
     CLAP_VERSION,
-    "com.syrebas.synth",
-    "Syrebas",
-    "Syrebas Synth",
-    "https://github.com/syrebas/syrebas",
+    "com.acidus.synth",
+    "Acidus",
+    "Acidus",
+    "https://github.com/acidus/acidus",
     "",
     "",
     "1.0.0",
     "Roland TB-303 Bass Synth Emulator",
-    g_syrebasFeatures
+    g_acidusFeatures
 };
 
 static uint32_t clap_factory_get_plugin_count(const clap_plugin_factory_t* factory) {
@@ -667,18 +616,18 @@ static uint32_t clap_factory_get_plugin_count(const clap_plugin_factory_t* facto
 }
 
 static const clap_plugin_descriptor_t* clap_factory_get_plugin_descriptor(const clap_plugin_factory_t* factory, uint32_t index) {
-    return (index == 0) ? &g_syrebasDescriptor : nullptr;
+    return (index == 0) ? &g_acidusDescriptor : nullptr;
 }
 
 static const clap_plugin_t* clap_factory_create_plugin(const clap_plugin_factory_t* factory, const clap_host_t* host, const char* plugin_id) {
     if (!clap_version_is_compatible(host->clap_version)) return nullptr;
-    if (std::strcmp(plugin_id, g_syrebasDescriptor.id) != 0) return nullptr;
+    if (std::strcmp(plugin_id, g_acidusDescriptor.id) != 0) return nullptr;
 
-    auto* plugin = new SyrebasClap(host);
+    auto* plugin = new AcidusClap(host);
     return plugin->getClapPlugin();
 }
 
-static const clap_plugin_factory_t g_syrebasFactory = {
+static const clap_plugin_factory_t g_acidusFactory = {
     clap_factory_get_plugin_count,
     clap_factory_get_plugin_descriptor,
     clap_factory_create_plugin
@@ -692,16 +641,16 @@ static void entry_deinit() {}
 
 static const void* entry_get_factory(const char* factory_id) {
     if (std::strcmp(factory_id, CLAP_PLUGIN_FACTORY_ID) == 0) {
-        return &g_syrebasFactory;
+        return &g_acidusFactory;
     }
     return nullptr;
 }
 
-} // namespace syrebas
+} // namespace acidus
 
 extern "C" CLAP_EXPORT const clap_plugin_entry_t clap_entry = {
     CLAP_VERSION,
-    syrebas::entry_init,
-    syrebas::entry_deinit,
-    syrebas::entry_get_factory
+    acidus::entry_init,
+    acidus::entry_deinit,
+    acidus::entry_get_factory
 };

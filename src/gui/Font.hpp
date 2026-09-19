@@ -1,28 +1,29 @@
-#ifndef SYREBAS_FONT_HPP
-#define SYREBAS_FONT_HPP
+#ifndef ACIDUS_FONT_HPP
+#define ACIDUS_FONT_HPP
 
 #include <cstdint>
 #include <cstddef>
 
-namespace syrebas {
+namespace acidus {
 
 class Font {
 public:
-    Font(int width = 5, int height = 7, const uint8_t (*glyphData)[5] = nullptr);
+    Font(uint32_t width, uint32_t height);
+    ~Font() = default;
 
-    int getWidth() const { return width_; }
-    int getHeight() const { return height_; }
+    uint32_t getWidth() const { return width_; }
+    uint32_t getHeight() const { return height_; }
 
-    const uint8_t* getGlyphData(char c) const;
+    const uint8_t* getGlyph(char c) const;
+    int getTextWidth(const char* text) const;
 
-    static const Font& default5x7();
+    static Font default5x7();
 
 private:
-    int width_{5};
-    int height_{7};
-    const uint8_t (*glyphData_)[5]{nullptr};
+    uint32_t width_{5};
+    uint32_t height_{7};
 };
 
-} // namespace syrebas
+} // namespace acidus
 
-#endif // SYREBAS_FONT_HPP
+#endif // ACIDUS_FONT_HPP

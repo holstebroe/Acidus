@@ -1,7 +1,7 @@
 #include "SynthEngine.hpp"
 #include <algorithm>
 
-namespace syrebas {
+namespace acidus {
 
 SynthEngine::SynthEngine() {
     setSampleRate(44100.0);
@@ -22,10 +22,7 @@ void SynthEngine::reset() {
 }
 
 void SynthEngine::noteOn(int noteNumber, float velocity) {
-    // Check if slide condition (a note is currently active and not finished)
     bool isSlide = isNoteActive_;
-
-    // Accent is triggered by velocity >= 0.8
     bool isAccent = (velocity >= 0.8f);
     accentLevel_ = isAccent ? 1.0f : 0.0f;
 
@@ -34,7 +31,7 @@ void SynthEngine::noteOn(int noteNumber, float velocity) {
 
     osc_.setWaveform(params_.waveform);
     osc_.noteOn(noteNumber, isSlide);
-    env_.setFaithfulAccentDecay(params_.mode == EmulationMode::Faithful);
+    env_.setFaithfulAccentDecay(true);
     env_.setDecay(params_.decay);
     env_.noteOn(isAccent, isSlide, params_.accent);
 }
@@ -49,11 +46,9 @@ void SynthEngine::noteOff(int noteNumber) {
 
 void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     osc_.setWaveform(params_.waveform);
-    env_.setFaithfulAccentDecay(params_.mode == EmulationMode::Faithful);
+    env_.setFaithfulAccentDecay(true);
     env_.setDecay(params_.decay);
 
-    // Experimental/calibration parameters (CLAP-only, not on the plugin GUI -
-    // see SynthParameters in SynthEngine.hpp and TB303_PARAMETER_CONFIDENCE.md).
     osc_.setCouplingHz(params_.oscCouplingHz);
     filter_.setResCouplingHz(params_.resCouplingHz);
     filter_.setFeedbackGainCeiling(params_.filterFeedbackGain);
@@ -68,10 +63,8 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
             continue;
         }
 
-        // 1. Generate oscillator signal
         float rawOsc = osc_.processNextSample();
 
-        // 2. Process envelope sample
         env_.processNextSample();
         float vcfEnvVal = env_.getVcfEnv();
         float vcaEnvVal = env_.getVcaEnv();
@@ -84,89 +77,35 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float envModNorm = std::min(std::max(params_.envMod, 0.0f), 1.0f);
         float accentNorm = std::min(std::max(params_.accent, 0.0f), 1.0f);
 
-        // --- Current-Domain Control Summing (Sections 15-17, 27-32) ---
-        // Shared by both emulation modes: this CV-domain knob mapping is what the
-        // "Accurate" mode got right, so "Faithful" reuses it and only swaps out the
-        // filter core and its numerical accuracy/oversampling.
-
-        // Audio pot taper (50 kOhm Audio / A taper) for the Cutoff knob only.
         float cTaper = cNorm * cNorm;
-
-        // Env Mod knob mapping. CORRECTED 2026-09-19: this used to be squared
-        // (`envModNorm * envModNorm`), an assumed "audio taper" with no more
-        // justification than a guess -- and the 2026-09-19 filter audit's
-        // knob-position comparison against Open303 (same sound, but Open303
-        // reached it at Env Mod knob ~0.5 where this project needed ~1.0)
-        // pointed straight at it. RobinSchmidt/Open303's own measured Env Mod
-        // calibration (`Open303::calculateEnvModScalerAndOffset()`, based on
-        // real hardware measurements per its own code comment) maps its Env
-        // Mod knob *linearly* (`e = envMod/100`, no exponent at all) into its
-        // envelope-depth scaler. Switched to linear here to match; this
-        // alone roughly doubles the knob's effect at the midpoint (0.25 -> 0.5
-        // of max depth at knob=0.5) without changing the endpoints.
         float envModTaper = envModNorm;
 
-        // Base cutoff knob CV range: 200 Hz to 2.5 kHz (~3.64385 octaves)
         float cv_base = 3.64385f * cTaper;
-        // Env Mod baseline offset (+350 Hz / +0.80735 octaves at max Env Mod)
         float cv_offset = envModTaper * 0.80735f;
 
-        // Effective Env Mod depth for this sample. Section 15/24: on an accented note the
-        // MEG forces Env Mod depth to 100% for a sharp chirp - an unconditional switch, not
-        // scaled by the Accent knob (which instead scales the separate sweep/VCA paths
-        // below). Faithful mode applies that unconditional force; Accurate mode keeps its
-        // existing Accent-knob-scaled blend so its sound is unchanged.
-        bool faithfulMode = (params_.mode == EmulationMode::Faithful);
-        float effectiveEnvMod = noteAccent
-            ? (faithfulMode ? 1.0f : (envModNorm + (1.0f - envModNorm) * accentNorm))
-            : envModNorm;
-        // CORRECTED 2026-09-19: linear, matching envModTaper above (same
-        // rationale -- was squared, an unjustified guess contradicted by
-        // Open303's real measured linear Env Mod law).
+        float effectiveEnvMod = noteAccent ? 1.0f : envModNorm;
         float effectiveEnvModTaper = effectiveEnvMod;
-        float cv_envmod = effectiveEnvModTaper * vcfEnvVal * 3.5f; // Up to 7.5 kHz sweep
+        float cv_envmod = effectiveEnvModTaper * vcfEnvVal * 3.5f;
 
-        // Dual-gang Resonance pot section 2 interaction with Accent Sweep:
         float directAccentPortion = (1.0f - resNorm * 0.7f) * vcfEnvVal;
         float sweepCapPortion = (resNorm * 0.7f) * accentCapVal;
         float accentSweepSignal = directAccentPortion + sweepCapPortion;
 
-        // Accent Sweep CV contribution to cutoff
         float cv_accent = noteAccent ? (accentNorm * accentSweepSignal * 1.5f) : (accentNorm * sweepCapPortion * 0.75f);
 
-        // Control Voltage Summing in control-current (exponential octave) domain
         float cv_total = cv_base + cv_offset + cv_envmod + cv_accent;
 
-        // Convert CV to frequency with Resonance CV Bleed. UNSOURCED / not
-        // addressed by any research source consulted (TB303_PARAMETER_CONFIDENCE.md) -
-        // plausible range 0-30%, default 15%. Tunable via
-        // SynthParameters::resCutoffBleed (CLAP parameter); try 0 to A/B
-        // whether this term is doing anything useful versus the (separately
-        // modeled) Accent-Sweep/Resonance-gang interaction above.
         float resBleed = std::min(std::max(params_.resCutoffBleed, 0.0f), 1.0f);
         float effectiveCutoff = 200.0f * std::pow(2.0f, cv_total) * (1.0f - (resBleed * resNorm));
         float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 15000.0f);
 
-        float filterOut = faithfulMode
-            ? filter_.processFaithfulSample(rawOsc, totalCutoff, resNorm)
-            : filter_.processAccurateSample(rawOsc, totalCutoff, resNorm);
+        float filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
 
-        // BA662 VCA Model with control current summing (Section 23, 26).
-        // NEW 2026-09-19: cross-checking RobinSchmidt/Open303's actual mixing
-        // (rosic_Open303.h getSample(): "ampEnvOut += 0.45*mainEnvOut +
-        // accentGain*4.0*mainEnvOut", run whenever a note is on) shows the filter/MEG
-        // envelope leaks into the VCA on *every* note, not only accented ones -- this
-        // project previously only added a VCA contribution when noteAccent was true,
-        // so ordinary (non-accented) notes had none of that percussive "snap" at all.
-        // Added as an unconditional baseline term; the existing accented-note term
-        // below (already tied to the Accent knob and its own RC-smoothed signal) is
-        // unchanged.
         float vcaGain = vcaEnvVal + 0.45f * vcfEnvVal;
         if (noteAccent) {
             vcaGain += accentVcaVal * accentNorm * 0.8f;
         }
 
-        // Asymmetric BA662 VCA saturation (Section 44)
         float xVal = filterOut * vcaGain;
         float vcaSignal = (xVal > 0.0f) ? std::tanh(xVal * 1.1f) : std::tanh(xVal * 0.9f);
 
@@ -177,4 +116,4 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     }
 }
 
-} // namespace syrebas
+} // namespace acidus

@@ -1,5 +1,5 @@
-#ifndef SYREBAS_GUI_WINDOW_HPP
-#define SYREBAS_GUI_WINDOW_HPP
+#ifndef ACIDUS_GUI_WINDOW_HPP
+#define ACIDUS_GUI_WINDOW_HPP
 
 #include <clap/clap.h>
 #include <clap/ext/gui.h>
@@ -11,11 +11,11 @@
 #include "Font.hpp"
 #include "IControlRenderer.hpp"
 
-namespace syrebas {
+namespace acidus {
 
-class SyrebasClap;
+class AcidusClap;
 
-extern const clap_plugin_gui_t g_syrebasGuiExtension;
+extern const clap_plugin_gui_t g_acidusGuiExtension;
 
 enum class ControlType {
     Knob,
@@ -34,7 +34,7 @@ struct Control {
 
 class GuiWindow {
 public:
-    explicit GuiWindow(SyrebasClap* plugin);
+    explicit GuiWindow(AcidusClap* plugin);
     ~GuiWindow();
 
     bool setParent(const clap_window_t* window);
@@ -63,7 +63,7 @@ public:
     void handleMouseUp();
 
 private:
-    SyrebasClap* plugin_{nullptr};
+    AcidusClap* plugin_{nullptr};
     uint32_t width_{710};
     uint32_t height_{180};
 
@@ -107,11 +107,9 @@ private:
 
     void initControls();
     void updateKnobValuesFromPlugin();
-    void drawSyrebasTitle(Graphics& g, int x, int y, uint32_t color);
-    bool isInLogoPanel(int x, int y) const;
-    void toggleEmulationMode();
+    void drawAcidusTitle(Graphics& g, int x, int y);
 };
 
-} // namespace syrebas
+} // namespace acidus
 
-#endif // SYREBAS_GUI_WINDOW_HPP
+#endif // ACIDUS_GUI_WINDOW_HPP

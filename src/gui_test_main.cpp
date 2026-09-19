@@ -1,4 +1,4 @@
-#include "clap/SyrebasClap.hpp"
+#include "clap/AcidusClap.hpp"
 #include "gui/GuiWindow.hpp"
 #include "gui/Graphics.hpp"
 #include "gui/Font.hpp"
@@ -9,8 +9,8 @@
 #include <cmath>
 
 int main() {
-    syrebas::SyrebasClap plugin(nullptr);
-    syrebas::GuiWindow gui(&plugin);
+    acidus::AcidusClap plugin(nullptr);
+    acidus::GuiWindow gui(&plugin);
 
     gui.renderFrame();
 
@@ -18,14 +18,12 @@ int main() {
     uint32_t w = gui.getWidth();
     uint32_t h = gui.getHeight();
 
-    // Write raw ARGB buffer
-    std::ofstream ofs("/tmp/syrebas_gui_buffer.raw", std::ios::binary);
+    std::ofstream ofs("/tmp/acidus_gui_buffer.raw", std::ios::binary);
     ofs.write(reinterpret_cast<const char*>(buffer.data()), buffer.size() * sizeof(uint32_t));
     ofs.close();
 
-    std::cout << "GUI Frame rendered: " << w << "x" << h << ", saved to /tmp/syrebas_gui_buffer.raw" << std::endl;
+    std::cout << "GUI Frame rendered: " << w << "x" << h << ", saved to /tmp/acidus_gui_buffer.raw" << std::endl;
 
-    // Mock output event collector
     struct TestOutEvents {
         std::vector<uint16_t> types;
         std::vector<clap_id> paramIds;
@@ -53,38 +51,32 @@ int main() {
     mockOutList.ctx = &testCtx;
     mockOutList.try_push = TestOutEvents::tryPush;
 
-    // Test mouse interaction and Shift fine tuning
-    // Cutoff Knob is at x=55, y=100 (minVal=0.0, maxVal=1.0)
-    // 1. Standard mouse drag test (isShift = false)
     gui.handleMouseDown(55, 100, false);
     gui.handleMouseDrag(55, 20, false); // Drag up 80 pixels
     gui.handleMouseUp();
 
     double valNormal = 0.0;
-    plugin.paramsValue(syrebas::PARAM_CUTOFF, &valNormal);
+    plugin.paramsValue(acidus::PARAM_CUTOFF, &valNormal);
     std::cout << "Cutoff after 80px normal drag: " << valNormal << std::endl;
     assert(valNormal >= 0.99);
 
-    // Flush GUI output events to mockOutList
     plugin.paramsFlush(nullptr, &mockOutList);
 
     assert(!testCtx.types.empty());
     assert(testCtx.types.front() == CLAP_EVENT_PARAM_GESTURE_BEGIN);
     assert(testCtx.types.back() == CLAP_EVENT_PARAM_GESTURE_END);
-    assert(testCtx.paramIds.front() == syrebas::PARAM_CUTOFF);
+    assert(testCtx.paramIds.front() == acidus::PARAM_CUTOFF);
     std::cout << "GUI output event gesture queue test passed successfully! Events recorded: " << testCtx.types.size() << std::endl;
 
-    // 2. Fine mouse drag test (isShift = true)
     gui.handleMouseDown(130, 100, true); // Resonance knob at (130, 100) with Shift
-    gui.handleMouseDrag(130, 20, true);  // Drag up 80 pixels with Shift (from initial 0.5)
+    gui.handleMouseDrag(130, 20, true);  // Drag up 80 pixels with Shift
     gui.handleMouseUp();
 
     double valFine = 0.0;
-    plugin.paramsValue(syrebas::PARAM_RESONANCE, &valFine);
+    plugin.paramsValue(acidus::PARAM_RESONANCE, &valFine);
     std::cout << "Resonance after 80px fine drag with Shift: " << valFine << std::endl;
     assert(std::abs(valFine - 0.70) < 0.01);
 
-    // 3. Test MIDI CC 74 (Cutoff) mapping to absolute range
     testCtx.types.clear();
     testCtx.paramIds.clear();
     testCtx.values.clear();
@@ -99,7 +91,6 @@ int main() {
     midiCcEv.data[1] = 74;   // CC 74 (Cutoff)
     midiCcEv.data[2] = 127;  // Max CC value
 
-    // Simulate process block or flush with incoming MIDI CC
     struct TestInEvents {
         const clap_event_header_t* ev;
         static uint32_t size(const clap_input_events_t* list) { return 1; }
@@ -118,28 +109,27 @@ int main() {
     plugin.paramsFlush(&mockInList, &mockOutList);
 
     double ccCutoffVal = 0.0;
-    plugin.paramsValue(syrebas::PARAM_CUTOFF, &ccCutoffVal);
+    plugin.paramsValue(acidus::PARAM_CUTOFF, &ccCutoffVal);
     std::cout << "Cutoff after MIDI CC 74 (127): " << ccCutoffVal << std::endl;
     assert(ccCutoffVal == 1.0);
     assert(!testCtx.types.empty());
     assert(testCtx.types.back() == CLAP_EVENT_PARAM_VALUE);
     assert(testCtx.flags.back() == CLAP_EVENT_DONT_RECORD);
 
-    // 4. Test Font and Custom Control Renderer interface
-    syrebas::Font customFont(6, 8);
+    acidus::Font customFont(6, 8);
     assert(customFont.getWidth() == 6);
     assert(customFont.getHeight() == 8);
     gui.setFont(customFont);
     assert(gui.getFont().getWidth() == 6);
 
-    class TestCustomRenderer : public syrebas::IControlRenderer {
+    class TestCustomRenderer : public acidus::IControlRenderer {
     public:
         bool knobDrawn = false;
         bool switchDrawn = false;
-        void drawKnob(syrebas::Graphics& g, const syrebas::Control& ctrl, const syrebas::Font& font) override {
+        void drawKnob(acidus::Graphics& g, const acidus::Control& ctrl, const acidus::Font& font) override {
             knobDrawn = true;
         }
-        void drawToggleSwitch(syrebas::Graphics& g, const syrebas::Control& ctrl, const syrebas::Font& font) override {
+        void drawToggleSwitch(acidus::Graphics& g, const acidus::Control& ctrl, const acidus::Font& font) override {
             switchDrawn = true;
         }
     };
@@ -152,7 +142,7 @@ int main() {
     assert(rawPtr->switchDrawn);
     std::cout << "Custom Font and IControlRenderer interface tests passed successfully!" << std::endl;
 
-    std::cout << "Mouse drag, gesture events, MIDI CC, and refactored GUI tests passed successfully!" << std::endl;
+    std::cout << "All Acidus GUI tests passed successfully!" << std::endl;
 
     return 0;
 }

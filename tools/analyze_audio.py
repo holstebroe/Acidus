@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Spectral diagnostic tool for comparing Syrebas renders against a reference
-(Open303, another Syrebas render, or eventually a real TB-303 recording).
+"""Spectral diagnostic tool for comparing Acidus renders against a reference
+(Open303, another Acidus render, or eventually a real TB-303 recording).
 
 No third-party dependencies (stdlib only), so it runs anywhere this repo's
 DSP code can be built. It answers the two questions that matter most when a
@@ -18,11 +18,7 @@ Usage:
     python3 tools/analyze_audio.py ours.wav --times 0.05,0.3,0.6
 
 Supports 16-bit and 24-bit PCM mono or stereo WAV (stereo is downmixed to
-mono by averaging channels). This tool was written during the 2026-09
-regression/self-oscillation investigation (see TB303_PARAMETER_CONFIDENCE.md)
-and is meant to be reused for any future render-vs-reference comparison,
-including against real hardware recordings once isolated single-note/
-known-knob-position samples are available.
+mono by averaging channels).
 """
 import sys
 import struct
@@ -174,7 +170,6 @@ def print_report(path, times):
               f"overall_peak={r['overall_peak_hz']:.1f}Hz(m={r['overall_peak_mag']:.2f}){flag}")
         print(f"           bands: {band_str}")
 
-    # Flag a stable, input-independent peak across time as a strong self-oscillation signal.
     nonsilent = [r for r in results if not r.get('silent')]
     if len(nonsilent) >= 3:
         peaks = [r['overall_peak_hz'] for r in nonsilent]

@@ -1,5 +1,5 @@
-#ifndef SYREBAS_CLAP_HPP
-#define SYREBAS_CLAP_HPP
+#ifndef ACIDUS_CLAP_HPP
+#define ACIDUS_CLAP_HPP
 
 #include <clap/clap.h>
 #include "core/SynthEngine.hpp"
@@ -7,7 +7,7 @@
 #include <vector>
 #include <mutex>
 
-namespace syrebas {
+namespace acidus {
 
 struct GuiParamEvent {
     uint16_t type; // CLAP_EVENT_PARAM_GESTURE_BEGIN, CLAP_EVENT_PARAM_VALUE, CLAP_EVENT_PARAM_GESTURE_END
@@ -18,19 +18,11 @@ struct GuiParamEvent {
 
 // Parameter IDs
 //
-// PARAM_CUTOFF..PARAM_MODE (0-7) are the seven front-panel-equivalent
-// controls the plugin's own GUI draws knobs/switches for (see
-// GuiWindow.cpp's hardcoded control list).
+// PARAM_CUTOFF..PARAM_VOLUME (0-6) are the seven front-panel
+// controls the plugin's GUI draws knobs/switches for.
 //
-// PARAM_OSC_COUPLING_HZ..PARAM_VCA_GATE_OFF_ACCENT_MS (8-14) are experimental
-// calibration parameters for the "Faithful" engine's least-sourced
-// constants (see TB303_PARAMETER_CONFIDENCE.md and TB303_RESEARCH_COMPENDIUM.md
-// for the full rationale on each). They are deliberately NOT drawn by the
-// plugin's GUI -- GuiWindow.cpp only ever references the IDs above -- but
-// they ARE ordinary automatable CLAP parameters, so a host's generic
-// parameter list (e.g. REAPER's FX parameter list / "Show FX chain" without
-// the plugin's custom UI open) can see and automate them for by-ear
-// retuning against real hardware or a reference recording.
+// PARAM_OSC_COUPLING_HZ..PARAM_VCA_GATE_OFF_ACCENT_MS (7-13) are experimental
+// calibration parameters.
 enum ParamId : clap_id {
     PARAM_CUTOFF = 0,
     PARAM_RESONANCE = 1,
@@ -39,18 +31,17 @@ enum ParamId : clap_id {
     PARAM_ACCENT = 4,
     PARAM_WAVEFORM = 5,
     PARAM_VOLUME = 6,
-    PARAM_MODE = 7,
 
     // Experimental / calibration-only parameters (not on the plugin GUI).
-    PARAM_OSC_COUPLING_HZ = 8,      // Oscillator.hpp - plausible range 30-60 Hz
-    PARAM_RES_COUPLING_HZ = 9,      // Filter.hpp (Faithful mode) - plausible range 100-250 Hz
-    PARAM_FILTER_FEEDBACK_GAIN = 10,// Filter.hpp (Faithful mode) - plausible range 12-17
-    PARAM_RES_CUTOFF_BLEED = 11,    // SynthEngine.cpp - plausible range 0-30%
-    PARAM_VEG_DECAY_SEC = 12,       // Envelope.hpp - plausible range 2.5-5.0 s
-    PARAM_VCA_GATE_OFF_MS = 13,     // Envelope.hpp - plausible range 1-5 ms (2026-09-19: corrected)
-    PARAM_VCA_GATE_OFF_ACCENT_MS = 14, // Envelope.hpp - plausible range 30-80 ms (2026-09-19: new)
+    PARAM_OSC_COUPLING_HZ = 7,      // Oscillator.hpp - plausible range 30-60 Hz
+    PARAM_RES_COUPLING_HZ = 8,      // Filter.hpp - plausible range 100-250 Hz
+    PARAM_FILTER_FEEDBACK_GAIN = 9, // Filter.hpp - plausible range 12-17
+    PARAM_RES_CUTOFF_BLEED = 10,    // SynthEngine.cpp - plausible range 0-30%
+    PARAM_VEG_DECAY_SEC = 11,       // Envelope.hpp - plausible range 2.5-5.0 s
+    PARAM_VCA_GATE_OFF_MS = 12,     // Envelope.hpp - plausible range 1-5 ms
+    PARAM_VCA_GATE_OFF_ACCENT_MS = 13, // Envelope.hpp - plausible range 30-80 ms
 
-    PARAM_COUNT = 15
+    PARAM_COUNT = 14
 };
 
 enum MidiParamId : clap_id {
@@ -61,14 +52,13 @@ enum MidiParamId : clap_id {
     MIDI_PARAM_ACCENT = 22,
     MIDI_PARAM_WAVEFORM = 23,
     MIDI_PARAM_VOLUME = 20,
-    MIDI_PARAM_MODE = 24,
-    MIDI_PARAM_COUNT = 8
+    MIDI_PARAM_COUNT = 7
 };
 
-class SyrebasClap {
+class AcidusClap {
 public:
-    explicit SyrebasClap(const clap_host_t* host);
-    ~SyrebasClap() = default;
+    explicit AcidusClap(const clap_host_t* host);
+    ~AcidusClap() = default;
 
     const clap_plugin_t* getClapPlugin() const { return &clapPlugin_; }
 
@@ -125,6 +115,6 @@ private:
     void syncParamsToEngine();
 };
 
-} // namespace syrebas
+} // namespace acidus
 
-#endif // SYREBAS_CLAP_HPP
+#endif // ACIDUS_CLAP_HPP
