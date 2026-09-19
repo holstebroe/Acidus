@@ -71,10 +71,16 @@ float Filter::processAccurateSample(float input, float cutoffHz, float resonance
     // Feedback loop gain. CORRECTED 2026-09-19: was a flat `resNorm * 33.0f`,
     // roughly 2x the analytically confirmed critical (self-oscillation) gain
     // of 17 for this ladder topology -- see kLadderCriticalGain_'s derivation
-    // in Filter.hpp. Now capped at kLadderCriticalGain_ with a safety margin,
-    // and the knob mapping is skewed (skewResonance()) to match Open303's own
-    // resonance-taper convention rather than a bare linear knob-to-gain map.
-    float kFb = skewResonance(resNorm) * kLadderCriticalGain_ * kResonanceGainMargin_;
+    // in Filter.hpp. Capped at kLadderCriticalGain_ with a safety margin,
+    // plus cutoff-dependent extra headroom (kCutoffHeadroomNumerator_ --
+    // empirically measured 2026-09-19: the coupling-pole HPF makes the loop
+    // much more stable at low cutoff, and an initial flat cap left most of
+    // that headroom unused, making Resonance barely audible except very
+    // near the top of its knob travel). The knob mapping is also skewed
+    // (skewResonance()) to match Open303's own resonance-taper convention
+    // rather than a bare linear knob-to-gain map.
+    float kFb = skewResonance(resNorm) * kResonanceGainMargin_
+              * (kLadderCriticalGain_ + kCutoffHeadroomNumerator_ / totalCutoffHz);
 
     // Physical BJT thermal voltage V_T = 26mV. Effective scale factor Vt = 2*V_T = 0.052V (Vt_inv = 1 / 0.052 = 19.23)
     const float Vt = 0.052f;
@@ -200,13 +206,18 @@ float Filter::processFaithfulSample(float input, float cutoffHz, float resonance
     // roughly 2x the analytically confirmed critical (self-oscillation) gain
     // of 17 for this ladder topology -- see kLadderCriticalGain_'s derivation
     // in Filter.hpp (CONFIRMED principle that the stock filter should not
-    // self-oscillate: Wikipedia's spec sheet). Now defaults to
-    // kLadderCriticalGain_ * kResonanceGainMargin_ (15.3), still a tunable
-    // member (feedbackGainCeiling_, set via setFeedbackGainCeiling()) exposed
-    // as a CLAP parameter -- plausible range 12-17. The knob mapping is also
-    // skewed (skewResonance()) to match Open303's own resonance-taper
+    // self-oscillate: Wikipedia's spec sheet). feedbackGainCeiling_ now
+    // represents the ceiling *at high cutoff* (default 15.3, still a
+    // tunable member exposed as a CLAP parameter, plausible range 12-17);
+    // cutoff-dependent extra headroom (kCutoffHeadroomNumerator_ --
+    // empirically measured 2026-09-19: the coupling-pole HPF makes the loop
+    // much more stable at low cutoff, and an initial flat cap left most of
+    // that headroom unused, making Resonance barely audible except very
+    // near the top of its knob travel) is added on top. The knob mapping is
+    // also skewed (skewResonance()) to match Open303's own resonance-taper
     // convention rather than a bare linear knob-to-gain map.
-    float kFb = skewResonance(resNorm) * feedbackGainCeiling_;
+    float kFb = skewResonance(resNorm)
+              * (feedbackGainCeiling_ + kResonanceGainMargin_ * kCutoffHeadroomNumerator_ / totalCutoffHz);
 
     // BJT thermal-voltage-referenced tanh steepness. The 26 mV base is
     // CONFIRMED textbook physics for a bipolar junction; the x2 "effective"

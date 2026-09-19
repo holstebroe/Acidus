@@ -88,9 +88,22 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // "Accurate" mode got right, so "Faithful" reuses it and only swaps out the
         // filter core and its numerical accuracy/oversampling.
 
-        // Audio pot tapers (50 kOhm Audio / A taper) for Cutoff and Env Mod knobs
+        // Audio pot taper (50 kOhm Audio / A taper) for the Cutoff knob only.
         float cTaper = cNorm * cNorm;
-        float envModTaper = envModNorm * envModNorm;
+
+        // Env Mod knob mapping. CORRECTED 2026-09-19: this used to be squared
+        // (`envModNorm * envModNorm`), an assumed "audio taper" with no more
+        // justification than a guess -- and the 2026-09-19 filter audit's
+        // knob-position comparison against Open303 (same sound, but Open303
+        // reached it at Env Mod knob ~0.5 where this project needed ~1.0)
+        // pointed straight at it. RobinSchmidt/Open303's own measured Env Mod
+        // calibration (`Open303::calculateEnvModScalerAndOffset()`, based on
+        // real hardware measurements per its own code comment) maps its Env
+        // Mod knob *linearly* (`e = envMod/100`, no exponent at all) into its
+        // envelope-depth scaler. Switched to linear here to match; this
+        // alone roughly doubles the knob's effect at the midpoint (0.25 -> 0.5
+        // of max depth at knob=0.5) without changing the endpoints.
+        float envModTaper = envModNorm;
 
         // Base cutoff knob CV range: 200 Hz to 2.5 kHz (~3.64385 octaves)
         float cv_base = 3.64385f * cTaper;
@@ -106,7 +119,10 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float effectiveEnvMod = noteAccent
             ? (faithfulMode ? 1.0f : (envModNorm + (1.0f - envModNorm) * accentNorm))
             : envModNorm;
-        float effectiveEnvModTaper = effectiveEnvMod * effectiveEnvMod;
+        // CORRECTED 2026-09-19: linear, matching envModTaper above (same
+        // rationale -- was squared, an unjustified guess contradicted by
+        // Open303's real measured linear Env Mod law).
+        float effectiveEnvModTaper = effectiveEnvMod;
         float cv_envmod = effectiveEnvModTaper * vcfEnvVal * 3.5f; // Up to 7.5 kHz sweep
 
         // Dual-gang Resonance pot section 2 interaction with Accent Sweep:

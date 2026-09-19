@@ -52,7 +52,7 @@ static bool isStable(bool faithful, float cutoffHz, float resonance) {
 }
 
 int main() {
-    float cutoffs[] = {100.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f, 8000.0f};
+    float cutoffs[] = {100.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f, 8000.0f, 12000.0f, 15000.0f};
     float resSteps[] = {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f};
 
     int failures = 0;
