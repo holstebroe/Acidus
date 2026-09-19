@@ -30,6 +30,7 @@ set(CORE_SOURCES
     src/core/Oscillator.cpp
     src/core/Filter.cpp
     src/core/Envelope.cpp
+    src/core/Distortion.cpp
 )
 
 set(CLAP_SOURCES
@@ -81,12 +82,24 @@ set_target_properties(acidus PROPERTIES
 
 target_link_libraries(acidus PRIVATE ${GUI_LIBS})
 
+# Build the plugin and copy the .clap to the folder in the CLAPTEST environment
+# variable. Not part of ALL: a host that has the plugin loaded locks the file,
+# so a plain build should not fail on the copy.
+add_custom_target(deploy_clap
+    COMMAND ${CMAKE_COMMAND} -DCLAP_FILE=$<TARGET_FILE:acidus>
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/DeployClap.cmake
+    COMMENT "Deploying acidus.clap to %CLAPTEST%"
+    VERBATIM
+)
+add_dependencies(deploy_clap acidus)
+
 # Standalone test executable for DSP verification
 add_executable(acidus_dsp_test
     src/core/SynthEngine.cpp
     src/core/Oscillator.cpp
     src/core/Filter.cpp
     src/core/Envelope.cpp
+    src/core/Distortion.cpp
     src/dsp_test_main.cpp
 )
 
@@ -94,6 +107,12 @@ add_executable(acidus_dsp_test
 add_executable(acidus_filter_stability_test
     src/core/Filter.cpp
     src/filter_stability_test_main.cpp
+)
+
+# Standalone test executable for the MXR Distortion+ emulation
+add_executable(acidus_distortion_test
+    src/core/Distortion.cpp
+    src/distortion_test_main.cpp
 )
 
 # Standalone test executable for GUI frame verification

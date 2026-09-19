@@ -4,6 +4,7 @@
 #include "Oscillator.hpp"
 #include "Envelope.hpp"
 #include "Filter.hpp"
+#include "Distortion.hpp"
 
 namespace acidus {
 
@@ -15,6 +16,7 @@ struct SynthParameters {
     float accent{0.5f};        // Knob range 0.0 to 1.0
     Waveform waveform{Waveform::Saw};
     float masterVolume{0.8f};
+    float drive{0.0f};         // MXR Distortion+ emulation; 0 = pedal bypassed
 
     // --- Experimental / calibration parameters ---------------------------
     float oscCouplingHz{44.5f};        // Oscillator.hpp - plausible range 30-60 Hz
@@ -49,6 +51,7 @@ private:
     Oscillator osc_;
     Envelope env_;
     Filter filter_;
+    Distortion distortion_;
 
     int currentNote_{-1};
     bool isNoteActive_{false};

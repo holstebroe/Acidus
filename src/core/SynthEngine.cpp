@@ -12,10 +12,12 @@ void SynthEngine::setSampleRate(double sampleRate) {
     osc_.setSampleRate(sampleRate_);
     env_.setSampleRate(sampleRate_);
     filter_.setSampleRate(sampleRate_);
+    distortion_.setSampleRate(sampleRate_);
 }
 
 void SynthEngine::reset() {
     filter_.reset();
+    distortion_.reset();
     currentNote_ = -1;
     isNoteActive_ = false;
     accentLevel_ = 0.0f;
@@ -109,7 +111,8 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float xVal = filterOut * vcaGain;
         float vcaSignal = (xVal > 0.0f) ? std::tanh(xVal * 1.1f) : std::tanh(xVal * 0.9f);
 
-        float finalSample = vcaSignal * params_.masterVolume;
+        float drivenSignal = distortion_.processSample(vcaSignal, params_.drive);
+        float finalSample = drivenSignal * params_.masterVolume;
 
         if (outLeft) outLeft[i] = finalSample;
         if (outRight) outRight[i] = finalSample;

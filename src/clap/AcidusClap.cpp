@@ -140,6 +140,8 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_VCA_GATE_OFF_MS] = 1.0;
     paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS] = 50.0;
 
+    paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
+
     syncParamsToEngine();
 }
 
@@ -197,6 +199,8 @@ void AcidusClap::syncParamsToEngine() {
     params.vegDecaySec = static_cast<float>(paramValues_[PARAM_VEG_DECAY_SEC]);
     params.vcaGateOffMs = static_cast<float>(paramValues_[PARAM_VCA_GATE_OFF_MS]);
     params.vcaGateOffAccentMs = static_cast<float>(paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS]);
+
+    params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
 }
 
 void AcidusClap::handleEvent(const clap_event_header_t* header) {
@@ -228,6 +232,7 @@ void AcidusClap::handleEvent(const clap_event_header_t* header) {
             else if (data1 == MIDI_PARAM_ACCENT) paramId = PARAM_ACCENT;
             else if (data1 == MIDI_PARAM_WAVEFORM) paramId = PARAM_WAVEFORM;
             else if (data1 == MIDI_PARAM_VOLUME) paramId = PARAM_VOLUME;
+            else if (data1 == MIDI_PARAM_DRIVE) paramId = PARAM_DRIVE;
 
             if (paramId < PARAM_COUNT) {
                 double normVal = static_cast<double>(data2) / 127.0;
@@ -416,6 +421,14 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->min_value = 30.0;
             paramInfo->max_value = 80.0;
             paramInfo->default_value = 50.0;
+            break;
+
+        case PARAM_DRIVE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Drive");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Distortion");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = 0.0;
             break;
 
         default:
