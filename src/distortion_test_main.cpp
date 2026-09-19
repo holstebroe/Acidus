@@ -1,4 +1,5 @@
 #include "core/Distortion.hpp"
+#include "core/MathConstants.hpp"
 #include <cmath>
 #include <cstdio>
 #include <vector>
@@ -19,7 +20,7 @@ double rmsAtDrive(double sr, float freqHz, float amplitude, float drive) {
     int counted = 0;
 
     for (int i = 0; i < totalSamples; ++i) {
-        float in = amplitude * std::sin(2.0 * M_PI * freqHz * i / sr);
+        float in = amplitude * std::sin(2.0 * kPI_F * freqHz * i / sr);
         float out = dist.processSample(in, drive);
         if (i >= settleSamples) {
             sumSq += double(out) * out;
@@ -41,7 +42,7 @@ int main() {
         dist.setSampleRate(sr);
         bool bypassOk = true;
         for (int i = 0; i < 2000; ++i) {
-            float in = 0.7f * std::sin(2.0 * M_PI * 220.0 * i / sr) + 0.2f;
+            float in = 0.7f * std::sin(2.0 * kPI_F * 220.0 * i / sr) + 0.2f;
             float out = dist.processSample(in, 0.0f);
             if (out != in) {
                 bypassOk = false;
@@ -64,7 +65,7 @@ int main() {
         for (int step = 0; step <= 20 && finiteOk; ++step) {
             float drive = step / 20.0f;
             for (int i = 0; i < static_cast<int>(sr) / 4; ++i) {
-                float in = 1.2f * std::sin(2.0 * M_PI * 110.0 * i / sr);
+                float in = 1.2f * std::sin(2.0 * kPI_F * 110.0 * i / sr);
                 float out = dist.processSample(in, drive);
                 if (!std::isfinite(out)) {
                     finiteOk = false;
@@ -85,7 +86,7 @@ int main() {
         Distortion dist;
         dist.setSampleRate(sr);
         for (int i = 0; i < 1000; ++i) {
-            dist.processSample(1.0f * std::sin(2.0 * M_PI * 300.0 * i / sr), 1.0f);
+            dist.processSample(1.0f * std::sin(2.0 * kPI_F * 300.0 * i / sr), 1.0f);
         }
         for (int i = 0; i < 100; ++i) {
             dist.processSample(0.0f, 0.0f); // bypass for a while
