@@ -23,6 +23,11 @@ struct GuiParamEvent {
 //
 // PARAM_OSC_COUPLING_HZ..PARAM_VCA_GATE_OFF_ACCENT_MS (7-13) are experimental
 // calibration parameters.
+//
+// PARAM_DRIVE (14) is appended after the experimental block, rather than
+// inserted among the front-panel IDs, so old saved state (which is just the
+// raw paramValues_ array) keeps loading correctly - stateLoad only touches
+// as many doubles as the stream actually contains.
 enum ParamId : clap_id {
     PARAM_CUTOFF = 0,
     PARAM_RESONANCE = 1,
@@ -41,7 +46,11 @@ enum ParamId : clap_id {
     PARAM_VCA_GATE_OFF_MS = 12,     // Envelope.hpp - plausible range 1-5 ms
     PARAM_VCA_GATE_OFF_ACCENT_MS = 13, // Envelope.hpp - plausible range 30-80 ms
 
-    PARAM_COUNT = 14
+    // MXR Distortion+ emulation drive knob (front-panel control).
+    // 0 = pedal bypassed (disabled).
+    PARAM_DRIVE = 14,
+
+    PARAM_COUNT = 15
 };
 
 enum MidiParamId : clap_id {
@@ -52,7 +61,8 @@ enum MidiParamId : clap_id {
     MIDI_PARAM_ACCENT = 22,
     MIDI_PARAM_WAVEFORM = 23,
     MIDI_PARAM_VOLUME = 20,
-    MIDI_PARAM_COUNT = 7
+    MIDI_PARAM_DRIVE = 21,
+    MIDI_PARAM_COUNT = 8
 };
 
 class AcidusClap {

@@ -44,8 +44,13 @@ void GuiWindow::initControls() {
     controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 440, 100, 20, 0.0, 1.0, 0.5, false });
     controls_.push_back({ PARAM_ACCENT, "ACCENT", ControlType::Knob, 540, 100, 20, 0.0, 1.0, 0.5, false });
 
+    // MXR Distortion+ drive, set apart with a "hot" accent color. Fully
+    // counter-clockwise (0.0) bypasses the pedal entirely.
+    controls_.push_back({ PARAM_DRIVE, "DRIVE", ControlType::Knob, 640, 100, 20, 0.0, 1.0, 0.0, false });
+    controls_.back().accentColor = 0xFF7A2418; // rust red, marks the distortion stage
+
     // Master Volume Knob, set apart with its own accent color.
-    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 648, 100, 18, 0.0, 1.0, 0.8, false });
+    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 740, 100, 18, 0.0, 1.0, 0.8, false });
     controls_.back().accentColor = 0xFF6B4A22; // warm amber, distinct from the graphite knobs
 
     updateKnobValuesFromPlugin();
@@ -604,7 +609,7 @@ const clap_plugin_gui_t g_acidusGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
-        *width = 900;
+        *width = 980;
         *height = 180;
         return true;
     },
@@ -615,7 +620,7 @@ const clap_plugin_gui_t g_acidusGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
-        *width = 900;
+        *width = 980;
         *height = 180;
         return true;
     },

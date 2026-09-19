@@ -30,6 +30,7 @@ set(CORE_SOURCES
     src/core/Oscillator.cpp
     src/core/Filter.cpp
     src/core/Envelope.cpp
+    src/core/Distortion.cpp
 )
 
 set(CLAP_SOURCES
@@ -87,6 +88,7 @@ add_executable(acidus_dsp_test
     src/core/Oscillator.cpp
     src/core/Filter.cpp
     src/core/Envelope.cpp
+    src/core/Distortion.cpp
     src/dsp_test_main.cpp
 )
 
@@ -94,6 +96,12 @@ add_executable(acidus_dsp_test
 add_executable(acidus_filter_stability_test
     src/core/Filter.cpp
     src/filter_stability_test_main.cpp
+)
+
+# Standalone test executable for the MXR Distortion+ emulation
+add_executable(acidus_distortion_test
+    src/core/Distortion.cpp
+    src/distortion_test_main.cpp
 )
 
 # Standalone test executable for GUI frame verification
