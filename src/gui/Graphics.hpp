@@ -22,7 +22,7 @@ public:
     void drawCircle(int cx, int cy, int radius, uint32_t color, int thickness = 1);
     void fillCircle(int cx, int cy, int radius, uint32_t color);
 
-    void drawText(const Font& font, const char* text, int x, int y, uint32_t color);
+    void drawText(const Font& font, const char* text, int x, int y, uint32_t color, int textScale = 1);
 
     uint32_t getWidth() const { return logicalWidth_; }
     uint32_t getHeight() const { return logicalHeight_; }

@@ -32,18 +32,21 @@ GuiWindow::~GuiWindow() {
 
 void GuiWindow::initControls() {
     controls_.clear();
-    // 5 Main Knobs
-    controls_.push_back({ PARAM_CUTOFF, "CUT OFF FREQ", ControlType::Knob, 55, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_RESONANCE, "RESONANCE", ControlType::Knob, 130, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 205, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 280, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_ACCENT, "ACCENT", ControlType::Knob, 355, 100, 20, 0.0, 1.0, 0.5, false });
 
-    // Waveform Toggle Switch
-    controls_.push_back({ PARAM_WAVEFORM, "WAVEFORM", ControlType::ToggleSwitch, 425, 100, 15, 0.0, 1.0, 0.0, true });
+    // Waveform selector leads the panel, rendered as a symbolic saw/square switch.
+    controls_.push_back({ PARAM_WAVEFORM, "WAVE", ControlType::ToggleSwitch, 48, 100, 17, 0.0, 1.0, 0.0, true });
 
-    // Master Volume Knob
-    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 485, 100, 18, 0.0, 1.0, 0.8, false });
+    // 5 Main Knobs. Positions are spaced to clear each other's 2x-scale label text
+    // (the widest, "ENV MOD", needs the most room on either side).
+    controls_.push_back({ PARAM_CUTOFF, "CUTOFF", ControlType::Knob, 140, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_RESONANCE, "RESO", ControlType::Knob, 232, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 332, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 440, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_ACCENT, "ACCENT", ControlType::Knob, 540, 100, 20, 0.0, 1.0, 0.5, false });
+
+    // Master Volume Knob, set apart with its own accent color.
+    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 648, 100, 18, 0.0, 1.0, 0.8, false });
+    controls_.back().accentColor = 0xFF6B4A22; // warm amber, distinct from the graphite knobs
 
     updateKnobValuesFromPlugin();
 }
@@ -109,6 +112,34 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY) {
     uint32_t acidGreen  = 0xFF39FF14; // Core Acid Green
     uint32_t brightCore = 0xFFBFFF80; // Bright yellow-green center highlight
 
+    // 0. Backing plate: a dark LCD-style badge the glow can pop against,
+    // instead of sitting directly on the brushed silver panel.
+    const int logoW = 128;   // A..S span, see renderLetters offsets above
+    const int logoH = 38;
+    const int subtitleGap = 8;
+    const int subtitleH = 7; // font_ glyph height at scale 1
+    int plateX = startX - 16;
+    int plateY = startY - 14;
+    int plateW = logoW + 32;
+    int plateH = logoH + subtitleGap + subtitleH + 26;
+
+    g.fillRect(plateX + 3, plateY + 4, plateW, plateH, 0x50000000);
+    g.fillRect(plateX, plateY, plateW, plateH, 0xFF131517);
+    g.drawRect(plateX - 2, plateY - 2, plateW + 4, plateH + 4, 0xFF4A4E52);
+    g.drawRect(plateX, plateY, plateW, plateH, 0xFF040506);
+    g.drawLine(plateX + 2, plateY + 2, plateX + plateW - 3, plateY + 2, 0xFF2C3030, 1);
+
+    // Small corner screws for a hardware badge feel.
+    for (int sx = 0; sx < 2; ++sx) {
+        for (int sy = 0; sy < 2; ++sy) {
+            int scx = plateX + 7 + sx * (plateW - 14);
+            int scy = plateY + 7 + sy * (plateH - 14);
+            g.fillCircle(scx, scy, 3, 0xFF3A3E42);
+            g.drawCircle(scx, scy, 3, 0xFF08090A, 1);
+            g.drawLine(scx - 2, scy, scx + 2, scy, 0xFF1A1C1E, 1);
+        }
+    }
+
     // 1. Outer halo (pass offsets -2 to +2)
     for (int dx = -2; dx <= 2; ++dx) {
         for (int dy = -2; dy <= 2; ++dy) {
@@ -130,6 +161,13 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY) {
 
     // 4. Subtle inner highlight line
     renderLetters(g, startX + 1, startY + 1, brightCore);
+
+    // 5. Tagline underneath the lockup, in the panel's own pixel font.
+    const char* subtitle = "ANALOG BASS SYNTH";
+    int subtitleW = font_.getTextWidth(subtitle, 1);
+    int subtitleX = startX + (logoW - subtitleW) / 2;
+    int subtitleY = startY + logoH + subtitleGap;
+    g.drawText(font_, subtitle, subtitleX, subtitleY, 0xFF1B8224, 1);
 }
 
 void GuiWindow::renderFrame() {
@@ -155,7 +193,8 @@ void GuiWindow::renderFrame() {
     g.drawRect(0, height_ - 13, width_, 13, 0xFFC0C4C8);
 
     // Vertical dividing line separating controls from right title panel
-    g.drawLine(530, 14, 530, height_ - 14, 0xFF181818, 2);
+    int dividerX = static_cast<int>(width_) - 180;
+    g.drawLine(dividerX, 14, dividerX, height_ - 14, 0xFF181818, 2);
 
     // 2. Draw Controls
     if (controlRenderer_) {
@@ -169,7 +208,7 @@ void GuiWindow::renderFrame() {
     }
 
     // 3. Draw Title Logo "ACIDUS" in acid green with glow
-    drawAcidusTitle(g, 545, 65);
+    drawAcidusTitle(g, dividerX + 26, 50);
 
     // 4. Downsample hiResBuffer_ (2x2 box filter) into pixelBuffer_
     pixelBuffer_.resize(width_ * height_);
@@ -215,11 +254,18 @@ void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
                 break;
             }
         } else if (ctrl.type == ControlType::ToggleSwitch) {
-            if (std::abs(x - ctrl.x) <= 20 && std::abs(y - ctrl.y) <= 25) {
+            if (std::abs(x - ctrl.x) <= 22 && std::abs(y - ctrl.y) <= 40) {
                 if (plugin_) {
                     plugin_->onBeginEditFromGui(ctrl.id);
                 }
-                double newVal = (ctrl.currentVal >= 0.5) ? 0.0 : 1.0;
+                double newVal;
+                if (y < ctrl.y - 10) {
+                    newVal = 0.0; // clicked the saw icon
+                } else if (y > ctrl.y + 10) {
+                    newVal = 1.0; // clicked the square icon
+                } else {
+                    newVal = (ctrl.currentVal >= 0.5) ? 0.0 : 1.0; // clicked the slider itself
+                }
                 ctrl.currentVal = newVal;
                 if (plugin_) {
                     plugin_->onParamValueFromGui(ctrl.id, newVal);
@@ -558,7 +604,7 @@ const clap_plugin_gui_t g_acidusGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
-        *width = 710;
+        *width = 900;
         *height = 180;
         return true;
     },
@@ -569,7 +615,7 @@ const clap_plugin_gui_t g_acidusGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
-        *width = 710;
+        *width = 900;
         *height = 180;
         return true;
     },

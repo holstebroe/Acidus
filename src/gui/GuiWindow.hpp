@@ -30,6 +30,7 @@ struct Control {
     int radius;
     double minVal, maxVal, currentVal;
     bool isStepped;
+    uint32_t accentColor{0}; // 0 = use the renderer's default knob color
 };
 
 class GuiWindow {
@@ -64,7 +65,7 @@ public:
 
 private:
     AcidusClap* plugin_{nullptr};
-    uint32_t width_{710};
+    uint32_t width_{900};
     uint32_t height_{180};
 
     std::vector<uint32_t> pixelBuffer_; // ARGB format (32-bit)
@@ -72,7 +73,7 @@ private:
     std::vector<Control> controls_;
     bool lastShiftState_{false};
 
-    Font font_{Font::default5x7()};
+    Font font_{Font::defaultPanelFont()};
     std::unique_ptr<IControlRenderer> controlRenderer_;
 
     int activeControlIndex_{-1};

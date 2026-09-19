@@ -165,29 +165,34 @@ void Graphics::fillCircle(int cx, int cy, int radius, uint32_t color) {
     }
 }
 
-void Graphics::drawText(const Font& font, const char* text, int x, int y, uint32_t color) {
+void Graphics::drawText(const Font& font, const char* text, int x, int y, uint32_t color, int textScale) {
     if (!text) return;
+    if (textScale < 1) textScale = 1;
 
     int currX = x;
     size_t len = std::strlen(text);
+
+    int fontW = font.getWidth();
+    int fontH = font.getHeight();
 
     for (size_t i = 0; i < len; ++i) {
         char c = text[i];
         const uint8_t* glyph = font.getGlyph(c);
 
-        int fontW = font.getWidth();
-        int fontH = font.getHeight();
-
         for (int gy = 0; gy < fontH; ++gy) {
             uint8_t row = glyph[gy];
             for (int gx = 0; gx < fontW; ++gx) {
                 if ((row & (1 << (7 - gx))) != 0) {
-                    setPixel(currX + gx, y + gy, color);
+                    if (textScale == 1) {
+                        setPixel(currX + gx, y + gy, color);
+                    } else {
+                        fillRect(currX + gx * textScale, y + gy * textScale, textScale, textScale, color);
+                    }
                 }
             }
         }
 
-        currX += fontW + 1; // 1px character spacing
+        currX += (fontW + 1) * textScale; // character spacing
     }
 }
 

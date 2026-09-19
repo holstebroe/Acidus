@@ -15,12 +15,14 @@ public:
     uint32_t getHeight() const { return height_; }
 
     const uint8_t* getGlyph(char c) const;
-    int getTextWidth(const char* text) const;
+    int getTextWidth(const char* text, int scale = 1) const;
 
-    static Font default5x7();
+    // The glyph table was authored 7 columns wide (letters like M/N/W/J use
+    // column index 6); a 5-wide font here would silently crop their right side.
+    static Font defaultPanelFont();
 
 private:
-    uint32_t width_{5};
+    uint32_t width_{7};
     uint32_t height_{7};
 };
 

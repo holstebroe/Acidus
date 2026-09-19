@@ -108,14 +108,14 @@ const uint8_t* Font::getGlyph(char c) const {
     return g_font5x7[' '];
 }
 
-int Font::getTextWidth(const char* text) const {
+int Font::getTextWidth(const char* text, int scale) const {
     if (!text) return 0;
     size_t len = std::strlen(text);
-    return static_cast<int>(len * (width_ + 1));
+    return static_cast<int>(len * (width_ + 1)) * scale;
 }
 
-Font Font::default5x7() {
-    return Font(5, 7);
+Font Font::defaultPanelFont() {
+    return Font(7, 7);
 }
 
 } // namespace acidus
