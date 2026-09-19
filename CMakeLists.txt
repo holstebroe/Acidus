@@ -90,6 +90,14 @@ add_executable(syrebas_dsp_test
     src/dsp_test_main.cpp
 )
 
+# Standalone test executable for filter self-oscillation/stability sweeps
+# (see TB303_PARAMETER_CONFIDENCE.md and the header comment in the source
+# file for why this exists and how to read its output).
+add_executable(syrebas_filter_stability_test
+    src/core/Filter.cpp
+    src/filter_stability_test_main.cpp
+)
+
 # Standalone test executable for GUI frame verification
 add_executable(syrebas_gui_test
     ${CORE_SOURCES}
