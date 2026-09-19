@@ -15,7 +15,7 @@ public:
     uint32_t getHeight() const { return height_; }
 
     const uint8_t* getGlyph(char c) const;
-    int getTextWidth(const char* text) const;
+    int getTextWidth(const char* text, int scale = 1) const;
 
     static Font default5x7();
 
