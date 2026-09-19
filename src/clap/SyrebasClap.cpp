@@ -138,7 +138,7 @@ SyrebasClap::SyrebasClap(const clap_host_t* host) : host_(host) {
     // TB303_PARAMETER_CONFIDENCE.md for the sourcing/uncertainty behind each.
     paramValues_[PARAM_OSC_COUPLING_HZ] = 44.5;
     paramValues_[PARAM_RES_COUPLING_HZ] = 150.0;
-    paramValues_[PARAM_FILTER_FEEDBACK_GAIN] = 36.0;
+    paramValues_[PARAM_FILTER_FEEDBACK_GAIN] = 15.3; // 2026-09-19: was 36.0, self-oscillated (see Filter.hpp)
     paramValues_[PARAM_RES_CUTOFF_BLEED] = 0.15;
     paramValues_[PARAM_VEG_DECAY_SEC] = 3.5;
     paramValues_[PARAM_VCA_GATE_OFF_MS] = 16.0;
@@ -404,9 +404,15 @@ bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) 
         case PARAM_FILTER_FEEDBACK_GAIN:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Feedback Gain");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
-            paramInfo->min_value = 20.0;
-            paramInfo->max_value = 40.0;
-            paramInfo->default_value = 36.0;
+            // 2026-09-19: range corrected from 20-40 (self-oscillates within
+            // this whole range, see TB303_FILTER_AUDIT_2026-09-19.md) to
+            // 12-17, bounded by the analytically confirmed critical
+            // (self-oscillation) gain of 17 for this ladder topology
+            // (Filter.hpp's kLadderCriticalGain_). Do not raise max_value to
+            // or above 17 without re-verifying with syrebas_filter_stability_test.
+            paramInfo->min_value = 12.0;
+            paramInfo->max_value = 17.0;
+            paramInfo->default_value = 15.3;
             break;
         case PARAM_RES_CUTOFF_BLEED:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Res->Cutoff Bleed");

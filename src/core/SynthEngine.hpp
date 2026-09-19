@@ -33,7 +33,7 @@ struct SynthParameters {
     // SyrebasClap.cpp and in the class that actually uses it.
     float oscCouplingHz{44.5f};        // Oscillator.hpp - plausible range 30-60 Hz
     float resCouplingHz{150.0f};       // Filter.hpp (Faithful mode) - plausible range 100-250 Hz
-    float filterFeedbackGain{36.0f};   // Filter.hpp (Faithful mode) - plausible range 20-40
+    float filterFeedbackGain{15.3f};   // Filter.hpp (Faithful mode) - plausible range 12-17 (2026-09-19: corrected, see kLadderCriticalGain_ in Filter.hpp)
     float resCutoffBleed{0.15f};       // SynthEngine.cpp - plausible range 0.0-0.30 (0-30%)
     float vegDecaySec{3.5f};           // Envelope.hpp - plausible range 2.5-5.0 s
     float vcaGateOffMs{16.0f};         // Envelope.hpp - plausible range 10-25 ms

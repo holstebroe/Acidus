@@ -55,24 +55,26 @@ float Filter::processAccurateSample(float input, float cutoffHz, float resonance
     float dt = 1.0f / static_cast<float>(oversampledRateAccurate_);
     float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
 
-    float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
+    // kCutoffToOmegaScale_ (1/sqrt(2)) makes the labeled cutoff Hz equal the
+    // actual resonance-peak frequency -- see the derivation in Filter.hpp.
+    float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz * kCutoffToOmegaScale_;
 
     // High pass in feedback path: cutoff dynamically scales between 150 Hz and 250 Hz.
-    // BEST GUESS / UNSOURCED - the 2026 research pass (TB303_RESEARCH_COMPENDIUM.md
-    // Section 6) found the real composite coupling-pole corner is closer to
-    // 5-15 Hz, not 150-250 Hz, and that it should be resonant rather than a
-    // plain attenuating HPF. Faithful mode (processFaithfulSample) implements
-    // that correction; Accurate mode intentionally keeps this older,
-    // differently-calibrated approximation unchanged, since it's the mode
-    // users already know and like the sound of.
+    // ESTIMATE, cross-checked against RobinSchmidt/Open303's fixed 150 Hz
+    // equivalent (see the matching, more detailed comment in
+    // processFaithfulSample() -- the two modes share this constant's
+    // sourcing, Accurate mode just keeps its own resonance-swept variant).
     float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
     float hpfCutoff = 150.0f + 100.0f * resNorm;
     float hpfAlpha = 1.0f / (1.0f + 2.0f * 3.14159265358979323846f * hpfCutoff * dt);
 
-    // Feedback loop gain ceiling. BEST GUESS / calibration knob, tuned so the
-    // ladder approaches but does not cleanly self-oscillate (see the matching
-    // comment in processFaithfulSample() for the sourcing on that principle).
-    float kFb = resNorm * 33.0f;
+    // Feedback loop gain. CORRECTED 2026-09-19: was a flat `resNorm * 33.0f`,
+    // roughly 2x the analytically confirmed critical (self-oscillation) gain
+    // of 17 for this ladder topology -- see kLadderCriticalGain_'s derivation
+    // in Filter.hpp. Now capped at kLadderCriticalGain_ with a safety margin,
+    // and the knob mapping is skewed (skewResonance()) to match Open303's own
+    // resonance-taper convention rather than a bare linear knob-to-gain map.
+    float kFb = skewResonance(resNorm) * kLadderCriticalGain_ * kResonanceGainMargin_;
 
     // Physical BJT thermal voltage V_T = 26mV. Effective scale factor Vt = 2*V_T = 0.052V (Vt_inv = 1 / 0.052 = 19.23)
     const float Vt = 0.052f;
@@ -137,7 +139,13 @@ float Filter::processAccurateSample(float input, float cutoffHz, float resonance
         accOut += (ladderV4_ / 0.05f) * 0.25f; // Normalize voltage and average 4x decimation
     }
 
-    return accOut;
+    // Output-level compensation: rises to kMaxResonanceOutputGain_ (~2.3x,
+    // matching Open303) at Resonance=1 to counteract the passband-gain loss
+    // that comes from operating close to the loop's critical gain -- see
+    // Filter.hpp. Uses the same skewed resonance mapping as kFb above so the
+    // compensation tracks where the loop gain actually is.
+    float outputGain = 1.0f + skewResonance(resNorm) * (kMaxResonanceOutputGain_ - 1.0f);
+    return accOut * outputGain;
 }
 
 float Filter::processFaithfulSample(float input, float cutoffHz, float resonance) {
@@ -151,7 +159,9 @@ float Filter::processFaithfulSample(float input, float cutoffHz, float resonance
     // calling this, so 18 kHz here is a secondary safety net, not the
     // effective ceiling.
     float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
-    float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz;
+    // kCutoffToOmegaScale_ (1/sqrt(2)) makes the labeled cutoff Hz equal the
+    // actual resonance-peak frequency -- see the derivation in Filter.hpp.
+    float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz * kCutoffToOmegaScale_;
 
     float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
 
@@ -186,14 +196,17 @@ float Filter::processFaithfulSample(float input, float cutoffHz, float resonance
     const float resCouplingHz = resCouplingHz_ + 100.0f * resNorm;
     const float resCouplingAlpha = 1.0f / (1.0f + 2.0f * 3.14159265358979323846f * resCouplingHz * dt);
 
-    // Feedback loop gain. BEST GUESS / calibration knob -- not a circuit
-    // value. Chosen so the ladder approaches but does not cleanly
-    // self-oscillate (CONFIRMED principle: Wikipedia's spec sheet states the
-    // stock filter is non-self-oscillating). Plausible range: 20-40, default
-    // 36 -- a tunable member (feedbackGainCeiling_, set via
-    // setFeedbackGainCeiling()) rather than a hardcoded literal, exposed as a
-    // CLAP parameter.
-    float kFb = resNorm * feedbackGainCeiling_;
+    // Feedback loop gain. CORRECTED 2026-09-19: feedbackGainCeiling_ was 36,
+    // roughly 2x the analytically confirmed critical (self-oscillation) gain
+    // of 17 for this ladder topology -- see kLadderCriticalGain_'s derivation
+    // in Filter.hpp (CONFIRMED principle that the stock filter should not
+    // self-oscillate: Wikipedia's spec sheet). Now defaults to
+    // kLadderCriticalGain_ * kResonanceGainMargin_ (15.3), still a tunable
+    // member (feedbackGainCeiling_, set via setFeedbackGainCeiling()) exposed
+    // as a CLAP parameter -- plausible range 12-17. The knob mapping is also
+    // skewed (skewResonance()) to match Open303's own resonance-taper
+    // convention rather than a bare linear knob-to-gain map.
+    float kFb = skewResonance(resNorm) * feedbackGainCeiling_;
 
     // BJT thermal-voltage-referenced tanh steepness. The 26 mV base is
     // CONFIRMED textbook physics for a bipolar junction; the x2 "effective"
@@ -334,7 +347,13 @@ float Filter::processFaithfulSample(float input, float cutoffHz, float resonance
         out += stageOut / static_cast<float>(kOS);
     }
 
-    return out;
+    // Output-level compensation: rises to kMaxResonanceOutputGain_ (~2.3x,
+    // matching Open303) at Resonance=1 to counteract the passband-gain loss
+    // that comes from operating close to the loop's critical gain -- see
+    // Filter.hpp. Uses the same skewed resonance mapping as kFb above so the
+    // compensation tracks where the loop gain actually is.
+    float outputGain = 1.0f + skewResonance(resNorm) * (kMaxResonanceOutputGain_ - 1.0f);
+    return out * outputGain;
 }
 
 } // namespace syrebas
