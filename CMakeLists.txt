@@ -5,6 +5,16 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Calibration build: exposes every circuit-topology constant (ladder coupling
+# poles, VCA saturation drive, etc.) as an automatable CLAP parameter, under
+# "Experimental/..." module paths, for an external optimizer/fitting tool to
+# drive. Off by default: a Release build only exposes the 7 front-panel
+# controls, matching the real hardware's user-facing surface.
+option(ACIDUS_CALIBRATION_BUILD "Expose hidden circuit-calibration parameters as CLAP params" OFF)
+if(ACIDUS_CALIBRATION_BUILD)
+    add_compile_definitions(ACIDUS_CALIBRATION_BUILD=1)
+endif()
+
 # Whole-program/link-time optimization lets the linker fold identical CLAP
 # vtable trampolines (/OPT:ICF) and drop unreferenced code (/OPT:REF), which
 # matters a lot for a plugin this small. Only apply it in Release-type

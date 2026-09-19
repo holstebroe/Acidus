@@ -19,13 +19,19 @@ struct SynthParameters {
     float drive{0.0f};         // MXR Distortion+ emulation; 0 = pedal bypassed
 
     // --- Experimental / calibration parameters ---------------------------
+    // Exposed as CLAP parameters only in a ACIDUS_CALIBRATION_BUILD; a
+    // Release build keeps these at their defaults (see AcidusClap.hpp).
     float oscCouplingHz{44.5f};        // Oscillator.hpp - plausible range 30-60 Hz
     float resCouplingHz{150.0f};       // Filter.hpp - plausible range 100-250 Hz
     float filterFeedbackGain{15.3f};   // Filter.hpp - plausible range 12-17
-    float resCutoffBleed{0.15f};       // SynthEngine.cpp - plausible range 0.0-0.30 (0-30%)
+    float filterPostHpHz{24.167f};        // Filter.hpp - plausible range 15-35 Hz
+    float filterNotchHz{7.5164f};         // Filter.hpp - plausible range 4-15 Hz
+    float filterNotchBandwidthHz{4.7f};   // Filter.hpp - plausible range 2-10 Hz
+    float filterAllpassHz{14.008f};       // Filter.hpp - plausible range 8-25 Hz
     float vegDecaySec{3.5f};           // Envelope.hpp - plausible range 2.5-5.0 s
     float vcaGateOffMs{1.0f};          // Envelope.hpp - plausible range 1-5 ms
     float vcaGateOffAccentMs{50.0f};   // Envelope.hpp - plausible range 30-80 ms
+    float vcaGainSaturationDrive{3.0f};   // SynthEngine.cpp - plausible range 1-8 (BA662 transconductance-stage saturation)
 };
 
 class SynthEngine {

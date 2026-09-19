@@ -132,13 +132,19 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_WAVEFORM] = 0.0; // 0 = Saw, 1 = Square
     paramValues_[PARAM_VOLUME] = 0.8;
 
+#ifdef ACIDUS_CALIBRATION_BUILD
     paramValues_[PARAM_OSC_COUPLING_HZ] = 44.5;
     paramValues_[PARAM_RES_COUPLING_HZ] = 150.0;
     paramValues_[PARAM_FILTER_FEEDBACK_GAIN] = 15.3;
-    paramValues_[PARAM_RES_CUTOFF_BLEED] = 0.15;
+    paramValues_[PARAM_FILTER_POST_HP_HZ] = 24.167;
+    paramValues_[PARAM_FILTER_NOTCH_HZ] = 7.5164;
+    paramValues_[PARAM_FILTER_NOTCH_BANDWIDTH_HZ] = 4.7;
+    paramValues_[PARAM_FILTER_ALLPASS_HZ] = 14.008;
     paramValues_[PARAM_VEG_DECAY_SEC] = 3.5;
     paramValues_[PARAM_VCA_GATE_OFF_MS] = 1.0;
     paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS] = 50.0;
+    paramValues_[PARAM_VCA_GAIN_SATURATION_DRIVE] = 3.0;
+#endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
 
@@ -192,13 +198,19 @@ void AcidusClap::syncParamsToEngine() {
     params.waveform = (paramValues_[PARAM_WAVEFORM] >= 0.5) ? Waveform::Square : Waveform::Saw;
     params.masterVolume = static_cast<float>(paramValues_[PARAM_VOLUME]);
 
+#ifdef ACIDUS_CALIBRATION_BUILD
     params.oscCouplingHz = static_cast<float>(paramValues_[PARAM_OSC_COUPLING_HZ]);
     params.resCouplingHz = static_cast<float>(paramValues_[PARAM_RES_COUPLING_HZ]);
     params.filterFeedbackGain = static_cast<float>(paramValues_[PARAM_FILTER_FEEDBACK_GAIN]);
-    params.resCutoffBleed = static_cast<float>(paramValues_[PARAM_RES_CUTOFF_BLEED]);
+    params.filterPostHpHz = static_cast<float>(paramValues_[PARAM_FILTER_POST_HP_HZ]);
+    params.filterNotchHz = static_cast<float>(paramValues_[PARAM_FILTER_NOTCH_HZ]);
+    params.filterNotchBandwidthHz = static_cast<float>(paramValues_[PARAM_FILTER_NOTCH_BANDWIDTH_HZ]);
+    params.filterAllpassHz = static_cast<float>(paramValues_[PARAM_FILTER_ALLPASS_HZ]);
     params.vegDecaySec = static_cast<float>(paramValues_[PARAM_VEG_DECAY_SEC]);
     params.vcaGateOffMs = static_cast<float>(paramValues_[PARAM_VCA_GATE_OFF_MS]);
     params.vcaGateOffAccentMs = static_cast<float>(paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS]);
+    params.vcaGainSaturationDrive = static_cast<float>(paramValues_[PARAM_VCA_GAIN_SATURATION_DRIVE]);
+#endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
 }
@@ -394,12 +406,40 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->max_value = 17.0;
             paramInfo->default_value = 15.3;
             break;
-        case PARAM_RES_CUTOFF_BLEED:
-            snprintf(paramInfo->name, sizeof(paramInfo->name), "Res->Cutoff Bleed");
+        case PARAM_FILTER_POST_HP_HZ:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Post HP Freq");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
-            paramInfo->min_value = 0.0;
-            paramInfo->max_value = 0.30;
-            paramInfo->default_value = 0.15;
+            paramInfo->min_value = 15.0;
+            paramInfo->max_value = 35.0;
+            paramInfo->default_value = 24.167;
+            break;
+        case PARAM_FILTER_NOTCH_HZ:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Notch Freq");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 4.0;
+            paramInfo->max_value = 15.0;
+            paramInfo->default_value = 7.5164;
+            break;
+        case PARAM_FILTER_NOTCH_BANDWIDTH_HZ:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Notch Bandwidth");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 2.0;
+            paramInfo->max_value = 10.0;
+            paramInfo->default_value = 4.7;
+            break;
+        case PARAM_FILTER_ALLPASS_HZ:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Allpass Freq");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 8.0;
+            paramInfo->max_value = 25.0;
+            paramInfo->default_value = 14.008;
+            break;
+        case PARAM_VCA_GAIN_SATURATION_DRIVE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gain Saturation Drive");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 1.0;
+            paramInfo->max_value = 8.0;
+            paramInfo->default_value = 3.0;
             break;
         case PARAM_VEG_DECAY_SEC:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Decay Time");
@@ -534,10 +574,10 @@ bool AcidusClap::paramsValueToText(clap_id paramId, double value, char* outBuffe
         snprintf(outBuffer, outBufferCapacity, "%.1f Hz", hz);
     } else if (paramId == PARAM_WAVEFORM) {
         snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Square" : "Saw");
-    } else if (paramId == PARAM_OSC_COUPLING_HZ || paramId == PARAM_RES_COUPLING_HZ) {
-        snprintf(outBuffer, outBufferCapacity, "%.1f Hz", value);
-    } else if (paramId == PARAM_RES_CUTOFF_BLEED) {
-        snprintf(outBuffer, outBufferCapacity, "%.1f %%", value * 100.0);
+    } else if (paramId == PARAM_OSC_COUPLING_HZ || paramId == PARAM_RES_COUPLING_HZ
+               || paramId == PARAM_FILTER_POST_HP_HZ || paramId == PARAM_FILTER_NOTCH_HZ
+               || paramId == PARAM_FILTER_NOTCH_BANDWIDTH_HZ || paramId == PARAM_FILTER_ALLPASS_HZ) {
+        snprintf(outBuffer, outBufferCapacity, "%.2f Hz", value);
     } else if (paramId == PARAM_VEG_DECAY_SEC) {
         snprintf(outBuffer, outBufferCapacity, "%.2f s", value);
     } else if (paramId == PARAM_VCA_GATE_OFF_MS || paramId == PARAM_VCA_GATE_OFF_ACCENT_MS) {
@@ -563,10 +603,6 @@ bool AcidusClap::paramsTextToValue(clap_id paramId, const char* paramValueText, 
         if (hz <= 200.0) *outValue = 0.0;
         else if (hz >= 2500.0) *outValue = 1.0;
         else *outValue = std::log(hz / 200.0) / std::log(12.5);
-        return true;
-    }
-    if (paramId == PARAM_RES_CUTOFF_BLEED) {
-        *outValue = std::atof(paramValueText) / 100.0;
         return true;
     }
     *outValue = std::atof(paramValueText);

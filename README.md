@@ -32,6 +32,25 @@ cmake --build build
 
 The resulting CLAP plugin (`acidus.clap`) will be located in the `build/` directory.
 
+### Calibration build
+
+By default the plugin only exposes the seven front-panel controls as CLAP
+parameters, matching the real hardware's user-facing surface. A separate
+build configuration additionally exposes every hidden circuit-topology
+constant (ladder coupling-pole corners, VCA saturation drive, etc.) as
+automatable CLAP parameters under `Experimental/...` module paths, for an
+external fitting/optimization tool to drive against reference audio:
+
+```bash
+cmake -B build-calibration -DCMAKE_BUILD_TYPE=Release -DACIDUS_CALIBRATION_BUILD=ON
+cmake --build build-calibration
+```
+
+Nothing in the DSP core depends on which configuration is used -- the
+calibration build is the exact same signal path, just with more of its
+constants exposed as host-automatable parameters instead of compiled-in
+defaults. See `TB303_PARAMETER_CONFIDENCE.md` for what each one backs.
+
 ### Running Standalone Test Executables
 
 ```bash

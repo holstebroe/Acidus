@@ -4,6 +4,30 @@
 
 namespace acidus {
 
+namespace {
+
+// PolyBLEP (polynomial band-limited step) residual: a cheap analytic
+// correction subtracted/added at a waveform discontinuity to suppress the
+// aliasing a naive digital step/ramp would otherwise produce. The real
+// oscillator is a continuous analogue ramp/reset circuit with no such
+// aliasing at all (EMULATION_GUIDE §55: "Simply running a nonlinear
+// oscillator at 44.1 kHz with no oversampling/band-limiting will generate
+// aliasing that was not present in the original analogue hardware") -- this
+// is a numerical-correctness fix, not a hardware-sourced constant.
+inline double polyblep(double t, double dt) {
+    if (dt <= 0.0) return 0.0;
+    if (t < dt) {
+        double x = t / dt;
+        return x + x - x * x - 1.0;
+    } else if (t > 1.0 - dt) {
+        double x = (t - 1.0) / dt;
+        return x * x + x + x + 1.0;
+    }
+    return 0.0;
+}
+
+} // namespace
+
 Oscillator::Oscillator() {
     setSampleRate(44100.0);
 }
@@ -62,14 +86,21 @@ float Oscillator::processNextSample() {
 
     double raw = 0.0;
     if (waveform_ == Waveform::Saw) {
-        double rawSaw = 1.0 - 2.0 * phase_;
+        // Falling ramp (1 - 2*phase) wraps upward (-1 -> +1) at phase 0/1;
+        // add the PolyBLEP residual there to band-limit that edge.
+        double rawSaw = 1.0 - 2.0 * phase_ + polyblep(phase_, phaseInc);
         lpfSawState_ += lpfSawCoeff_ * (rawSaw - lpfSawState_);
         double x = lpfSawState_;
         raw = x - 0.05 * x * x;
     } else {
         double duty = 0.45 + 0.25 * std::exp(-currentFreq_ / 180.0);
         duty = std::min(0.70, std::max(0.45, duty));
-        raw = (phase_ < duty) ? 0.75 : -0.75;
+        // Two discontinuities: rising edge at phase 0/1 (-1 -> +1), falling
+        // edge at phase == duty (+1 -> -1); PolyBLEP-correct both.
+        double rawSquare = (phase_ < duty) ? 1.0 : -1.0;
+        rawSquare += polyblep(phase_, phaseInc);
+        rawSquare -= polyblep(std::fmod(phase_ + 1.0 - duty, 1.0), phaseInc);
+        raw = rawSquare * 0.75;
     }
 
     double hpfOut = couplingAlpha_ * (couplingHpfY1_ + raw - couplingHpfX1_);
