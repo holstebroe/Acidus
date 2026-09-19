@@ -43,6 +43,9 @@ void Filter::reset() {
     prevInput_ = 0.0f;
     inputCoupling_.reset();
     outputCoupling_.reset();
+    postFilterHp_.reset();
+    notch_.reset();
+    allpass_.reset();
 }
 
 float Filter::processSample(float input, float cutoffHz, float resonance) {
@@ -161,6 +164,18 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
         stageOut = outputCoupling_.lowpass(stageOut, outCouplingAlpha);
         out += stageOut / static_cast<float>(kOS);
     }
+
+    // Further coupling-network poles, outside the resonance feedback loop
+    // (see the OnePoleAllpass/NotchFilter comments in Filter.hpp). Host-rate,
+    // not oversampled -- their corners are tens of Hz, far below Nyquist/2
+    // even at 44.1 kHz.
+    float postHpAlpha = 1.0f - std::exp(-2.0f * 3.14159265358979323846f
+                                         * postFilterHpHz_ / static_cast<float>(sampleRate_));
+    out = postFilterHp_.highpass(out, postHpAlpha);
+    out = notch_.process(out, notchFreqHz_, notchBandwidthHz_, sampleRate_);
+    float tanAp = std::tan(3.14159265358979323846 * allpassFreqHz_ / sampleRate_);
+    float apCoeff = (tanAp - 1.0f) / (tanAp + 1.0f);
+    out = allpass_.process(out, apCoeff);
 
     float outputGain = 1.0f + skewResonance(resNorm) * (kMaxResonanceOutputGain_ - 1.0f);
     return out * outputGain;
