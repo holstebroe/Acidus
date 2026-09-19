@@ -51,8 +51,8 @@ int main() {
     mockOutList.ctx = &testCtx;
     mockOutList.try_push = TestOutEvents::tryPush;
 
-    gui.handleMouseDown(125, 100, false);
-    gui.handleMouseDrag(125, 20, false); // Drag up 80 pixels
+    gui.handleMouseDown(140, 100, false);
+    gui.handleMouseDrag(140, 20, false); // Drag up 80 pixels
     gui.handleMouseUp();
 
     double valNormal = 0.0;
@@ -68,8 +68,8 @@ int main() {
     assert(testCtx.paramIds.front() == acidus::PARAM_CUTOFF);
     std::cout << "GUI output event gesture queue test passed successfully! Events recorded: " << testCtx.types.size() << std::endl;
 
-    gui.handleMouseDown(205, 100, true); // Resonance knob at (205, 100) with Shift
-    gui.handleMouseDrag(205, 20, true);  // Drag up 80 pixels with Shift
+    gui.handleMouseDown(232, 100, true); // Resonance knob at (232, 100) with Shift
+    gui.handleMouseDrag(232, 20, true);  // Drag up 80 pixels with Shift
     gui.handleMouseUp();
 
     double valFine = 0.0;

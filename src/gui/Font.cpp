@@ -114,8 +114,8 @@ int Font::getTextWidth(const char* text, int scale) const {
     return static_cast<int>(len * (width_ + 1)) * scale;
 }
 
-Font Font::default5x7() {
-    return Font(5, 7);
+Font Font::defaultPanelFont() {
+    return Font(7, 7);
 }
 
 } // namespace acidus

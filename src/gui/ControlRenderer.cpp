@@ -44,6 +44,8 @@ uint32_t darken(uint32_t color, int percent) {
     return 0xFF000000 | (r << 16) | (gr << 8) | b;
 }
 
+constexpr double kPi = 3.14159265358979323846;
+
 } // namespace
 
 void TB303ControlRenderer::drawKnob(Graphics& g, const Control& ctrl, const Font& font) {
@@ -57,35 +59,42 @@ void TB303ControlRenderer::drawKnob(Graphics& g, const Control& ctrl, const Font
     g.fillCircle(cx + 3, cy + 4, r, 0x50000000);
     g.fillCircle(cx + 2, cy + 3, r, 0x90000000);
 
-    // Knob body: a lighter graphite bezel with a darker inset face, so the
-    // shadow and the body no longer sit at nearly the same near-black tone.
-    uint32_t bodyOuter = ctrl.accentColor ? ctrl.accentColor : 0xFF3A3E42;
-    uint32_t bodyInner = ctrl.accentColor ? darken(ctrl.accentColor, 60) : 0xFF222629;
+    // A flat matte top (no dome/specular highlight) ringed by a knurled grip,
+    // taking a cue from the 303's grooved knobs without copying them outright.
+    uint32_t faceColor = ctrl.accentColor ? ctrl.accentColor : 0xFF34383C;
+    uint32_t rimColor = darken(faceColor, 55);
+    uint32_t notchColor = 0xFF6E7276;
+    int faceR = r - 6;
 
-    g.fillCircle(cx, cy, r, bodyOuter);
-    g.fillCircle(cx, cy, r - 4, bodyInner);
-
+    g.fillCircle(cx, cy, r, rimColor);
+    const int notches = 24;
+    for (int i = 0; i < notches; ++i) {
+        double a = (2.0 * kPi * i) / notches;
+        int x1 = cx + static_cast<int>(std::round(std::sin(a) * r));
+        int y1 = cy - static_cast<int>(std::round(std::cos(a) * r));
+        int x2 = cx + static_cast<int>(std::round(std::sin(a) * (faceR + 1)));
+        int y2 = cy - static_cast<int>(std::round(std::cos(a) * (faceR + 1)));
+        g.drawLine(x1, y1, x2, y2, notchColor, 1);
+    }
     g.drawCircle(cx, cy, r, 0xFF08090A, 1);
-    g.drawCircle(cx, cy, r - 4, 0xFF5A5E62, 1);
 
-    // Specular highlight, upper-left, to sell the rounded metal/plastic cap.
-    g.fillCircle(cx - r / 3, cy - r / 3, r / 4, 0x30FFFFFF);
+    g.fillCircle(cx, cy, faceR, faceColor);
+    g.drawCircle(cx, cy, faceR, 0xFF08090A, 1);
 
-    double minAngle = -135.0 * 3.14159265358979323846 / 180.0;
-    double maxAngle =  135.0 * 3.14159265358979323846 / 180.0;
+    double minAngle = -135.0 * kPi / 180.0;
+    double maxAngle =  135.0 * kPi / 180.0;
     double norm = (ctrl.currentVal - ctrl.minVal) / (ctrl.maxVal - ctrl.minVal);
     norm = std::min(std::max(norm, 0.0), 1.0);
     double angle = minAngle + norm * (maxAngle - minAngle);
 
-    int pointerR1 = r - 9;
-    int pointerR2 = r - 2;
+    int pointerR1 = faceR - 9;
+    int pointerR2 = faceR - 2;
     int px1 = cx + static_cast<int>(std::sin(angle) * pointerR1);
     int py1 = cy - static_cast<int>(std::cos(angle) * pointerR1);
     int px2 = cx + static_cast<int>(std::sin(angle) * pointerR2);
     int py2 = cy - static_cast<int>(std::cos(angle) * pointerR2);
 
     g.drawLine(px1, py1, px2, py2, 0xFFF2F2F2, 2);
-    g.fillCircle(px2, py2, 2, 0xFF39FF14);
 
     drawLabel(g, font, ctrl);
 }
@@ -120,9 +129,10 @@ void TB303ControlRenderer::drawToggleSwitch(Graphics& g, const Control& ctrl, co
     g.drawRect(handleX, handleY, handleW, handleH, 0xFF08090A);
     g.drawLine(handleX + 2, handleY + handleH / 2, handleX + handleW - 2, handleY + handleH / 2, 0xFF8A8E92, 1);
 
-    // Symbolic saw/square icons flanking the switch; the active waveform
-    // lights up in acid green, the inactive one stays dim.
-    uint32_t activeColor = 0xFF39FF14;
+    // Symbolic saw/square icons flanking the switch; the active waveform is
+    // drawn in a dark, saturated green (bright acid green washes out against
+    // the light panel), the inactive one stays dim.
+    uint32_t activeColor = 0xFF157A1C;
     uint32_t dimColor = 0xFF8A8E92;
 
     int sawY = cy - slotH / 2 - 12;
