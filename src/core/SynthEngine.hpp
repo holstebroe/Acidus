@@ -36,7 +36,8 @@ struct SynthParameters {
     float filterFeedbackGain{15.3f};   // Filter.hpp (Faithful mode) - plausible range 12-17 (2026-09-19: corrected, see kLadderCriticalGain_ in Filter.hpp)
     float resCutoffBleed{0.15f};       // SynthEngine.cpp - plausible range 0.0-0.30 (0-30%)
     float vegDecaySec{3.5f};           // Envelope.hpp - plausible range 2.5-5.0 s
-    float vcaGateOffMs{16.0f};         // Envelope.hpp - plausible range 10-25 ms
+    float vcaGateOffMs{1.0f};          // Envelope.hpp - plausible range 1-5 ms (2026-09-19: corrected, see setVcaGateOffMs())
+    float vcaGateOffAccentMs{50.0f};   // Envelope.hpp - plausible range 30-80 ms (2026-09-19: new, see setVcaGateOffAccentMs())
 };
 
 class SynthEngine {

@@ -22,7 +22,7 @@ struct GuiParamEvent {
 // controls the plugin's own GUI draws knobs/switches for (see
 // GuiWindow.cpp's hardcoded control list).
 //
-// PARAM_OSC_COUPLING_HZ..PARAM_VCA_GATE_OFF_MS (8-13) are experimental
+// PARAM_OSC_COUPLING_HZ..PARAM_VCA_GATE_OFF_ACCENT_MS (8-14) are experimental
 // calibration parameters for the "Faithful" engine's least-sourced
 // constants (see TB303_PARAMETER_CONFIDENCE.md and TB303_RESEARCH_COMPENDIUM.md
 // for the full rationale on each). They are deliberately NOT drawn by the
@@ -42,14 +42,15 @@ enum ParamId : clap_id {
     PARAM_MODE = 7,
 
     // Experimental / calibration-only parameters (not on the plugin GUI).
-    PARAM_OSC_COUPLING_HZ = 8,      // Oscillator.hpp - plausible range 70-120 Hz
-    PARAM_RES_COUPLING_HZ = 9,      // Filter.hpp (Faithful mode) - plausible range 5-15 Hz
-    PARAM_FILTER_FEEDBACK_GAIN = 10,// Filter.hpp (Faithful mode) - plausible range 20-40
+    PARAM_OSC_COUPLING_HZ = 8,      // Oscillator.hpp - plausible range 30-60 Hz
+    PARAM_RES_COUPLING_HZ = 9,      // Filter.hpp (Faithful mode) - plausible range 100-250 Hz
+    PARAM_FILTER_FEEDBACK_GAIN = 10,// Filter.hpp (Faithful mode) - plausible range 12-17
     PARAM_RES_CUTOFF_BLEED = 11,    // SynthEngine.cpp - plausible range 0-30%
     PARAM_VEG_DECAY_SEC = 12,       // Envelope.hpp - plausible range 2.5-5.0 s
-    PARAM_VCA_GATE_OFF_MS = 13,     // Envelope.hpp - plausible range 10-25 ms
+    PARAM_VCA_GATE_OFF_MS = 13,     // Envelope.hpp - plausible range 1-5 ms (2026-09-19: corrected)
+    PARAM_VCA_GATE_OFF_ACCENT_MS = 14, // Envelope.hpp - plausible range 30-80 ms (2026-09-19: new)
 
-    PARAM_COUNT = 14
+    PARAM_COUNT = 15
 };
 
 enum MidiParamId : clap_id {

@@ -59,6 +59,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     filter_.setFeedbackGainCeiling(params_.filterFeedbackGain);
     env_.setVegDecaySec(params_.vegDecaySec);
     env_.setVcaGateOffMs(params_.vcaGateOffMs);
+    env_.setVcaGateOffAccentMs(params_.vcaGateOffAccentMs);
 
     for (int i = 0; i < numFrames; ++i) {
         if (!env_.isActive() && !isNoteActive_) {
@@ -150,8 +151,17 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
             ? filter_.processFaithfulSample(rawOsc, totalCutoff, resNorm)
             : filter_.processAccurateSample(rawOsc, totalCutoff, resNorm);
 
-        // BA662 VCA Model with control current summing (Section 23, 26)
-        float vcaGain = vcaEnvVal;
+        // BA662 VCA Model with control current summing (Section 23, 26).
+        // NEW 2026-09-19: cross-checking RobinSchmidt/Open303's actual mixing
+        // (rosic_Open303.h getSample(): "ampEnvOut += 0.45*mainEnvOut +
+        // accentGain*4.0*mainEnvOut", run whenever a note is on) shows the filter/MEG
+        // envelope leaks into the VCA on *every* note, not only accented ones -- this
+        // project previously only added a VCA contribution when noteAccent was true,
+        // so ordinary (non-accented) notes had none of that percussive "snap" at all.
+        // Added as an unconditional baseline term; the existing accented-note term
+        // below (already tied to the Accent knob and its own RC-smoothed signal) is
+        // unchanged.
+        float vcaGain = vcaEnvVal + 0.45f * vcfEnvVal;
         if (noteAccent) {
             vcaGain += accentVcaVal * accentNorm * 0.8f;
         }

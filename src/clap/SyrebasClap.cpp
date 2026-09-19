@@ -141,7 +141,8 @@ SyrebasClap::SyrebasClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_FILTER_FEEDBACK_GAIN] = 15.3; // 2026-09-19: was 36.0, self-oscillated (see Filter.hpp)
     paramValues_[PARAM_RES_CUTOFF_BLEED] = 0.15;
     paramValues_[PARAM_VEG_DECAY_SEC] = 3.5;
-    paramValues_[PARAM_VCA_GATE_OFF_MS] = 16.0;
+    paramValues_[PARAM_VCA_GATE_OFF_MS] = 1.0; // 2026-09-19: was 16.0, see Envelope.hpp setVcaGateOffMs()
+    paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS] = 50.0; // 2026-09-19: new, see Envelope.hpp setVcaGateOffAccentMs()
 
     syncParamsToEngine();
 }
@@ -201,6 +202,7 @@ void SyrebasClap::syncParamsToEngine() {
     params.resCutoffBleed = static_cast<float>(paramValues_[PARAM_RES_CUTOFF_BLEED]);
     params.vegDecaySec = static_cast<float>(paramValues_[PARAM_VEG_DECAY_SEC]);
     params.vcaGateOffMs = static_cast<float>(paramValues_[PARAM_VCA_GATE_OFF_MS]);
+    params.vcaGateOffAccentMs = static_cast<float>(paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS]);
 }
 
 void SyrebasClap::handleEvent(const clap_event_header_t* header) {
@@ -431,9 +433,24 @@ bool SyrebasClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) 
         case PARAM_VCA_GATE_OFF_MS:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gate-Off Tail");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
-            paramInfo->min_value = 10.0;
-            paramInfo->max_value = 25.0;
-            paramInfo->default_value = 16.0;
+            // 2026-09-19: range corrected from an unsourced 10-25ms to 1-5ms,
+            // cross-checked against Open303's normalAmpRelease=1.0ms (see
+            // TB303_PARAMETER_CONFIDENCE.md and Envelope.hpp's
+            // setVcaGateOffMs() doc comment).
+            paramInfo->min_value = 1.0;
+            paramInfo->max_value = 5.0;
+            paramInfo->default_value = 1.0;
+            break;
+        case PARAM_VCA_GATE_OFF_ACCENT_MS:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gate-Off Tail (Accent)");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            // 2026-09-19: new -- accented notes get a distinctly longer
+            // release than normal notes on real hardware (Open303's
+            // accentAmpRelease=50.0ms vs. normalAmpRelease=1.0ms); this
+            // project previously used one fixed gate-off time for both.
+            paramInfo->min_value = 30.0;
+            paramInfo->max_value = 80.0;
+            paramInfo->default_value = 50.0;
             break;
 
         default:
@@ -547,7 +564,7 @@ bool SyrebasClap::paramsValueToText(clap_id paramId, double value, char* outBuff
         snprintf(outBuffer, outBufferCapacity, "%.1f %%", value * 100.0);
     } else if (paramId == PARAM_VEG_DECAY_SEC) {
         snprintf(outBuffer, outBufferCapacity, "%.2f s", value);
-    } else if (paramId == PARAM_VCA_GATE_OFF_MS) {
+    } else if (paramId == PARAM_VCA_GATE_OFF_MS || paramId == PARAM_VCA_GATE_OFF_ACCENT_MS) {
         snprintf(outBuffer, outBufferCapacity, "%.1f ms", value);
     } else {
         snprintf(outBuffer, outBufferCapacity, "%.2f", value);

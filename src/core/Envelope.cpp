@@ -25,31 +25,61 @@ void Envelope::updateCoefficients() {
     // VCF Attack: 3.5ms RC curve
     vcfAttackCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.0035));
 
-    // VCF Decay: exponential decay time constant for vcfDecayTimeSec_ (tau = t_60 / 6.9078).
-    // In faithful mode, an active accent overrides this unconditionally (Section 25: "the
-    // MEG decay control is bypassed/switched... independent of the front-panel Decay
-    // setting... should not merely multiply the decay coefficient"), and must be re-derived
-    // from the fixed accent decay time - not from vcfDecayTimeSec_ - every time this runs,
-    // since setDecay() calls this once per audio block for the lifetime of the note.
+    // VCF Decay: exponential decay time constant. In faithful mode, an active accent
+    // overrides this unconditionally (Section 25: "the MEG decay control is
+    // bypassed/switched... independent of the front-panel Decay setting... should not
+    // merely multiply the decay coefficient"), and must be re-derived from the fixed
+    // accent decay time - not from vcfDecayTimeSec_ - every time this runs, since
+    // setDecay() calls this once per audio block for the lifetime of the note.
+    //
+    // CORRECTED 2026-09-19: this used to divide by 6.907755 to treat
+    // vcfDecayTimeSec_/kAccentDecayTimeSec as a t60 (time to -60dB) and derive tau from
+    // it. Cross-checking RobinSchmidt/Open303's actual source
+    // (rosic_Open303.cpp/rosic_DecayEnvelope.cpp) shows its Decay-knob range
+    // (200-2000ms, quoted directly from real 303 hardware in its own setDecay() doc
+    // comment) and its accentDecay=200.0 constant are both fed *directly* as tau
+    // (DecayEnvelope::setDecayTimeConstant() -> c = exp(-1/(0.001*tau*fs)), no t60
+    // conversion anywhere in Open303's codebase). The stray /6.907755f here made every
+    // MEG decay ~6.9x faster than intended across the whole Decay knob range. Removed;
+    // vcfDecayTimeSec_ and kAccentDecayTimeSec are now used directly as tau, matching
+    // Open303 exactly (its accentDecay=200.0ms literal value now equals
+    // kAccentDecayTimeSec exactly).
     if (faithfulAccentDecay_ && isAccent_) {
-        vcfDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (kAccentDecayTimeSec / 6.907755f)));
+        vcfDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * kAccentDecayTimeSec));
     } else {
-        vcfDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (vcfDecayTimeSec_ / 6.907755f)));
+        vcfDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * vcfDecayTimeSec_));
     }
 
     // VCA Attack: 3.0ms RC curve. ESTIMATE (order-of-magnitude "very fast",
     // not independently sourced to this exact figure).
     vcaAttackCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.003));
-    // VCA Gate HIGH Phase 1 Decay: slow discharge time constant. UNSOURCED
-    // ESTIMATE - no primary source gives a specific stock VEG figure (Whittle
-    // says only "rather long"); plausible range 2.5-5.0 s, default 3.5 s.
+    // VCA Gate HIGH Phase 1 Decay: slow discharge time constant.
+    // CORRECTED 2026-09-19: same t60-vs-tau fix as the VCF Decay above --
+    // vegDecaySec_ is now used directly as tau, matching Open303's
+    // AnalogEnvelope::setDecay() convention (also a direct-tau RC
+    // coefficient, no t60 division anywhere in Open303). This lands our
+    // existing 3.5s default almost exactly on Open303's own doc comment for
+    // this parameter ("on the normal 303, this parameter was fixed to
+    // approximately 3-4 seconds"), stronger corroboration than the vague
+    // "rather long" (Whittle) language it was originally estimated from.
     // Tunable via setVegDecaySec() / SynthParameters::vegDecaySec (CLAP
     // parameter), see Envelope.hpp.
-    vcaGateHighDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (vegDecaySec_ / 6.907755f)));
-    // VCA Gate LOW Phase 2 Quick Drain: discharge to silence. UNSOURCED
-    // ESTIMATE - plausible range 10-25 ms, default 16 ms. Tunable via
-    // setVcaGateOffMs() / SynthParameters::vcaGateOffMs (CLAP parameter).
-    vcaQuickDrainCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * (vcaGateOffSec_ / 6.907755f)));
+    vcaGateHighDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * vegDecaySec_));
+    // VCA Gate LOW Phase 2 Quick Drain (non-accented note-off): discharge to
+    // silence. CORRECTED 2026-09-19: same t60-vs-tau fix, PLUS cross-checked
+    // against Open303's normalAmpRelease=1.0ms (also used directly as tau,
+    // see rosic_Open303.cpp triggerNote()/rosic_AnalogEnvelope.cpp's release
+    // phase) -- default lowered from an unsourced 16ms estimate to 1ms.
+    // Tunable via setVcaGateOffMs() / SynthParameters::vcaGateOffMs (CLAP
+    // parameter).
+    vcaQuickDrainCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * vcaGateOffSec_));
+    // VCA Gate LOW Phase 2 Quick Drain (ACCENTED note-off): NEW 2026-09-19.
+    // Open303 gives accented notes a distinctly longer release
+    // (accentAmpRelease=50.0ms, same direct-tau convention) instead of the
+    // same hard cutoff as normal notes -- this project previously had no
+    // such distinction. Tunable via setVcaGateOffAccentMs() /
+    // SynthParameters::vcaGateOffAccentMs (CLAP parameter).
+    vcaQuickDrainAccentCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * vcaGateOffAccentSec_));
 
     // Accent Sweep RC (47 kOhm + 1 uF -> tau ~ 47ms)
     accentChargeCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.047));
@@ -125,9 +155,11 @@ void Envelope::processNextSample() {
             vcaEnv_ *= vcaGateHighDecayCoeff_;
         }
     } else {
-        // PHASE 2: GATE = LOW (The Quick Drain Correction)
-        // Discharges to absolute silence (-60dB) within 15ms to 20ms
-        vcaEnv_ *= vcaQuickDrainCoeff_;
+        // PHASE 2: GATE = LOW (The Quick Drain Correction). Accented notes use a
+        // distinctly longer release tail than non-accented notes (2026-09-19, see
+        // setVcaGateOffAccentMs() doc comment) -- isAccent_ still reflects whichever
+        // note just ended, since noteOff() does not touch it.
+        vcaEnv_ *= isAccent_ ? vcaQuickDrainAccentCoeff_ : vcaQuickDrainCoeff_;
     }
 
     // 3. Accent Sweep Capacitor Processing (1uF capacitor charge memory)
