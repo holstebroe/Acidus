@@ -78,8 +78,12 @@ enum ParamId : clap_id {
     PARAM_VCA_GAIN_SATURATION_DRIVE = 19,       // SynthEngine.cpp - plausible range 1-8
     PARAM_FILTER_INPUT_COUPLING_HZ = 20,        // Filter.hpp - plausible range 10-30 Hz
     PARAM_FILTER_OUTPUT_COUPLING_HZ = 21,       // Filter.hpp - plausible range 10-25 kHz
+    PARAM_FILTER_CAP_SCALE_1 = 22,              // Filter.hpp - plausible range 0.2-4.0
+    PARAM_FILTER_CAP_SCALE_2 = 23,              // Filter.hpp - plausible range 0.2-4.0
+    PARAM_FILTER_CAP_SCALE_3 = 24,              // Filter.hpp - plausible range 0.2-4.0
+    PARAM_FILTER_CAP_SCALE_4 = 25,              // Filter.hpp - plausible range 0.2-4.0
 
-    PARAM_EXPERIMENTAL_COUNT = 22,
+    PARAM_EXPERIMENTAL_COUNT = 26,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

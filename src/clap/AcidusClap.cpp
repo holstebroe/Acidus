@@ -146,6 +146,10 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_VCA_GAIN_SATURATION_DRIVE] = 3.0;
     paramValues_[PARAM_FILTER_INPUT_COUPLING_HZ] = 20.0;
     paramValues_[PARAM_FILTER_OUTPUT_COUPLING_HZ] = 20000.0;
+    paramValues_[PARAM_FILTER_CAP_SCALE_1] = 1.0;
+    paramValues_[PARAM_FILTER_CAP_SCALE_2] = 1.0;
+    paramValues_[PARAM_FILTER_CAP_SCALE_3] = 1.0;
+    paramValues_[PARAM_FILTER_CAP_SCALE_4] = 1.0;
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
@@ -215,6 +219,10 @@ void AcidusClap::syncParamsToEngine() {
     params.vcaGainSaturationDrive = static_cast<float>(paramValues_[PARAM_VCA_GAIN_SATURATION_DRIVE]);
     params.filterInputCouplingHz = static_cast<float>(paramValues_[PARAM_FILTER_INPUT_COUPLING_HZ]);
     params.filterOutputCouplingHz = static_cast<float>(paramValues_[PARAM_FILTER_OUTPUT_COUPLING_HZ]);
+    params.filterCapScale1 = static_cast<float>(paramValues_[PARAM_FILTER_CAP_SCALE_1]);
+    params.filterCapScale2 = static_cast<float>(paramValues_[PARAM_FILTER_CAP_SCALE_2]);
+    params.filterCapScale3 = static_cast<float>(paramValues_[PARAM_FILTER_CAP_SCALE_3]);
+    params.filterCapScale4 = static_cast<float>(paramValues_[PARAM_FILTER_CAP_SCALE_4]);
 #endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
@@ -493,6 +501,34 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->min_value = 10000.0;
             paramInfo->max_value = 25000.0;
             paramInfo->default_value = 20000.0;
+            break;
+        case PARAM_FILTER_CAP_SCALE_1:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Ladder Pole Scale 1");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 0.2;
+            paramInfo->max_value = 4.0;
+            paramInfo->default_value = 1.0;
+            break;
+        case PARAM_FILTER_CAP_SCALE_2:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Ladder Pole Scale 2");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 0.2;
+            paramInfo->max_value = 4.0;
+            paramInfo->default_value = 1.0;
+            break;
+        case PARAM_FILTER_CAP_SCALE_3:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Ladder Pole Scale 3");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 0.2;
+            paramInfo->max_value = 4.0;
+            paramInfo->default_value = 1.0;
+            break;
+        case PARAM_FILTER_CAP_SCALE_4:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Ladder Pole Scale 4");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 0.2;
+            paramInfo->max_value = 4.0;
+            paramInfo->default_value = 1.0;
             break;
 
         case PARAM_DRIVE:

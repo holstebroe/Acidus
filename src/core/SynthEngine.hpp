@@ -31,6 +31,10 @@ struct SynthParameters {
     float filterAllpassHz{14.008f};       // Filter.hpp - plausible range 8-25 Hz
     float filterInputCouplingHz{20.0f};       // Filter.hpp - plausible range 10-30 Hz
     float filterOutputCouplingHz{20000.0f};   // Filter.hpp - plausible range 10-25 kHz
+    float filterCapScale1{1.0f};       // Filter.hpp - plausible range 0.2-4.0 (ladder pole-frequency spread, stage 1)
+    float filterCapScale2{1.0f};       // Filter.hpp - plausible range 0.2-4.0 (ladder pole-frequency spread, stage 2)
+    float filterCapScale3{1.0f};       // Filter.hpp - plausible range 0.2-4.0 (ladder pole-frequency spread, stage 3)
+    float filterCapScale4{1.0f};       // Filter.hpp - plausible range 0.2-4.0 (ladder pole-frequency spread, stage 4)
     float vegDecaySec{3.5f};           // Envelope.hpp - plausible range 2.5-5.0 s
     float vcaGateOffMs{1.0f};          // Envelope.hpp - plausible range 1-5 ms
     float vcaGateOffAccentMs{50.0f};   // Envelope.hpp - plausible range 30-80 ms
