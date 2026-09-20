@@ -65,6 +65,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     filter_.setCapScale2(params_.filterCapScale2);
     filter_.setCapScale3(params_.filterCapScale3);
     filter_.setCapScale4(params_.filterCapScale4);
+    filter_.setLadderInputScale(params_.filterLadderInputScale);
     env_.setVegDecaySec(params_.vegDecaySec);
     env_.setVcaGateOffMs(params_.vcaGateOffMs);
     env_.setVcaGateOffAccentMs(params_.vcaGateOffAccentMs);

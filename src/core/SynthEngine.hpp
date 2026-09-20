@@ -35,9 +35,10 @@ struct SynthParameters {
     float filterCapScale2{1.0f};       // Filter.hpp - plausible range 0.2-4.0 (ladder pole-frequency spread, stage 2)
     float filterCapScale3{1.0f};       // Filter.hpp - plausible range 0.2-4.0 (ladder pole-frequency spread, stage 3)
     float filterCapScale4{1.0f};       // Filter.hpp - plausible range 0.2-4.0 (ladder pole-frequency spread, stage 4)
+    float filterLadderInputScale{0.05f};   // Filter.hpp - plausible range 0.02-0.20 (ladder nonlinearity drive)
     float vegDecaySec{3.5f};           // Envelope.hpp - plausible range 2.5-5.0 s
-    float vcaGateOffMs{1.0f};          // Envelope.hpp - plausible range 1-5 ms
-    float vcaGateOffAccentMs{50.0f};   // Envelope.hpp - plausible range 1-80 ms (widened 2026-09-20, see docs)
+    float vcaGateOffMs{3.0f};          // Envelope.hpp - plausible range 1-5 ms (measured against hardware 2026-09-20, was 1ms)
+    float vcaGateOffAccentMs{3.0f};    // Envelope.hpp - plausible range 1-80 ms (measured against hardware 2026-09-20: no accent asymmetry found, was 50ms)
     float vcaGainSaturationDrive{3.0f};   // SynthEngine.cpp - plausible range 1-8 (BA662 transconductance-stage saturation)
 };
 

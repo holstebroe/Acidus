@@ -82,8 +82,9 @@ enum ParamId : clap_id {
     PARAM_FILTER_CAP_SCALE_2 = 23,              // Filter.hpp - plausible range 0.2-4.0
     PARAM_FILTER_CAP_SCALE_3 = 24,              // Filter.hpp - plausible range 0.2-4.0
     PARAM_FILTER_CAP_SCALE_4 = 25,              // Filter.hpp - plausible range 0.2-4.0
+    PARAM_FILTER_LADDER_INPUT_SCALE = 26,       // Filter.hpp - plausible range 0.02-0.20
 
-    PARAM_EXPERIMENTAL_COUNT = 26,
+    PARAM_EXPERIMENTAL_COUNT = 27,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

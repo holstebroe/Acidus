@@ -123,6 +123,18 @@ public:
     void setCapScale3(float s) { capScale3_ = s; } // plausible range 0.2-4.0
     void setCapScale4(float s) { capScale4_ = s; } // plausible range 0.2-4.0
 
+    // How hard the input signal drives the ladder's per-stage tanh
+    // nonlinearity, relative to its thermal-voltage-like scale (Vt = 0.052).
+    // A full-scale (~1.0) audio signal maps to ladderInputScale_ "Vt units";
+    // since ladderInputScale_ starts almost equal to Vt, realistic playing
+    // levels already sit at the nonlinearity's saturation onset, which
+    // measurably crushes the resonant peak's height at those levels (small-
+    // signal probing shows a much taller peak than a full-scale oscillator
+    // does) -- lower this to give the peak more headroom before saturation.
+    // Output is rescaled by the reciprocal to keep the overall passband
+    // gain unchanged as this is swept.
+    void setLadderInputScale(float s) { ladderInputScale_ = s; } // plausible range 0.02-0.20 (default 0.05)
+
 private:
     double sampleRate_{44100.0};
     double oversampledRate_{352800.0};
@@ -154,6 +166,8 @@ private:
     float capScale2_{1.0000f};
     float capScale3_{1.0000f};
     float capScale4_{1.0000f};
+
+    float ladderInputScale_{0.05f};
 
     static constexpr float kLadderCriticalGain_ = 17.0f;
     static constexpr float kResonanceGainMargin_ = 0.90f;
