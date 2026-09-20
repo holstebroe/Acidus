@@ -29,6 +29,20 @@ public:
 
     void setCouplingHz(float hz) { couplingHz_ = hz; recomputeCouplingAlpha(); }
 
+    // Front-panel Tuning control: shifts VCO pitch by up to the real
+    // hardware's documented trim range (TB303_RESEARCH_COMPENDIUM.md:
+    // "Tuning control range: approx. ±700 cents"). Re-targets the currently
+    // held note immediately so it tracks live, the same way a hardware
+    // trimmer would while a note rings out.
+    void setTuningCents(float cents) {
+        if (cents == tuningCents_) return;
+        tuningCents_ = cents;
+        if (heldNote_ >= 0) {
+            targetFreq_ = noteToFreq(heldNote_) * tuningRatio();
+            if (!isSliding_) currentFreq_ = targetFreq_;
+        }
+    }
+
 private:
     double sampleRate_{44100.0};
     Waveform waveform_{Waveform::Saw};
@@ -38,6 +52,11 @@ private:
     double targetFreq_{440.0};
     bool isSliding_{false};
     double slideCoeff_{0.0};
+
+    int heldNote_{-1};
+    float tuningCents_{0.0f};
+
+    double tuningRatio() const { return std::pow(2.0, static_cast<double>(tuningCents_) / 1200.0); }
 
     double lpfSawCoeff_{0.0};
     double lpfSawState_{0.0};

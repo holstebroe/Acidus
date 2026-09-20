@@ -65,8 +65,8 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
     const float Vt = 0.052f;
     const float VtInv = 19.23f;
 
-    float inCouplingAlpha = 1.0f - std::exp(-2.0f * 3.14159265358979323846f * 20.0f * dt);
-    float outCouplingAlpha = 1.0f - std::exp(-2.0f * 3.14159265358979323846f * 20000.0f * dt);
+    float inCouplingAlpha = 1.0f - std::exp(-2.0f * 3.14159265358979323846f * inputCouplingHz_ * dt);
+    float outCouplingAlpha = 1.0f - std::exp(-2.0f * 3.14159265358979323846f * outputCouplingHz_ * dt);
 
     float out = 0.0f;
     float prevIn = prevInput_;

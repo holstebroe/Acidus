@@ -51,6 +51,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     env_.setFaithfulAccentDecay(true);
     env_.setDecay(params_.decay);
 
+    osc_.setTuningCents(params_.tuningCents);
     osc_.setCouplingHz(params_.oscCouplingHz);
     filter_.setResCouplingHz(params_.resCouplingHz);
     filter_.setFeedbackGainCeiling(params_.filterFeedbackGain);
@@ -58,6 +59,8 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     filter_.setNotchFreqHz(params_.filterNotchHz);
     filter_.setNotchBandwidthHz(params_.filterNotchBandwidthHz);
     filter_.setAllpassFreqHz(params_.filterAllpassHz);
+    filter_.setInputCouplingHz(params_.filterInputCouplingHz);
+    filter_.setOutputCouplingHz(params_.filterOutputCouplingHz);
     env_.setVegDecaySec(params_.vegDecaySec);
     env_.setVcaGateOffMs(params_.vcaGateOffMs);
     env_.setVcaGateOffAccentMs(params_.vcaGateOffAccentMs);
