@@ -37,7 +37,7 @@ struct SynthParameters {
     float filterCapScale4{1.0f};       // Filter.hpp - plausible range 0.2-4.0 (ladder pole-frequency spread, stage 4)
     float vegDecaySec{3.5f};           // Envelope.hpp - plausible range 2.5-5.0 s
     float vcaGateOffMs{1.0f};          // Envelope.hpp - plausible range 1-5 ms
-    float vcaGateOffAccentMs{50.0f};   // Envelope.hpp - plausible range 30-80 ms
+    float vcaGateOffAccentMs{50.0f};   // Envelope.hpp - plausible range 1-80 ms (widened 2026-09-20, see docs)
     float vcaGainSaturationDrive{3.0f};   // SynthEngine.cpp - plausible range 1-8 (BA662 transconductance-stage saturation)
 };
 

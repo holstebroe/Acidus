@@ -484,7 +484,7 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
         case PARAM_VCA_GATE_OFF_ACCENT_MS:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gate-Off Tail (Accent)");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
-            paramInfo->min_value = 30.0;
+            paramInfo->min_value = 1.0;
             paramInfo->max_value = 80.0;
             paramInfo->default_value = 50.0;
             break;
