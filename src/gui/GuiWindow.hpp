@@ -65,7 +65,7 @@ public:
 
 private:
     AcidusClap* plugin_{nullptr};
-    uint32_t width_{980};
+    uint32_t width_{1070};
     uint32_t height_{180};
 
     std::vector<uint32_t> pixelBuffer_; // ARGB format (32-bit)

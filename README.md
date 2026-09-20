@@ -9,7 +9,7 @@
 ## Key Features
 
 - **Pure C++ DSP Engine**: Faithful 8x oversampled coupled diode ladder filter solver with physical BJT thermal voltage scaling and nonlinear saturation.
-- **Custom Native Vector/Pixel GUI**: Lightweight pixel-rendered front panel featuring controls for Cutoff, Resonance, Env Mod, Decay, Accent, Waveform, and Master Volume, plus a custom Acid Green logo with multi-layer glow.
+- **Custom Native Vector/Pixel GUI**: Lightweight pixel-rendered front panel featuring controls for Cutoff, Resonance, Env Mod, Decay, Accent, Waveform, Tuning, and Master Volume, plus a custom Acid Green logo with multi-layer glow.
 - **CLAP Standard Support**: Full support for CLAP parameter automation, state save/restore, and host event flushing.
 - **Cross-Platform Support**: Linux (X11), Windows (Win32), and macOS (Cocoa).
 
@@ -34,12 +34,18 @@ The resulting CLAP plugin (`acidus.clap`) will be located in the `build/` direct
 
 ### Calibration build
 
-By default the plugin only exposes the seven front-panel controls as CLAP
-parameters, matching the real hardware's user-facing surface. A separate
-build configuration additionally exposes every hidden circuit-topology
-constant (ladder coupling-pole corners, VCA saturation drive, etc.) as
-automatable CLAP parameters under `Experimental/...` module paths, for an
-external fitting/optimization tool to drive against reference audio:
+By default the plugin only exposes the eight front-panel controls (including
+a Tuning trim, ±700 cents to match the real hardware's documented trim
+range -- useful for nudging the plugin into tune against a reference
+hardware recording that's itself slightly off-pitch) as CLAP parameters,
+matching the real hardware's user-facing surface. A separate build
+configuration additionally exposes every hidden circuit-topology constant
+(ladder coupling-pole corners, VCA saturation drive, etc.) as automatable
+CLAP parameters under `Experimental/...` module paths, each spanning the
+full plausible range documented in `TB303_PARAMETER_CONFIDENCE.md`, so an
+external fitting/optimization tool -- or a human A/B-ing against a reference
+hardware recording -- can push every free constant in the model to its
+documented extremes:
 
 ```bash
 cmake -B build-calibration -DCMAKE_BUILD_TYPE=Release -DACIDUS_CALIBRATION_BUILD=ON

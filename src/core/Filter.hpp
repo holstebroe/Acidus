@@ -107,6 +107,8 @@ public:
     void setNotchFreqHz(float hz) { notchFreqHz_ = hz; }               // plausible range 4-15 Hz
     void setNotchBandwidthHz(float hz) { notchBandwidthHz_ = hz; }     // plausible range 2-10 Hz
     void setAllpassFreqHz(float hz) { allpassFreqHz_ = hz; }           // plausible range 8-25 Hz
+    void setInputCouplingHz(float hz) { inputCouplingHz_ = hz; }       // plausible range 10-30 Hz
+    void setOutputCouplingHz(float hz) { outputCouplingHz_ = hz; }     // plausible range 10-25 kHz
 
 private:
     double sampleRate_{44100.0};
@@ -161,6 +163,12 @@ private:
     float notchFreqHz_{7.5164f};
     float notchBandwidthHz_{4.7f};
     float allpassFreqHz_{14.008f};
+
+    // Input DC-block / output bandwidth-limit coupling poles around the
+    // ladder (TB303_PARAMETER_CONFIDENCE.md: unsourced but plausible;
+    // "Plausible range: 10-30 Hz" / "10-25 kHz" respectively).
+    float inputCouplingHz_{20.0f};
+    float outputCouplingHz_{20000.0f};
 };
 
 } // namespace acidus

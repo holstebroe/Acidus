@@ -17,6 +17,7 @@ struct SynthParameters {
     Waveform waveform{Waveform::Saw};
     float masterVolume{0.8f};
     float drive{0.0f};         // MXR Distortion+ emulation; 0 = pedal bypassed
+    float tuningCents{0.0f};   // Master tuning trim, ± cents (hardware range: approx. ±700 cents)
 
     // --- Experimental / calibration parameters ---------------------------
     // Exposed as CLAP parameters only in a ACIDUS_CALIBRATION_BUILD; a
@@ -28,6 +29,8 @@ struct SynthParameters {
     float filterNotchHz{7.5164f};         // Filter.hpp - plausible range 4-15 Hz
     float filterNotchBandwidthHz{4.7f};   // Filter.hpp - plausible range 2-10 Hz
     float filterAllpassHz{14.008f};       // Filter.hpp - plausible range 8-25 Hz
+    float filterInputCouplingHz{20.0f};       // Filter.hpp - plausible range 10-30 Hz
+    float filterOutputCouplingHz{20000.0f};   // Filter.hpp - plausible range 10-25 kHz
     float vegDecaySec{3.5f};           // Envelope.hpp - plausible range 2.5-5.0 s
     float vcaGateOffMs{1.0f};          // Envelope.hpp - plausible range 1-5 ms
     float vcaGateOffAccentMs{50.0f};   // Envelope.hpp - plausible range 30-80 ms

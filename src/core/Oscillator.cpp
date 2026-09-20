@@ -52,7 +52,8 @@ void Oscillator::resetFilterStates() {
 }
 
 void Oscillator::noteOn(int noteNumber, bool slide) {
-    double freq = noteToFreq(noteNumber);
+    heldNote_ = noteNumber;
+    double freq = noteToFreq(noteNumber) * tuningRatio();
     targetFreq_ = freq;
 
     if (!slide) {

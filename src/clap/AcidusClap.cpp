@@ -144,9 +144,12 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_VCA_GATE_OFF_MS] = 1.0;
     paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS] = 50.0;
     paramValues_[PARAM_VCA_GAIN_SATURATION_DRIVE] = 3.0;
+    paramValues_[PARAM_FILTER_INPUT_COUPLING_HZ] = 20.0;
+    paramValues_[PARAM_FILTER_OUTPUT_COUPLING_HZ] = 20000.0;
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
+    paramValues_[PARAM_TUNE] = 0.0;  // in tune by default
 
     syncParamsToEngine();
 }
@@ -210,9 +213,12 @@ void AcidusClap::syncParamsToEngine() {
     params.vcaGateOffMs = static_cast<float>(paramValues_[PARAM_VCA_GATE_OFF_MS]);
     params.vcaGateOffAccentMs = static_cast<float>(paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS]);
     params.vcaGainSaturationDrive = static_cast<float>(paramValues_[PARAM_VCA_GAIN_SATURATION_DRIVE]);
+    params.filterInputCouplingHz = static_cast<float>(paramValues_[PARAM_FILTER_INPUT_COUPLING_HZ]);
+    params.filterOutputCouplingHz = static_cast<float>(paramValues_[PARAM_FILTER_OUTPUT_COUPLING_HZ]);
 #endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
+    params.tuningCents = static_cast<float>(paramValues_[PARAM_TUNE]);
 }
 
 void AcidusClap::handleEvent(const clap_event_header_t* header) {
@@ -245,11 +251,14 @@ void AcidusClap::handleEvent(const clap_event_header_t* header) {
             else if (data1 == MIDI_PARAM_WAVEFORM) paramId = PARAM_WAVEFORM;
             else if (data1 == MIDI_PARAM_VOLUME) paramId = PARAM_VOLUME;
             else if (data1 == MIDI_PARAM_DRIVE) paramId = PARAM_DRIVE;
+            else if (data1 == MIDI_PARAM_TUNE) paramId = PARAM_TUNE;
 
             if (paramId < PARAM_COUNT) {
                 double normVal = static_cast<double>(data2) / 127.0;
                 if (paramId == PARAM_WAVEFORM) {
                     normVal = (data2 >= 64) ? 1.0 : 0.0;
+                } else if (paramId == PARAM_TUNE) {
+                    normVal = -700.0 + normVal * 1400.0;
                 }
                 paramValues_[paramId] = normVal;
                 syncParamsToEngine();
@@ -384,6 +393,15 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->max_value = 1.0;
             paramInfo->default_value = 0.8;
             break;
+        case PARAM_TUNE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Tuning");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Oscillator");
+            // ±700 cents matches the real hardware's documented Tuning trim
+            // travel (TB303_RESEARCH_COMPENDIUM.md, "Tuning control range").
+            paramInfo->min_value = -700.0;
+            paramInfo->max_value = 700.0;
+            paramInfo->default_value = 0.0;
+            break;
 
         case PARAM_OSC_COUPLING_HZ:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Osc Coupling Freq");
@@ -461,6 +479,20 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->min_value = 30.0;
             paramInfo->max_value = 80.0;
             paramInfo->default_value = 50.0;
+            break;
+        case PARAM_FILTER_INPUT_COUPLING_HZ:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Input Coupling Freq");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 10.0;
+            paramInfo->max_value = 30.0;
+            paramInfo->default_value = 20.0;
+            break;
+        case PARAM_FILTER_OUTPUT_COUPLING_HZ:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Output Coupling Freq");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 10000.0;
+            paramInfo->max_value = 25000.0;
+            paramInfo->default_value = 20000.0;
             break;
 
         case PARAM_DRIVE:
@@ -574,9 +606,12 @@ bool AcidusClap::paramsValueToText(clap_id paramId, double value, char* outBuffe
         snprintf(outBuffer, outBufferCapacity, "%.1f Hz", hz);
     } else if (paramId == PARAM_WAVEFORM) {
         snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Square" : "Saw");
+    } else if (paramId == PARAM_TUNE) {
+        snprintf(outBuffer, outBufferCapacity, "%+.0f cents", value);
     } else if (paramId == PARAM_OSC_COUPLING_HZ || paramId == PARAM_RES_COUPLING_HZ
                || paramId == PARAM_FILTER_POST_HP_HZ || paramId == PARAM_FILTER_NOTCH_HZ
-               || paramId == PARAM_FILTER_NOTCH_BANDWIDTH_HZ || paramId == PARAM_FILTER_ALLPASS_HZ) {
+               || paramId == PARAM_FILTER_NOTCH_BANDWIDTH_HZ || paramId == PARAM_FILTER_ALLPASS_HZ
+               || paramId == PARAM_FILTER_INPUT_COUPLING_HZ || paramId == PARAM_FILTER_OUTPUT_COUPLING_HZ) {
         snprintf(outBuffer, outBufferCapacity, "%.2f Hz", value);
     } else if (paramId == PARAM_VEG_DECAY_SEC) {
         snprintf(outBuffer, outBufferCapacity, "%.2f s", value);

@@ -44,13 +44,20 @@ void GuiWindow::initControls() {
     controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 440, 100, 20, 0.0, 1.0, 0.5, false });
     controls_.push_back({ PARAM_ACCENT, "ACCENT", ControlType::Knob, 540, 100, 20, 0.0, 1.0, 0.5, false });
 
+    // Tuning trim, a real front-panel-equivalent control (TB303_RESEARCH_
+    // COMPENDIUM.md documents a 50 kΩ "B" Tuning pot alongside Cutoff/Env
+    // Mod/Decay/Accent) -- range matches the hardware's documented ±700
+    // cent trim travel, for nudging the plugin into tune against a
+    // reference recording that's itself slightly off-pitch.
+    controls_.push_back({ PARAM_TUNE, "TUNE", ControlType::Knob, 630, 100, 20, -700.0, 700.0, 0.0, false });
+
     // MXR Distortion+ drive, set apart with a "hot" accent color. Fully
     // counter-clockwise (0.0) bypasses the pedal entirely.
-    controls_.push_back({ PARAM_DRIVE, "DRIVE", ControlType::Knob, 640, 100, 20, 0.0, 1.0, 0.0, false });
+    controls_.push_back({ PARAM_DRIVE, "DRIVE", ControlType::Knob, 730, 100, 20, 0.0, 1.0, 0.0, false });
     controls_.back().accentColor = 0xFF7A2418; // rust red, marks the distortion stage
 
     // Master Volume Knob, set apart with its own accent color.
-    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 740, 100, 18, 0.0, 1.0, 0.8, false });
+    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 830, 100, 18, 0.0, 1.0, 0.8, false });
     controls_.back().accentColor = 0xFF6B4A22; // warm amber, distinct from the graphite knobs
 
     updateKnobValuesFromPlugin();
@@ -609,7 +616,7 @@ const clap_plugin_gui_t g_acidusGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
-        *width = 980;
+        *width = 1070;
         *height = 180;
         return true;
     },
@@ -620,7 +627,7 @@ const clap_plugin_gui_t g_acidusGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
-        *width = 980;
+        *width = 1070;
         *height = 180;
         return true;
     },
