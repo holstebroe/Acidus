@@ -128,9 +128,14 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
 
         float filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
 
-        float vcaControl = vcaEnvVal + 0.45f * vcfEnvVal;
+        // MEG->VCA bleed is an accent-only path through the 47kOhm/0.033uF
+        // network (EMULATION_REFERENCE Sec26); it must not leak the
+        // free-running, Decay-controlled MEG into the VCA on every note,
+        // or a long Decay setting masks the VCA's own fast gate-off drain
+        // (Envelope::vcaQuickDrainCoeff_) and reads as an extended release.
+        float vcaControl = vcaEnvVal;
         if (noteAccent) {
-            vcaControl += accentVcaVal * accentNorm * 0.8f;
+            vcaControl += 0.45f * vcfEnvVal + accentVcaVal * accentNorm * 0.8f;
         }
 
         // BA662-style transconductance VCA: model the amplifier's own gain
