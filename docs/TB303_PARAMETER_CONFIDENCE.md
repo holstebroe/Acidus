@@ -297,3 +297,48 @@ suspect sample landed on very different pole scales. Remaining gaps: the
 resonant peak at max Resonance is still 6-10 dB too low relative to the
 fundamental, and the accented note's resonant sweep (2.5-6.5 kHz on hardware)
 and its ~7 dB level decay over the note are not reproduced.
+
+## 2026-09-26 (later): re-fit against 10 samples; retracted the first fit's extreme pole spread
+
+User A/B testing against real hardware found the first fit (above) audibly
+*worse* than the pre-calibration defaults at Cutoff=0/Resonance=max: distorted
+where the hardware is clean, and a jagged (non-monotonic) harmonic rolloff
+instead of hardware's smooth one -- visible on a spectrum analyzer as ripple
+between harmonics that the hardware's curve doesn't have. Root cause: fitting
+against only 4 samples let `filterCapScale1..4` (the four ladder pole
+frequencies, relative to cutoff) spread to extreme, uneven values
+(2.51/0.30/0.82/0.86) that cancelled error at the handful of harmonics the
+fit could see but rang/rippled between them -- a formant-like response the
+real 4-pole ladder does not have.
+
+Fix: `SynthParameters` reverted to its pre-calibration (circuit-informed)
+defaults, `tools/calibrate_reference.py` gained a `--capscale-prior` (on by
+default) that penalizes pole-scale spread not clearly required by the data,
+and 5 new reference samples were added (A1, D2, D3 at more cutoff/resonance
+combinations) giving the fit many more points along the same underlying
+filter curve. Re-fit result: cap scales now 0.70/0.61/0.29/0.81 (still
+uneven at stage 3, but no longer formant-like), and the Cutoff=0 jaggedness
+is gone on inspection of the fitted curve (`calibration_results/full10/`).
+
+Applied only the 20 of 34 model constants these 10 samples actually
+constrain (`sensitivity >= 0.005`, same rule as the first fit); the other 14
+-- Env Mod depth/offset, the Decay knob's range, both VCA/VCF attack times,
+`accentVcaDepth`, `accentDecaySec` -- are still unconstrained because every
+reference has Env Mod at minimum and Decay at maximum, so applying their
+fitted values would extrapolate onto completely untested knob positions. A
+sanity check applying *all* 34 anyway (not committed) confirmed this
+matters: `envModDepthOct` alone would have dropped from 3.5 to 0.78 octaves,
+gutting the Env Mod knob's effect for a value no sample can see.
+
+Remaining known gaps, unchanged from before: the resonant peak at max
+Resonance is still 6-10 dB below hardware (feedback gain actually *dropped*
+in this fit, 15.3 -> 9.8, trading peak height for a smoother rolloff
+elsewhere -- the peak-height/rolloff-smoothness tradeoff looks like a real
+model limitation, not just a search artifact, since a lighter smoothness
+prior barely moved the fit). Spurious high-frequency content above 4 kHz
+persists at high Resonance (worst case +21 dB on the accented low note,
+`303_saw-D3t-39c1r1e0d1a1`), and that sample's free-knob refit prefers
+Env Mod > 0 / Accent off over its own label, so its accent-step assumption
+may be wrong. `303_saw-D2t-39c1r1e0d1a1` remains the worst-fitting sample
+overall (2x the median error) -- its resonant sweep and ~7 dB level decay
+over the note are still not reproduced by the model.
