@@ -74,12 +74,17 @@ enum ParamId : clap_id {
     PARAM_FILTER_ALLPASS_HZ = 15,               // Filter.hpp - plausible range 8-25 Hz
     PARAM_VEG_DECAY_SEC = 16,                   // Envelope.hpp - plausible range 2.5-5.0 s
     PARAM_VCA_GATE_OFF_MS = 17,                 // Envelope.hpp - plausible range 1-5 ms
-    PARAM_VCA_GATE_OFF_ACCENT_MS = 18,          // Envelope.hpp - plausible range 30-80 ms
+    PARAM_VCA_GATE_OFF_ACCENT_MS = 18,          // Envelope.hpp - plausible range 1-80 ms (widened 2026-09-20)
     PARAM_VCA_GAIN_SATURATION_DRIVE = 19,       // SynthEngine.cpp - plausible range 1-8
     PARAM_FILTER_INPUT_COUPLING_HZ = 20,        // Filter.hpp - plausible range 10-30 Hz
     PARAM_FILTER_OUTPUT_COUPLING_HZ = 21,       // Filter.hpp - plausible range 10-25 kHz
+    PARAM_FILTER_CAP_SCALE_1 = 22,              // Filter.hpp - plausible range 0.2-4.0
+    PARAM_FILTER_CAP_SCALE_2 = 23,              // Filter.hpp - plausible range 0.2-4.0
+    PARAM_FILTER_CAP_SCALE_3 = 24,              // Filter.hpp - plausible range 0.2-4.0
+    PARAM_FILTER_CAP_SCALE_4 = 25,              // Filter.hpp - plausible range 0.2-4.0
+    PARAM_FILTER_LADDER_INPUT_SCALE = 26,       // Filter.hpp - plausible range 0.02-0.20
 
-    PARAM_EXPERIMENTAL_COUNT = 22,
+    PARAM_EXPERIMENTAL_COUNT = 27,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

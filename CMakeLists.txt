@@ -119,6 +119,15 @@ add_executable(acidus_filter_stability_test
     src/filter_stability_test_main.cpp
 )
 
+# Standalone offline optimizer: fits Filter.hpp's calibration constants
+# (ladder pole spread, feedback gain ceiling, input drive) against target
+# (frequency, relative-dB) points read off a reference hardware spectrum.
+# See src/filter_resonance_fit_main.cpp's header comment for usage.
+add_executable(acidus_filter_resonance_fit
+    src/core/Filter.cpp
+    src/filter_resonance_fit_main.cpp
+)
+
 # Standalone test executable for the MXR Distortion+ emulation
 add_executable(acidus_distortion_test
     src/core/Distortion.cpp

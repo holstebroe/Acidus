@@ -1,0 +1,32 @@
+# Target spectrum points for acidus_filter_resonance_fit, one "freq_hz target_db"
+# pair per line. Comments start with #.
+#
+# target_db is relative to the FIRST row -- put your reference point there
+# (typically the fundamental/root note peak, defined as 0 dB) and express
+# every other row's level relative to it, the same way you'd read differences
+# off a spectrum analyzer.
+#
+# How to get real numbers instead of guessing:
+#   1. Record a single sustained note on the reference hardware at the exact
+#      knob settings you want to fit (cutoff, resonance -- pass these as the
+#      2nd/3rd command-line args to the tool), with Env Mod near 0 so the
+#      cutoff isn't sweeping during the measurement.
+#   2. Take an FFT / spectrum analyzer snapshot (e.g. MAnalyzer, as used
+#      elsewhere in this project's session log) once the note has settled.
+#   3. Read off (frequency, dB) at your reference point plus as many other
+#      points as you can identify: the resonant peak itself, a few points
+#      along the plateau/rolloff between the fundamental and the peak, and
+#      a few points past the peak if there's a rolloff shape worth matching.
+#      More points = a better-constrained fit; 3 points is not enough to
+#      pin down all 6 free parameters (4 pole scales + feedback gain +
+#      input drive) unambiguously, as the first run against this exact
+#      placeholder file already showed (see TB303_PARAMETER_CONFIDENCE.md).
+#
+# The three rows below are a placeholder built from landmark values reported
+# by ear/eye during this project's live hardware A/B session (cutoff~2500Hz,
+# Resonance=1.0) -- NOT a precise measurement. Replace them with your own
+# readings before trusting the tool's output.
+
+110    0.0
+1700   -16.0
+3100   -2.5

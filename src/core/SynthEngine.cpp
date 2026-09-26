@@ -61,6 +61,11 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     filter_.setAllpassFreqHz(params_.filterAllpassHz);
     filter_.setInputCouplingHz(params_.filterInputCouplingHz);
     filter_.setOutputCouplingHz(params_.filterOutputCouplingHz);
+    filter_.setCapScale1(params_.filterCapScale1);
+    filter_.setCapScale2(params_.filterCapScale2);
+    filter_.setCapScale3(params_.filterCapScale3);
+    filter_.setCapScale4(params_.filterCapScale4);
+    filter_.setLadderInputScale(params_.filterLadderInputScale);
     env_.setVegDecaySec(params_.vegDecaySec);
     env_.setVcaGateOffMs(params_.vcaGateOffMs);
     env_.setVcaGateOffAccentMs(params_.vcaGateOffAccentMs);
@@ -128,7 +133,16 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
 
         float filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
 
-        float vcaControl = vcaEnvVal + 0.45f * vcfEnvVal;
+        // MEG->VCA bleed on accent goes through the 47kOhm/0.033uF softening
+        // network (EMULATION_REFERENCE Sec26) -- that's accentVcaVal, an RC
+        // lowpass of the MEG whose target snaps to 0 on gate-off (Envelope.cpp),
+        // so it already decays fast (~1.55ms) and scales with the Accent knob.
+        // There is no second, undamped MEG->VCA term in the docs: adding raw
+        // vcfEnvVal here duplicated that path but skipped both the RC
+        // softening and the gate-off snap, since the MEG free-runs its own
+        // Decay-controlled decay independent of note-off -- that's what left
+        // accented notes with no audible release at all.
+        float vcaControl = vcaEnvVal;
         if (noteAccent) {
             vcaControl += accentVcaVal * accentNorm * 0.8f;
         }

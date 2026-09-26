@@ -80,7 +80,7 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
         float alphaOS = static_cast<float>(os + 1) / static_cast<float>(kOS);
         float currIn = prevIn + alphaOS * (input - prevIn);
 
-        float inSample = currIn * 0.05f;
+        float inSample = currIn * ladderInputScale_;
         inSample = inputCoupling_.highpass(inSample, inCouplingAlpha);
 
         float h = dt;
@@ -160,7 +160,7 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
             fLadderV4_ = v4;
         }
 
-        float stageOut = fLadderV4_ / 0.05f;
+        float stageOut = fLadderV4_ / ladderInputScale_;
         stageOut = outputCoupling_.lowpass(stageOut, outCouplingAlpha);
         out += stageOut / static_cast<float>(kOS);
     }

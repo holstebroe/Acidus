@@ -110,6 +110,31 @@ public:
     void setInputCouplingHz(float hz) { inputCouplingHz_ = hz; }       // plausible range 10-30 Hz
     void setOutputCouplingHz(float hz) { outputCouplingHz_ = hz; }     // plausible range 10-25 kHz
 
+    // Per-stage ladder pole-frequency scale, relative to the nominal cutoff
+    // (w_n = wc * capScaleN_). All default to 1.0 (coincident poles, the
+    // idealized equal-component approximation). The real ladder's poles are
+    // documented as unevenly spread (TB303_EMULATION_GUIDE.md: "4-pole
+    // diode ladder, spread pole frequencies"; TB303_RESEARCH_COMPENDIUM.md
+    // Sec6 gives illustrative normalized pole values -0.13/-1.04/-2.33/-3.24,
+    // explicitly flagged as unsourced, not a spec) -- these four let that
+    // spread be fit against a reference recording instead of guessed.
+    void setCapScale1(float s) { capScale1_ = s; } // plausible range 0.2-4.0
+    void setCapScale2(float s) { capScale2_ = s; } // plausible range 0.2-4.0
+    void setCapScale3(float s) { capScale3_ = s; } // plausible range 0.2-4.0
+    void setCapScale4(float s) { capScale4_ = s; } // plausible range 0.2-4.0
+
+    // How hard the input signal drives the ladder's per-stage tanh
+    // nonlinearity, relative to its thermal-voltage-like scale (Vt = 0.052).
+    // A full-scale (~1.0) audio signal maps to ladderInputScale_ "Vt units";
+    // since ladderInputScale_ starts almost equal to Vt, realistic playing
+    // levels already sit at the nonlinearity's saturation onset, which
+    // measurably crushes the resonant peak's height at those levels (small-
+    // signal probing shows a much taller peak than a full-scale oscillator
+    // does) -- lower this to give the peak more headroom before saturation.
+    // Output is rescaled by the reciprocal to keep the overall passband
+    // gain unchanged as this is swept.
+    void setLadderInputScale(float s) { ladderInputScale_ = s; } // plausible range 0.02-0.20 (default 0.05)
+
 private:
     double sampleRate_{44100.0};
     double oversampledRate_{352800.0};
@@ -137,10 +162,12 @@ private:
     NotchFilter notch_;
     OnePoleAllpass allpass_;
 
-    const float capScale1_{1.0000f};
-    const float capScale2_{1.0000f};
-    const float capScale3_{1.0000f};
-    const float capScale4_{1.0000f};
+    float capScale1_{1.0000f};
+    float capScale2_{1.0000f};
+    float capScale3_{1.0000f};
+    float capScale4_{1.0000f};
+
+    float ladderInputScale_{0.05f};
 
     static constexpr float kLadderCriticalGain_ = 17.0f;
     static constexpr float kResonanceGainMargin_ = 0.90f;
