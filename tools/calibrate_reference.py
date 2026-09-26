@@ -1201,13 +1201,19 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
     md.append("## Fitted model parameters")
     md.append("")
     md.append("`sensitivity` = objective increase for a 5% (of range) nudge. Near-zero means the current "
-              "references don't constrain that parameter -- its value is not evidence of anything.")
+              "references don't constrain that parameter -- its value is not evidence of anything. "
+              "`AT BOUND` means the optimizer pushed it to the edge of its plausible range, usually a sign "
+              "that it is compensating for something the model does not implement.")
     md.append("")
     rows = []
     for k, v in model_values.items():
         s = sens.get(k, 0.0)
-        rows.append([k, f"{base0[idx[k]]:.5g}", f"{v:.5g}", f"{s:.3f}",
-                     "unconstrained" if s < 0.005 else ""])
+        par = next(p for p in problem.params if p.target == k and p.kind == "model")
+        u = par.to_unit(v)
+        note = "unconstrained" if s < 0.005 else ""
+        if u < 0.02 or u > 0.98:
+            note = (note + " " if note else "") + "AT BOUND (model may lack structure)"
+        rows.append([k, f"{base0[idx[k]]:.5g}", f"{v:.5g}", f"{s:.3f}", note])
     md.append(fmt_table(rows, ["parameter", "before", "after", "sensitivity", ""]))
     md.append("")
     md.append(f"Timing: note-on offset {timing['onsetMs']:.2f} ms, gate length {timing['gateMs']:.1f} ms.")
