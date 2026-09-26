@@ -77,7 +77,6 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     filter_.setResonanceSkew(params_.filterResonanceSkew);
     filter_.setFeedbackHeadroomHz(params_.filterFeedbackHeadroomHz);
     filter_.setResCouplingTrackHz(params_.filterResCouplingTrackHz);
-    filter_.setMaxResonanceOutputGain(params_.filterMaxResonanceOutputGain);
 
     for (int i = 0; i < numFrames; ++i) {
         if (!env_.isActive() && !isNoteActive_) {

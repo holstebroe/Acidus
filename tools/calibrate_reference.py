@@ -90,10 +90,17 @@ MODEL_PARAMS = {
     "oscSawLpfHz":              (4000.0, 40000.0, True, "osc"),
     "oscSawShape":              (-0.4, 0.4, False, "osc"),
     # Filter
-    "filterFeedbackGain":       (6.0, 22.0, False, "filter"),
+    # Upper bound extends past the ladder's own self-oscillation ceiling
+    # (Filter.hpp's kLadderCriticalGain_ = 17): with the resonance-dependent
+    # output-gain stage removed (see Filter.hpp/.cpp, 2026-09), the resonant
+    # peak's whole level now has to come from this approaching that ceiling,
+    # the same way the real feedback loop does it (TB303_EMULATION_
+    # REFERENCE.md Sec59/60) -- a render that actually goes unstable is
+    # already rejected by Problem._job's isfinite/amplitude check, so the
+    # bound itself doesn't need to pre-guess where that line is.
+    "filterFeedbackGain":       (6.0, 30.0, False, "filter"),
     "filterFeedbackHeadroomHz": (0.0, 20000.0, False, "filter"),
     "filterResonanceSkew":      (0.05, 8.0, False, "filter"),
-    "filterMaxResonanceOutputGain": (0.5, 6.0, True, "filter"),
     "resCouplingHz":            (40.0, 400.0, True, "filter"),
     "filterResCouplingTrackHz": (0.0, 400.0, False, "filter"),
     "filterCapScale1":          (0.2, 4.0, True, "filter"),
@@ -387,6 +394,46 @@ def weighted_rms(e, w=None):
     return float(np.sqrt(np.sum(w * e * e) / np.sum(w)))
 
 
+def local_bump(h, smooth_half):
+    """h minus a locally-smoothed baseline (edge-padded moving average).
+    At high cutoff the resonant hump is often a modest *local* bump on an
+    already-bright, barely-attenuated spectrum -- the fundamental (or a low
+    harmonic) can still be the single loudest bin in absolute dB. A plain
+    argmax(h) then locks onto the fundamental and reports a perfect,
+    trivial "peak match" while missing the actual resonance entirely.
+    Detrending against a wider local average finds the bump regardless of
+    the passband's absolute level."""
+    n = len(h)
+    if n < 2 * smooth_half + 1:
+        return h - float(np.mean(h))
+    kernel = np.ones(2 * smooth_half + 1) / (2 * smooth_half + 1)
+    baseline = np.convolve(np.pad(h, smooth_half, mode="edge"), kernel, mode="valid")
+    return h - baseline
+
+
+def peak_window(feat, spec, has_peak, window_hz=400.0):
+    """A window of harmonics around the reference's own resonant peak,
+    expressed relative to the fundamental (gain-independent). Comparing a
+    *shape* over this fixed window -- not just the single peak bin -- also
+    penalizes a peak at the wrong frequency or the wrong width, not only
+    the wrong height, without needing separate frequency/bandwidth logic:
+    a shifted or narrower/wider model peak shows up as a mismatched curve
+    across the same harmonic indices as the reference's peak.
+    A Gaussian-ish weight centred on the peak keeps the harmonics right at
+    the top of the peak (the part that actually reads as resonance) more
+    important than the window's edges."""
+    if not has_peak:
+        return 0, 0, 0, np.zeros(0), np.zeros(0)
+    h = feat["harm"]
+    half = max(2, int(round(window_hz / spec.f0)))
+    k = int(np.argmax(local_bump(h, smooth_half=3 * half)))
+    lo, hi = max(0, k - half), min(len(h), k + half + 1)
+    rel = h[lo:hi] - h[0]
+    idx = np.arange(lo, hi)
+    weight = np.exp(-0.5 * ((idx - k) / max(1.0, half / 2.0)) ** 2)
+    return k, lo, hi, rel, weight
+
+
 # ---------------------------------------------------------------------------
 # Renderer (ctypes)
 # ---------------------------------------------------------------------------
@@ -476,7 +523,8 @@ class Problem:
         self.refs = refs
         self.r = renderer
         self.args = args
-        self.w = {"harm": args.w_harm, "inter": args.w_inter, "env": args.w_env, "stft": args.w_stft}
+        self.w = {"harm": args.w_harm, "inter": args.w_inter, "env": args.w_env, "stft": args.w_stft,
+                  "peak": args.w_peak}
         self.pool = ThreadPoolExecutor(max_workers=args.workers)
 
         # Per-reference analysis
@@ -488,6 +536,9 @@ class Problem:
             ref.spec = FeatureSpec(ref, ref.f0, args.fmax, 1 << int(math.ceil(math.log2(ref.n * 4))))
             ref.feat = compute_features(ref.x, ref.spec)
             ref.onset_ms, ref.gate_ms = detect_timing(ref)
+            ref.has_peak = ref.digits["resonance"] >= 1
+            ref.peak_k, ref.peak_lo, ref.peak_hi, ref.peak_ref_rel, ref.peak_weight = \
+                peak_window(ref.feat, ref.spec, has_peak=ref.has_peak)
 
         # Parameter vector
         self.params = []
@@ -581,11 +632,13 @@ class Problem:
         if sf is None:
             return 1e3, None
         e = feature_errors(ref.feat, sf, gain, ref.spec)
+        sim_rel = sf["harm"][ref.peak_lo:ref.peak_hi] - sf["harm"][0] if ref.has_peak else np.zeros(0)
         comp = {
             "harm": weighted_rms(e["harm"], ref.spec.harm_w),
             "inter": weighted_rms(e["inter"], ref.spec.inter_w),
             "env": weighted_rms(e["env"]),
             "stft": weighted_rms(e["stft"]),
+            "peak": weighted_rms(sim_rel - ref.peak_ref_rel, ref.peak_weight),
         }
         cost = sum(self.w[k] * comp[k] for k in comp) / sum(self.w.values())
         return cost, comp
@@ -781,6 +834,18 @@ def sample_stats(problem, ref, sf, gain):
         if ie[k] > 3 and hf[k]:
             excess.append({"type": "inter-harmonic", "hz": round(float(spec.harm_freqs[k] + spec.f0 / 2), 1),
                            "excess_db": round(float(ie[k]), 1)})
+    peak_info = None
+    if ref.has_peak:
+        half = max(2, int(round(400.0 / spec.f0)))
+        k_sim = int(np.argmax(local_bump(sh, smooth_half=3 * half)))
+        peak_info = {
+            "ref_freq_hz": round(float(spec.harm_freqs[ref.peak_k]), 1),
+            "sim_freq_hz": round(float(spec.harm_freqs[k_sim]), 1),
+            "freq_ratio_semitones": round(12 * math.log2(spec.harm_freqs[k_sim] / spec.harm_freqs[ref.peak_k]), 2),
+            "ref_height_db": round(float(rh[ref.peak_k] - rh[0]), 1),
+            "sim_height_db": round(float(sh[k_sim] - sh[0]), 1),
+            "shape_error_db": round(comp["peak"], 2) if comp else None,
+        }
     return {
         "cost": cost,
         "components": comp,
@@ -791,6 +856,7 @@ def sample_stats(problem, ref, sf, gain):
         "harm_mean_abs_db_first10": float(np.mean(np.abs(e[:10]))),
         "worst_harmonics": worst,
         "spurious_hf": sorted(excess, key=lambda d: -d["excess_db"])[:4],
+        "peak": peak_info,
     }
 
 
@@ -802,6 +868,8 @@ def summarize(problem, u, gain=None):
            for k in ("cost", "harm_within_1db", "harm_within_3db", "harm_within_6db", "harm_mean_abs_db")}
     for comp in ("harm", "inter", "env", "stft"):
         agg[comp] = float(np.mean([p["components"][comp] for p in per if not p.get("failed")]))
+    peak_costs = [p["components"]["peak"] for p, ref in zip(per, problem.refs) if ref.has_peak and not p.get("failed")]
+    agg["peak"] = float(np.mean(peak_costs)) if peak_costs else 0.0
     agg["objective"] = costs[0]
     agg["gain_db"] = d["gain_db"]
     return {"aggregate": agg, "samples": per, "feats": d["feats"]}
@@ -1006,6 +1074,10 @@ def main():
     ap.add_argument("--w-inter", type=float, default=0.25)
     ap.add_argument("--w-env", type=float, default=0.5)
     ap.add_argument("--w-stft", type=float, default=0.5)
+    ap.add_argument("--w-peak", type=float, default=2.0,
+                    help="weight on the resonant-peak shape (height+width+implicit frequency) at "
+                    "Resonance=max samples; deliberately > w-harm so a broadband harmonic fit can't "
+                    "trade the peak away (see 2026-09 peak-vs-broadband tradeoff)")
     ap.add_argument("--evaluate-only", action="store_true", help="score the current code, no fitting")
     ap.add_argument("--apply", action="store_true", help="write fitted defaults into src/core/SynthEngine.hpp")
     args = ap.parse_args()
@@ -1149,11 +1221,14 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
     md.append("## Match quality (mean over samples)")
     md.append("")
     md.append("All errors are dB; lower is better. `harm` = full-note harmonic levels (k^-0.5 weighted RMS), "
-              "`inter` = energy between harmonics, `env` = RMS envelope, `stft` = 1/3-octave levels over time.")
+              "`inter` = energy between harmonics, `env` = RMS envelope, `stft` = 1/3-octave levels over time, "
+              "`peak` = shape (height+width+implicit frequency) of the resonant-peak window on "
+              "Resonance=max samples only -- weighted more heavily than `harm` so it can't be traded away.")
     md.append("")
     rows = []
     for key, lab in (("objective", "objective (incl. priors)"), ("cost", "weighted error"),
-                     ("harm", "harmonic error (dB)"), ("inter", "inter-harmonic error (dB)"),
+                     ("harm", "harmonic error (dB)"), ("peak", "resonant-peak shape error (dB)"),
+                     ("inter", "inter-harmonic error (dB)"),
                      ("env", "envelope error (dB)"), ("stft", "spectrogram error (dB)"),
                      ("harm_mean_abs_db", "mean |harmonic error| (dB)"),
                      ("harm_within_1db", "harmonics within 1 dB (%)"),
@@ -1171,11 +1246,32 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
         i = [r.name for r in problem.refs].index(name)
         sb, sa, ref = before["samples"][i], after["samples"][i], problem.refs[i]
         rows.append([name, f"{sb['cost']:.2f}", f"{sa['cost']:.2f}",
-                     f"{sa['components']['harm']:.1f}", f"{sa['components']['inter']:.1f}",
+                     f"{sa['components']['harm']:.1f}",
+                     f"{sa['components']['peak']:.1f}" if ref.has_peak else "-",
+                     f"{sa['components']['inter']:.1f}",
                      f"{sa['components']['env']:.1f}", f"{sa['components']['stft']:.1f}",
                      f"{sa['harm_within_3db']:.0f}%", f"{ref.tune_cents:+.1f}", f"{ref.drift_cents:.2f}"])
-    md.append(fmt_table(rows, ["sample", "before", "after", "harm", "inter", "env", "stft",
+    md.append(fmt_table(rows, ["sample", "before", "after", "harm", "peak", "inter", "env", "stft",
                                "harm ±3dB", "tuning (c)", "drift (c)"]))
+    md.append("")
+    md.append("### Resonant peak (Resonance=max samples)")
+    md.append("")
+    peak_rows = []
+    for ref in problem.refs:
+        if not ref.has_peak:
+            continue
+        i = [r.name for r in problem.refs].index(ref.name)
+        pb, pa = before["samples"][i].get("peak"), after["samples"][i].get("peak")
+        if pb is None or pa is None:
+            continue
+        peak_rows.append([ref.name, f"{pb['ref_freq_hz']:.0f}", f"{pb['sim_freq_hz']:.0f}", f"{pa['sim_freq_hz']:.0f}",
+                          f"{pb['ref_height_db']:+.1f}", f"{pb['sim_height_db']:+.1f}", f"{pa['sim_height_db']:+.1f}"])
+    md.append(fmt_table(peak_rows, ["sample", "peak Hz (hw)", "peak Hz (before)", "peak Hz (after)",
+                                    "height dB (hw)", "height dB (before)", "height dB (after)"]))
+    md.append("")
+    md.append("Height is the resonant peak's level above the fundamental (gain-independent). This is the "
+              "number that answers \"is the acid squelch there\": before/after collapsing to something much "
+              "smaller than hardware's means the peak got flattened away, not just shifted.")
     md.append("")
     md.append("`tuning` is measured from the harmonic peaks relative to equal temperament; `drift` is the "
               "std-dev of short-time pitch over the note (hardware fluctuation).")

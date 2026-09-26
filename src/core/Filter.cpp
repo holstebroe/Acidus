@@ -177,8 +177,10 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
     float apCoeff = (tanAp - 1.0f) / (tanAp + 1.0f);
     out = allpass_.process(out, apCoeff);
 
-    float outputGain = 1.0f + skewResonance(resNorm) * (maxResonanceOutputGain_ - 1.0f);
-    return out * outputGain;
+    // No resonance-dependent output gain here -- see the comment on
+    // setResonanceSkew/setFeedbackHeadroomHz in Filter.hpp. Whatever level
+    // the resonant peak reaches is whatever kFb (above) actually produced.
+    return out;
 }
 
 } // namespace acidus

@@ -62,7 +62,6 @@ struct SynthParameters {
     float filterResonanceSkew{3.0f};     // Filter.hpp - Resonance pot curve (exponential skew)
     float filterFeedbackHeadroomHz{3507.75f}; // Filter.hpp - low-cutoff feedback-gain compensation numerator
     float filterResCouplingTrackHz{17.1036f};  // Filter.cpp - resonance-dependent shift of the feedback coupling pole
-    float filterMaxResonanceOutputGain{1.98931f}; // Filter.hpp - makeup gain at full Resonance
 };
 
 class SynthEngine {

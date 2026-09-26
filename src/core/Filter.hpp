@@ -135,11 +135,18 @@ public:
     // gain unchanged as this is swept.
     void setLadderInputScale(float s) { ladderInputScale_ = s; } // plausible range 0.02-0.20 (default 0.05)
 
-    // Resonance-pot law and the resonance-dependent gain/coupling terms.
+    // Resonance-pot law and the resonance-dependent feedback/coupling terms.
+    // Deliberately NOT a resonance-dependent output gain: TB303_EMULATION_
+    // REFERENCE.md Sec60 documents passband/bass gain *falling* as
+    // Resonance increases (a real, load-bearing loading effect of the
+    // feedback path) and explicitly says "do not add a separate 'bass
+    // compensation' stage" -- so this model has none. Whatever level the
+    // resonant peak reaches has to come from kFb (below) approaching the
+    // ladder's self-oscillation ceiling, the same way the real feedback
+    // loop does it, not from a post-hoc broadband multiply.
     void setResonanceSkew(float k) { resonanceSkew_ = k; }
     void setFeedbackHeadroomHz(float hz) { feedbackHeadroomHz_ = hz; }
     void setResCouplingTrackHz(float hz) { resCouplingTrackHz_ = hz; }
-    void setMaxResonanceOutputGain(float g) { maxResonanceOutputGain_ = g; }
 
 private:
     double sampleRate_{44100.0};
@@ -180,7 +187,6 @@ private:
     float feedbackHeadroomHz_{6600.0f};
     float resonanceSkew_{3.0f};
     float resCouplingTrackHz_{100.0f};
-    float maxResonanceOutputGain_{2.3f};
 
     inline float skewResonance(float resNorm) const {
         if (std::abs(resonanceSkew_) < 1e-4f) return resNorm;
