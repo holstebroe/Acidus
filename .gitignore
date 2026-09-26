@@ -2,3 +2,4 @@ build/
 dsp_test
 calibration_results/
 build-cal/
+__pycache__/
