@@ -509,6 +509,9 @@ class Problem:
                 self.params.append(Param(f"{knob}@{digit}", lo, hi, False, nom, "knob", "knobs",
                                          target=knob, nominal=nom))
         self.knob_digits = used
+        self.capscale_idx = [i for i, p in enumerate(self.params)
+                             if p.kind == "model" and p.target in
+                             ("filterCapScale1", "filterCapScale2", "filterCapScale3", "filterCapScale4")]
         onset0 = float(np.median([r.onset_ms for r in refs]))
         gate0 = float(np.median([r.gate_ms for r in refs if not r.accent_step] or [r.gate_ms for r in refs]))
         self.timing_init = {"onsetMs": onset0, "gateMs": gate0}
@@ -592,6 +595,17 @@ class Problem:
         for p, ui in zip(self.params, u):
             if p.kind == "knob":
                 pen += self.args.knob_prior * ((p.to_real(ui) - p.nominal) / 0.1) ** 2
+        # The real ladder's four pole frequencies are documented as *mildly*
+        # spread, not formant-like (TB303_RESEARCH_COMPENDIUM.md Sec6). An
+        # unconstrained per-stage search can otherwise fit a wildly uneven
+        # spread that cancels errors at the sampled harmonics but rings/
+        # ripples between them -- exactly the "jagged, not clean" rolloff
+        # difference from hardware. Penalize spread around the *shared*
+        # scale (so an overall cutoff-law shift stays free) unless the data
+        # earns it.
+        if self.capscale_idx and self.args.capscale_prior > 0:
+            logs = np.array([math.log(self.params[i].to_real(u[i])) for i in self.capscale_idx])
+            pen += self.args.capscale_prior * float(np.sum((logs - logs.mean()) ** 2))
         return pen
 
     def evaluate_batch(self, U, gain=None):
@@ -985,6 +999,9 @@ def main():
                     help="which samples were recorded on an accented step (default: Accent knob > 0)")
     ap.add_argument("--knob-prior", type=float, default=0.05,
                     help="cost per (0.1 knob travel)^2 of moving a knob position off nominal")
+    ap.add_argument("--capscale-prior", type=float, default=0.05,
+                    help="cost per unit of log-variance across the 4 ladder pole scales; "
+                    "discourages formant-like spread the data doesn't clearly require (0 disables)")
     ap.add_argument("--w-harm", type=float, default=1.0)
     ap.add_argument("--w-inter", type=float, default=0.25)
     ap.add_argument("--w-env", type=float, default=0.5)
