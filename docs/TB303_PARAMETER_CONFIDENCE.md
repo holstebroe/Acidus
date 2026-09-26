@@ -342,3 +342,52 @@ Env Mod > 0 / Accent off over its own label, so its accent-step assumption
 may be wrong. `303_saw-D2t-39c1r1e0d1a1` remains the worst-fitting sample
 overall (2x the median error) -- its resonant sweep and ~7 dB level decay
 over the note are still not reproduced by the model.
+
+## 2026-09-26 (later still): removed the resonance-output-gain crutch; peak now comes from real feedback gain
+
+User feedback after the previous re-fit: the resonant peak had all but
+disappeared -- "moving away from the classic 303 sound." Root cause found
+in this project's own docs: `Filter.cpp` had a flat, Resonance-scaled output
+gain applied after the ladder (`filterMaxResonanceOutputGain`), which
+`TB303_EMULATION_REFERENCE.md` Sec60 explicitly says not to add ("do not
+add a separate 'bass compensation' stage"; passband gain is supposed to
+*fall* with Resonance, not get uniformly boosted). That stage gave every
+prior fit a cheap way to raise the level of Resonance=max samples without
+sharpening the feedback loop's actual peak, and the previous re-fit used
+it: `filterFeedbackGain` dropped from 15.3 to 9.8, well short of the
+ladder's self-oscillation ceiling (`kLadderCriticalGain_` = 17).
+
+Removed the output-gain stage entirely (Filter.hpp/.cpp) and widened
+`filterFeedbackGain`'s search range (6-22 -> 6-30) so the bound itself
+can't cap how close it gets to critical; an actually-unstable render is
+already rejected during fitting (amplitude/`isfinite` check). Also added a
+dedicated resonant-peak feature to `calibrate_reference.py`
+(`peak_window`/`local_bump` in the script): for every Resonance=max sample,
+detect the true resonant bump as a local deviation over a smoothed
+baseline (not just the loudest harmonic overall -- at high cutoff the
+bump is often quieter than the fundamental, which a plain argmax mistakes
+for "no peak, perfect match"), then compare a window of harmonics around
+it against the model, weighted 2x a plain harmonic term by default so
+broadband fitting can no longer trade it away.
+
+Result: `filterFeedbackGain` fit to 17.04 -- right at the documented
+self-oscillation ceiling, consistent with the hardware's own documented
+"approaches but does not cleanly self-oscillate" behavior (Sec12) -- and
+the filter stability sweep still shows no self-oscillation at any tested
+cutoff/resonance after applying it. Resonant-peak shape error dropped
+9.31 dB -> 6.54 dB and a real, correctly-located peak now appears on most
+Resonance=max samples (e.g. `303_saw-A2t-39c1r1e0d1a0`: hardware peak at
+3117 Hz / -3.6 dB below the fundamental, fitted model now 3009 Hz / -8.3
+dB -- present and close, versus the previous fit's flat non-answer).
+
+Remaining gaps: peak height is still typically 3-6 dB shy of hardware, and
+two samples don't land the frequency right -- `303_saw-D2t-39c1r1e0d1a0`
+(fitted peak stuck at ~3 kHz vs hardware's 1934 Hz) and
+`303_saw-D3t-39c1r1e0d1a1` (fitted ~6167 Hz vs hardware's 3155 Hz, an
+octave off). The latter is also the run's most-suspect sample by error
+and by free-knob refit (fits 74% better with much less Accent/Decay than
+its label claims), so treat its knob labels as unconfirmed rather than
+treating this as a pure model gap. `filterCapScale1..4` are now well-
+constrained by the data (sensitivity 0.42-0.67, versus 0.02-0.06 before
+the peak feature existed) at 0.28/0.71/0.34/0.53 -- still an uneven spread,
+but no longer close to arbitrary.
