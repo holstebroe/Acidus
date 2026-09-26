@@ -1,5 +1,6 @@
 #include "SynthEngine.hpp"
 #include <algorithm>
+#include <cmath>
 
 namespace acidus {
 
@@ -69,6 +70,14 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     env_.setVegDecaySec(params_.vegDecaySec);
     env_.setVcaGateOffMs(params_.vcaGateOffMs);
     env_.setVcaGateOffAccentMs(params_.vcaGateOffAccentMs);
+    env_.setAttackTimesMs(params_.vcfAttackMs, params_.vcaAttackMs);
+    env_.setDecayRangeSec(params_.vcfDecayMinSec, params_.vcfDecayMaxSec);
+    env_.setAccentDecaySec(params_.accentDecaySec);
+    osc_.setSawShaping(params_.oscSawLpfHz, params_.oscSawShape);
+    filter_.setResonanceSkew(params_.filterResonanceSkew);
+    filter_.setFeedbackHeadroomHz(params_.filterFeedbackHeadroomHz);
+    filter_.setResCouplingTrackHz(params_.filterResCouplingTrackHz);
+    filter_.setMaxResonanceOutputGain(params_.filterMaxResonanceOutputGain);
 
     for (int i = 0; i < numFrames; ++i) {
         if (!env_.isActive() && !isNoteActive_) {
@@ -91,11 +100,11 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float envModNorm = std::min(std::max(params_.envMod, 0.0f), 1.0f);
         float accentNorm = std::min(std::max(params_.accent, 0.0f), 1.0f);
 
-        float cTaper = cNorm * cNorm;
+        float cTaper = std::pow(cNorm, params_.cutoffTaperExp);
         float envModTaper = envModNorm;
 
-        float cv_base = 3.64385f * cTaper;
-        float cv_offset = envModTaper * 0.80735f;
+        float cv_base = params_.cutoffSpanOct * cTaper;
+        float cv_offset = envModTaper * params_.envModOffsetOct;
 
         // Env Mod's depth is set purely by the Env Mod pot, on every note --
         // Accent never bypasses it. The real circuit's accent contribution
@@ -104,7 +113,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // forced 100% Env Mod depth (TB303_RESEARCH_COMPENDIUM.md §9:
         // Open303 "never overrides its envelope scaler on accent -- it only
         // adds a separate, smaller, purely-accent-driven term on top").
-        float cv_envmod = envModTaper * vcfEnvVal * 3.5f;
+        float cv_envmod = envModTaper * vcfEnvVal * params_.envModDepthOct;
 
         // Accent Sweep circuit: the Resonance pot's second gang blends
         // between the MEG reaching the filter almost directly (low
@@ -124,11 +133,11 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // between notes regardless (Envelope::accentCap_), ready for the
         // next accented step -- that's what produces the documented rising
         // peaks across consecutive accents (§9/§30).
-        float cv_accent = noteAccent ? (accentNorm * accentSweepSignal * 1.5f) : 0.0f;
+        float cv_accent = noteAccent ? (accentNorm * accentSweepSignal * params_.accentSweepDepthOct) : 0.0f;
 
         float cv_total = cv_base + cv_offset + cv_envmod + cv_accent;
 
-        float effectiveCutoff = 200.0f * std::pow(2.0f, cv_total);
+        float effectiveCutoff = params_.cutoffBaseHz * std::pow(2.0f, cv_total);
         float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 15000.0f);
 
         float filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
@@ -144,7 +153,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // accented notes with no audible release at all.
         float vcaControl = vcaEnvVal;
         if (noteAccent) {
-            vcaControl += accentVcaVal * accentNorm * 0.8f;
+            vcaControl += accentVcaVal * accentNorm * params_.accentVcaDepth;
         }
 
         // BA662-style transconductance VCA: model the amplifier's own gain

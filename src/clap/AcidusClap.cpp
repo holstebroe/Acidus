@@ -6,6 +6,11 @@
 
 namespace acidus {
 
+// Single source of truth for the hidden calibration constants' defaults:
+// SynthParameters' in-class initializers (updated by
+// tools/calibrate_reference.py --apply).
+[[maybe_unused]] static const SynthParameters kCalibrationDefaults{};
+
 // Forward declarations of GUI extension functions
 extern const clap_plugin_gui_t g_acidusGuiExtension;
 
@@ -133,24 +138,24 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_VOLUME] = 0.8;
 
 #ifdef ACIDUS_CALIBRATION_BUILD
-    paramValues_[PARAM_OSC_COUPLING_HZ] = 44.5;
-    paramValues_[PARAM_RES_COUPLING_HZ] = 150.0;
-    paramValues_[PARAM_FILTER_FEEDBACK_GAIN] = 15.3;
-    paramValues_[PARAM_FILTER_POST_HP_HZ] = 24.167;
-    paramValues_[PARAM_FILTER_NOTCH_HZ] = 7.5164;
-    paramValues_[PARAM_FILTER_NOTCH_BANDWIDTH_HZ] = 4.7;
-    paramValues_[PARAM_FILTER_ALLPASS_HZ] = 14.008;
-    paramValues_[PARAM_VEG_DECAY_SEC] = 3.5;
-    paramValues_[PARAM_VCA_GATE_OFF_MS] = 3.0;
-    paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS] = 3.0;
-    paramValues_[PARAM_VCA_GAIN_SATURATION_DRIVE] = 3.0;
-    paramValues_[PARAM_FILTER_INPUT_COUPLING_HZ] = 20.0;
-    paramValues_[PARAM_FILTER_OUTPUT_COUPLING_HZ] = 20000.0;
-    paramValues_[PARAM_FILTER_CAP_SCALE_1] = 1.0;
-    paramValues_[PARAM_FILTER_CAP_SCALE_2] = 1.0;
-    paramValues_[PARAM_FILTER_CAP_SCALE_3] = 1.0;
-    paramValues_[PARAM_FILTER_CAP_SCALE_4] = 1.0;
-    paramValues_[PARAM_FILTER_LADDER_INPUT_SCALE] = 0.05;
+    paramValues_[PARAM_OSC_COUPLING_HZ] = kCalibrationDefaults.oscCouplingHz;
+    paramValues_[PARAM_RES_COUPLING_HZ] = kCalibrationDefaults.resCouplingHz;
+    paramValues_[PARAM_FILTER_FEEDBACK_GAIN] = kCalibrationDefaults.filterFeedbackGain;
+    paramValues_[PARAM_FILTER_POST_HP_HZ] = kCalibrationDefaults.filterPostHpHz;
+    paramValues_[PARAM_FILTER_NOTCH_HZ] = kCalibrationDefaults.filterNotchHz;
+    paramValues_[PARAM_FILTER_NOTCH_BANDWIDTH_HZ] = kCalibrationDefaults.filterNotchBandwidthHz;
+    paramValues_[PARAM_FILTER_ALLPASS_HZ] = kCalibrationDefaults.filterAllpassHz;
+    paramValues_[PARAM_VEG_DECAY_SEC] = kCalibrationDefaults.vegDecaySec;
+    paramValues_[PARAM_VCA_GATE_OFF_MS] = kCalibrationDefaults.vcaGateOffMs;
+    paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS] = kCalibrationDefaults.vcaGateOffAccentMs;
+    paramValues_[PARAM_VCA_GAIN_SATURATION_DRIVE] = kCalibrationDefaults.vcaGainSaturationDrive;
+    paramValues_[PARAM_FILTER_INPUT_COUPLING_HZ] = kCalibrationDefaults.filterInputCouplingHz;
+    paramValues_[PARAM_FILTER_OUTPUT_COUPLING_HZ] = kCalibrationDefaults.filterOutputCouplingHz;
+    paramValues_[PARAM_FILTER_CAP_SCALE_1] = kCalibrationDefaults.filterCapScale1;
+    paramValues_[PARAM_FILTER_CAP_SCALE_2] = kCalibrationDefaults.filterCapScale2;
+    paramValues_[PARAM_FILTER_CAP_SCALE_3] = kCalibrationDefaults.filterCapScale3;
+    paramValues_[PARAM_FILTER_CAP_SCALE_4] = kCalibrationDefaults.filterCapScale4;
+    paramValues_[PARAM_FILTER_LADDER_INPUT_SCALE] = kCalibrationDefaults.filterLadderInputScale;
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
@@ -418,126 +423,126 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Oscillator");
             paramInfo->min_value = 30.0;
             paramInfo->max_value = 60.0;
-            paramInfo->default_value = 44.5;
+            paramInfo->default_value = kCalibrationDefaults.oscCouplingHz;
             break;
         case PARAM_RES_COUPLING_HZ:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Res Coupling Freq");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 100.0;
             paramInfo->max_value = 250.0;
-            paramInfo->default_value = 150.0;
+            paramInfo->default_value = kCalibrationDefaults.resCouplingHz;
             break;
         case PARAM_FILTER_FEEDBACK_GAIN:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Feedback Gain");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 12.0;
             paramInfo->max_value = 17.0;
-            paramInfo->default_value = 15.3;
+            paramInfo->default_value = kCalibrationDefaults.filterFeedbackGain;
             break;
         case PARAM_FILTER_POST_HP_HZ:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Post HP Freq");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 15.0;
             paramInfo->max_value = 35.0;
-            paramInfo->default_value = 24.167;
+            paramInfo->default_value = kCalibrationDefaults.filterPostHpHz;
             break;
         case PARAM_FILTER_NOTCH_HZ:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Notch Freq");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 4.0;
             paramInfo->max_value = 15.0;
-            paramInfo->default_value = 7.5164;
+            paramInfo->default_value = kCalibrationDefaults.filterNotchHz;
             break;
         case PARAM_FILTER_NOTCH_BANDWIDTH_HZ:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Notch Bandwidth");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 2.0;
             paramInfo->max_value = 10.0;
-            paramInfo->default_value = 4.7;
+            paramInfo->default_value = kCalibrationDefaults.filterNotchBandwidthHz;
             break;
         case PARAM_FILTER_ALLPASS_HZ:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Allpass Freq");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 8.0;
             paramInfo->max_value = 25.0;
-            paramInfo->default_value = 14.008;
+            paramInfo->default_value = kCalibrationDefaults.filterAllpassHz;
             break;
         case PARAM_VCA_GAIN_SATURATION_DRIVE:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gain Saturation Drive");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
             paramInfo->min_value = 1.0;
             paramInfo->max_value = 8.0;
-            paramInfo->default_value = 3.0;
+            paramInfo->default_value = kCalibrationDefaults.vcaGainSaturationDrive;
             break;
         case PARAM_VEG_DECAY_SEC:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Decay Time");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
             paramInfo->min_value = 2.5;
             paramInfo->max_value = 5.0;
-            paramInfo->default_value = 3.5;
+            paramInfo->default_value = kCalibrationDefaults.vegDecaySec;
             break;
         case PARAM_VCA_GATE_OFF_MS:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gate-Off Tail");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
             paramInfo->min_value = 1.0;
             paramInfo->max_value = 5.0;
-            paramInfo->default_value = 3.0;
+            paramInfo->default_value = kCalibrationDefaults.vcaGateOffMs;
             break;
         case PARAM_VCA_GATE_OFF_ACCENT_MS:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gate-Off Tail (Accent)");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
             paramInfo->min_value = 1.0;
             paramInfo->max_value = 80.0;
-            paramInfo->default_value = 3.0;
+            paramInfo->default_value = kCalibrationDefaults.vcaGateOffAccentMs;
             break;
         case PARAM_FILTER_INPUT_COUPLING_HZ:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Input Coupling Freq");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 10.0;
             paramInfo->max_value = 30.0;
-            paramInfo->default_value = 20.0;
+            paramInfo->default_value = kCalibrationDefaults.filterInputCouplingHz;
             break;
         case PARAM_FILTER_OUTPUT_COUPLING_HZ:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Output Coupling Freq");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 10000.0;
             paramInfo->max_value = 25000.0;
-            paramInfo->default_value = 20000.0;
+            paramInfo->default_value = kCalibrationDefaults.filterOutputCouplingHz;
             break;
         case PARAM_FILTER_CAP_SCALE_1:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Ladder Pole Scale 1");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 0.2;
             paramInfo->max_value = 4.0;
-            paramInfo->default_value = 1.0;
+            paramInfo->default_value = kCalibrationDefaults.filterCapScale1;
             break;
         case PARAM_FILTER_CAP_SCALE_2:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Ladder Pole Scale 2");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 0.2;
             paramInfo->max_value = 4.0;
-            paramInfo->default_value = 1.0;
+            paramInfo->default_value = kCalibrationDefaults.filterCapScale2;
             break;
         case PARAM_FILTER_CAP_SCALE_3:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Ladder Pole Scale 3");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 0.2;
             paramInfo->max_value = 4.0;
-            paramInfo->default_value = 1.0;
+            paramInfo->default_value = kCalibrationDefaults.filterCapScale3;
             break;
         case PARAM_FILTER_CAP_SCALE_4:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Ladder Pole Scale 4");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 0.2;
             paramInfo->max_value = 4.0;
-            paramInfo->default_value = 1.0;
+            paramInfo->default_value = kCalibrationDefaults.filterCapScale4;
             break;
         case PARAM_FILTER_LADDER_INPUT_SCALE:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Ladder Input Drive");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 0.02;
             paramInfo->max_value = 0.20;
-            paramInfo->default_value = 0.05;
+            paramInfo->default_value = kCalibrationDefaults.filterLadderInputScale;
             break;
 
         case PARAM_DRIVE:

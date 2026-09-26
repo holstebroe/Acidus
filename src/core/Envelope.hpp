@@ -16,6 +16,9 @@ public:
     void setVegDecaySec(float seconds) { vegDecaySec_ = seconds; updateCoefficients(); }
     void setVcaGateOffMs(float ms) { vcaGateOffSec_ = ms * 0.001f; updateCoefficients(); }
     void setVcaGateOffAccentMs(float ms) { vcaGateOffAccentSec_ = ms * 0.001f; updateCoefficients(); }
+    void setAttackTimesMs(float vcfMs, float vcaMs) { vcfAttackSec_ = vcfMs * 0.001f; vcaAttackSec_ = vcaMs * 0.001f; updateCoefficients(); }
+    void setDecayRangeSec(float minSec, float maxSec) { vcfDecayMinSec_ = minSec; vcfDecayMaxSec_ = maxSec; setDecay(decayNorm_); }
+    void setAccentDecaySec(float seconds) { accentDecaySec_ = seconds; updateCoefficients(); }
 
     void noteOn(bool isAccent, bool isSlide, float accentKnob = 1.0f);
     void noteOff();
@@ -36,7 +39,12 @@ private:
     bool isAccent_{false};
     bool faithfulAccentDecay_{false};
 
-    static constexpr float kAccentDecayTimeSec = 0.20f;
+    float accentDecaySec_{0.20f};
+    float vcfAttackSec_{0.0035f};
+    float vcaAttackSec_{0.003f};
+    float vcfDecayMinSec_{0.20f};
+    float vcfDecayMaxSec_{2.5f};
+    float decayNorm_{0.0f};
 
     float vcfDecayTimeSec_{0.20f};
     float vcfAttackCoeff_{0.0f};

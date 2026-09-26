@@ -135,6 +135,12 @@ public:
     // gain unchanged as this is swept.
     void setLadderInputScale(float s) { ladderInputScale_ = s; } // plausible range 0.02-0.20 (default 0.05)
 
+    // Resonance-pot law and the resonance-dependent gain/coupling terms.
+    void setResonanceSkew(float k) { resonanceSkew_ = k; }
+    void setFeedbackHeadroomHz(float hz) { feedbackHeadroomHz_ = hz; }
+    void setResCouplingTrackHz(float hz) { resCouplingTrackHz_ = hz; }
+    void setMaxResonanceOutputGain(float g) { maxResonanceOutputGain_ = g; }
+
 private:
     double sampleRate_{44100.0};
     double oversampledRate_{352800.0};
@@ -171,13 +177,15 @@ private:
 
     static constexpr float kLadderCriticalGain_ = 17.0f;
     static constexpr float kResonanceGainMargin_ = 0.90f;
-    static constexpr float kCutoffHeadroomNumerator_ = 6600.0f;
+    float feedbackHeadroomHz_{6600.0f};
+    float resonanceSkew_{3.0f};
+    float resCouplingTrackHz_{100.0f};
+    float maxResonanceOutputGain_{2.3f};
 
-    static inline float skewResonance(float resNorm) {
-        return (1.0f - std::exp(-3.0f * resNorm)) / (1.0f - std::exp(-3.0f));
+    inline float skewResonance(float resNorm) const {
+        if (std::abs(resonanceSkew_) < 1e-4f) return resNorm;
+        return (1.0f - std::exp(-resonanceSkew_ * resNorm)) / (1.0f - std::exp(-resonanceSkew_));
     }
-
-    static constexpr float kMaxResonanceOutputGain_ = 2.3f;
     static constexpr float kCutoffToOmegaScale_ = 0.70710678f; // 1/sqrt(2)
 
     float resCouplingHz_{150.0f};

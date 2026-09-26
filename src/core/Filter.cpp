@@ -56,11 +56,11 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
 
     float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
 
-    const float resCouplingHz = resCouplingHz_ + 100.0f * resNorm;
+    const float resCouplingHz = resCouplingHz_ + resCouplingTrackHz_ * resNorm;
     const float resCouplingAlpha = 1.0f / (1.0f + 2.0f * 3.14159265358979323846f * resCouplingHz * dt);
 
     float kFb = skewResonance(resNorm)
-              * (feedbackGainCeiling_ + kResonanceGainMargin_ * kCutoffHeadroomNumerator_ / totalCutoffHz);
+              * (feedbackGainCeiling_ + kResonanceGainMargin_ * feedbackHeadroomHz_ / totalCutoffHz);
 
     const float Vt = 0.052f;
     const float VtInv = 19.23f;
@@ -177,7 +177,7 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
     float apCoeff = (tanAp - 1.0f) / (tanAp + 1.0f);
     out = allpass_.process(out, apCoeff);
 
-    float outputGain = 1.0f + skewResonance(resNorm) * (kMaxResonanceOutputGain_ - 1.0f);
+    float outputGain = 1.0f + skewResonance(resNorm) * (maxResonanceOutputGain_ - 1.0f);
     return out * outputGain;
 }
 

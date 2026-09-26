@@ -40,6 +40,29 @@ struct SynthParameters {
     float vcaGateOffMs{3.0f};          // Envelope.hpp - plausible range 1-5 ms (measured against hardware 2026-09-20, was 1ms)
     float vcaGateOffAccentMs{3.0f};    // Envelope.hpp - plausible range 1-80 ms (measured against hardware 2026-09-20: no accent asymmetry found, was 50ms)
     float vcaGainSaturationDrive{3.0f};   // SynthEngine.cpp - plausible range 1-8 (BA662 transconductance-stage saturation)
+
+    // --- Offline-calibration constants -----------------------------------
+    // Previously hard-coded in the DSP; hoisted here so the reference-sample
+    // calibrator (tools/calibrate_reference.py) can fit them. Not exposed as
+    // CLAP parameters -- update these defaults with the calibrator's output.
+    float cutoffBaseHz{200.0f};          // SynthEngine.cpp - cutoff at knob minimum, no env
+    float cutoffSpanOct{3.64385f};       // SynthEngine.cpp - octaves swept by the Cutoff knob
+    float cutoffTaperExp{2.0f};          // SynthEngine.cpp - knob taper: cv = span * knob^exp
+    float envModOffsetOct{0.80735f};     // SynthEngine.cpp - static cutoff offset from the Env Mod pot
+    float envModDepthOct{3.5f};          // SynthEngine.cpp - MEG sweep depth at full Env Mod
+    float accentSweepDepthOct{1.5f};     // SynthEngine.cpp - Accent Sweep circuit depth at full Accent
+    float accentVcaDepth{0.8f};          // SynthEngine.cpp - MEG->VCA bleed on accented notes
+    float oscSawLpfHz{14000.0f};         // Oscillator.cpp - saw-core bandwidth limit
+    float oscSawShape{0.05f};            // Oscillator.cpp - saw waveshaper 2nd-order curvature
+    float vcfAttackMs{3.5f};             // Envelope.cpp - MEG attack time constant
+    float vcaAttackMs{3.0f};             // Envelope.cpp - VEG attack time constant
+    float vcfDecayMinSec{0.2f};          // Envelope.cpp - MEG decay at Decay knob minimum
+    float vcfDecayMaxSec{2.5f};          // Envelope.cpp - MEG decay at Decay knob maximum
+    float accentDecaySec{0.2f};          // Envelope.cpp - MEG decay forced on accented notes
+    float filterResonanceSkew{3.0f};     // Filter.hpp - Resonance pot curve (exponential skew)
+    float filterFeedbackHeadroomHz{6600.0f}; // Filter.hpp - low-cutoff feedback-gain compensation numerator
+    float filterResCouplingTrackHz{100.0f};  // Filter.cpp - resonance-dependent shift of the feedback coupling pole
+    float filterMaxResonanceOutputGain{2.3f}; // Filter.hpp - makeup gain at full Resonance
 };
 
 class SynthEngine {
