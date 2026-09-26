@@ -849,6 +849,28 @@ def refit_labels(problem, u_best, gain, seconds, seed):
     return out
 
 
+def duplicate_labels(refs, tol_db=1.5):
+    """Pairs of references on the same note/waveform whose labels differ but
+    whose full-note harmonic spectra are nearly identical: at least one of
+    the two labels is probably wrong (the knob wasn't actually moved)."""
+    out = []
+    for i in range(len(refs)):
+        for j in range(i + 1, len(refs)):
+            a, b = refs[i], refs[j]
+            if a.midi != b.midi or a.waveform != b.waveform or a.accent_step != b.accent_step:
+                continue
+            diff = [k for k in KNOBS.values() if a.digits[k] != b.digits[k]]
+            if not diff:
+                continue
+            ha, hb = a.feat["harm"] - a.feat["harm"].max(), b.feat["harm"] - b.feat["harm"].max()
+            k = min(len(ha), len(hb))
+            m = (ha[:k] > -60) | (hb[:k] > -60)
+            d = weighted_rms((ha[:k] - hb[:k])[m], a.spec.harm_w[:k][m])
+            if d < tol_db:
+                out.append({"a": a.name, "b": b.name, "knobs": diff, "spectral_distance_db": d})
+    return out
+
+
 def absorbed_cutoff_law(base_vals, idx, knobs):
     """Re-express fitted cutoff knob positions as a new cutoff law so the
     plugin's knob 0/0.5/1 lands where the hardware's min/half/max do."""
@@ -864,7 +886,11 @@ def absorbed_cutoff_law(base_vals, idx, knobs):
     if p5 is not None and a1 > a0:
         ratio = (p5 ** e - a0) / (a1 - a0)
         if 0 < ratio < 1:
-            new["cutoffTaperExp"] = math.log(ratio) / math.log(0.5)
+            exp_mid = math.log(ratio) / math.log(0.5)
+            # A degenerate mid-point (e.g. a mislabeled sample) would bend
+            # the law into nonsense; keep the fitted taper then.
+            if 0.3 <= exp_mid <= 4.0:
+                new["cutoffTaperExp"] = exp_mid
     return new
 
 
@@ -1049,6 +1075,12 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
         if why:
             suspects.append((name, why))
 
+    dups = duplicate_labels(problem.refs)
+    for d in dups:
+        why = (f"spectrum is within {d['spectral_distance_db']:.1f} dB of {d['b']} although the "
+               f"{'/'.join(d['knobs'])} label differs -- one of the two labels is probably wrong")
+        suspects.insert(0, (d["a"], [why]))
+
     result = {
         "generated": stamp,
         "elapsed_sec": elapsed,
@@ -1067,6 +1099,7 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
         "absorbed_cutoff_law": absorbed,
         "label_check": labels,
         "suspect_samples": suspects,
+        "duplicate_labels": dups,
     }
     (out_dir / "result.json").write_text(json.dumps(result, indent=2, default=float))
 
