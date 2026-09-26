@@ -274,3 +274,26 @@ Explicitly **not** changed by this finding: the separate MEG decay override (`kA
 **Important limitation, demonstrated by the tool's own first run:** a smoke-test run against a 3-point placeholder target (fundamental=0dB reference, ~1.7kHz plateau=-16dB, ~3.1kHz peak=-2.5dB -- landmark values reported by ear/eye earlier this session, not a precise measurement) converged toward physically implausible pole-scale values (several approaching or exceeding the tool's own soft bound of ~4-5x) while still leaving one target point ~9-10 dB off. Three points cannot uniquely constrain 6 free parameters -- many different, including implausible, parameter combinations can satisfy 2-3 landmark points while getting everything in between wrong. **The tool needs a much richer target set to produce a trustworthy fit** -- ideally a dozen-plus (frequency, dB) points read directly off an FFT of an isolated single-note hardware recording at fixed knob settings (Env Mod near 0, so the cutoff isn't sweeping during the measurement), not points estimated from a live spectrum-analyzer screenshot. Do not treat this tool's output as a final answer until it's been run against a real, dense target derived from a hardware recording -- treat early runs as validation that the search mechanics work, not as calibration results.
 
 **Verification:** `acidus_filter_resonance_fit` builds cleanly through the real CMake build (`cmake --build . --target acidus_filter_resonance_fit`), compiles with `-Wall` clean, and a 150-iteration run against the placeholder target completes in a few minutes on this environment's hardware.
+
+## 2026-09-26: first fit against hardware reference samples (tools/calibrate_reference.py)
+
+Defaults in `SynthParameters` updated from a 20-minute CMA-ES fit against the
+hardware notes in `test/resources`, excluding `303_saw-A2t-39c5r1e0d1a0`
+(its spectrum is within 0.2 dB of the `c1` sample, so one of the two cutoff
+labels is wrong). Mean weighted error went from 8.96 dB to 4.54 dB; harmonics
+within 3 dB of hardware went from 38% to 61%.
+
+Not taken from the fit, because these references can't constrain them (Env Mod
+at minimum, Decay at maximum, no intermediate cutoff position):
+`envModOffsetOct`, `envModDepthOct`, `vcfDecayMinSec`, `vcfDecayMaxSec`,
+`cutoffTaperExp`. Also kept: `vcaGateOffAccentMs` (the fit's 0.3 ms would
+click) and `vegDecaySec` (the fit's 0.53 s would fade long notes). Reverting
+these two costs 0.05 dB.
+
+Treat the fitted filter values (feedback gain 22, pole scales 2.5/0.30/0.82/0.86,
+input/post HP corners near 60 Hz) as a compensation fit, not as circuit truth.
+Several of them sit at their search bounds, and a second fit including the
+suspect sample landed on very different pole scales. Remaining gaps: the
+resonant peak at max Resonance is still 6-10 dB too low relative to the
+fundamental, and the accented note's resonant sweep (2.5-6.5 kHz on hardware)
+and its ~7 dB level decay over the note are not reproduced.
