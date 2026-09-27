@@ -36,8 +36,16 @@ How a match is scored (all errors are in dB, lower is better)
            peaks that the hardware doesn't have.
 * env   -- short-time RMS envelope (window = 2 pitch periods, 1 ms hop).
 * stft  -- 1/3-octave band levels over time (23 ms frames): filter sweeps.
-The hardware drifts slightly in pitch/level over a note, so every feature is
-deliberately insensitive to exact waveform phase.
+* wave  -- (optional, --w-wave, off by default) phase-aligned waveform
+           shape: the render is shifted by a sub-sample lag within +-1/2
+           pitch period (the hardware's oscillator phase at note-on is
+           arbitrary) to best match the reference over the sustained part,
+           then compared in 20 ms frames, each with its own least-squares
+           gain, so level is left to `env` and only the normalised PCM shape
+           (and how it changes over the note) is scored. Reported as
+           10*sqrt(residual energy / reference energy): 0 = identical,
+           3.2 = 10 % residual energy, 10 = no better than silence.
+The other features are deliberately insensitive to exact waveform phase.
 
 Output (in --out, default calibration_results/<timestamp>/)
 ------------------------------------------------------------
@@ -86,7 +94,7 @@ REPO = Path(__file__).resolve().parents[1]
 # name -> (lo, hi, log-scaled, group). Names are SynthParameters fields.
 MODEL_PARAMS = {
     # Oscillator
-    "oscCouplingHz":            (15.0, 120.0, True, "osc"),
+    "oscCouplingHz":            (15.0, 60.0, True, "osc"),     # ref: none in hardware; Open303 44.5 (TB303_REFERENCE.md §11.3)
     "oscSawLpfHz":              (4000.0, 40000.0, True, "osc"),
     "oscSawShape":              (-0.4, 0.4, False, "osc"),
     # Filter
@@ -99,10 +107,8 @@ MODEL_PARAMS = {
     # already rejected by Problem._job's isfinite/amplitude check, so the
     # bound itself doesn't need to pre-guess where that line is.
     "filterFeedbackGain":       (6.0, 30.0, False, "filter"),
-    "filterFeedbackHeadroomHz": (0.0, 20000.0, False, "filter"),
     "filterResonanceSkew":      (0.05, 8.0, False, "filter"),
-    "resCouplingHz":            (40.0, 400.0, True, "filter"),
-    "filterResCouplingTrackHz": (0.0, 400.0, False, "filter"),
+    "resCouplingHz":            (60.0, 160.0, True, "filter"),  # in-loop HP; antto 70-140, Open303 150 (§11.3)
     "filterCapScale1":          (0.2, 4.0, True, "filter"),
     "filterCapScale2":          (0.2, 4.0, True, "filter"),
     "filterCapScale3":          (0.2, 4.0, True, "filter"),
@@ -110,7 +116,7 @@ MODEL_PARAMS = {
     "filterLadderInputScale":   (0.01, 0.4, True, "filter"),
     "filterInputCouplingHz":    (3.0, 60.0, True, "filter"),
     "filterOutputCouplingHz":   (6000.0, 40000.0, True, "filter"),
-    "filterPostHpHz":           (5.0, 60.0, True, "filter"),
+    "filterPostHpHz":           (5.0, 200.0, True, "filter"),  # also stands in for the VCA-input coupling (10 nF into BA662, tens-hundreds of Hz, §15.4)
     "filterNotchHz":            (2.0, 25.0, True, "filter"),
     "filterNotchBandwidthHz":   (1.0, 15.0, True, "filter"),
     "filterAllpassHz":          (4.0, 50.0, True, "filter"),
@@ -118,20 +124,27 @@ MODEL_PARAMS = {
     "cutoffBaseHz":             (50.0, 800.0, True, "cv"),
     "cutoffSpanOct":            (1.5, 7.0, False, "cv"),
     "cutoffTaperExp":           (0.5, 3.5, False, "cv"),
-    "envModOffsetOct":          (0.0, 2.5, False, "cv"),
-    "envModDepthOct":           (0.5, 7.0, False, "cv"),
+    "envModScaleC0":            (0.3, 1.5, False, "cv"),
+    "envModScaleC0Slope":       (2.0, 6.0, False, "cv"),
+    "envModScaleC1":            (0.3, 1.5, False, "cv"),
+    "envModScaleC1Slope":       (2.0, 6.0, False, "cv"),
+    "envModOffset":             (0.1, 0.5, False, "cv"),
+    "envModOffsetCutSlope":     (-0.2, 0.3, False, "cv"),
     "accentSweepDepthOct":      (0.0, 5.0, False, "cv"),
-    "accentVcaDepth":           (0.0, 2.5, False, "cv"),
+    "accentVcaDepth":           (0.0, 6.0, False, "cv"),
+    "accentChargeBaseSec":      (0.035, 0.065, True, "cv"),   # R46 x C13 +-30 %
+    "accentChargePotSec":       (0.030, 0.070, True, "cv"),   # VR4b x C13
+    "accentDischargeSec":       (0.07, 0.20, True, "cv"),
     # Envelopes / VCA
-    "vcfAttackMs":              (0.3, 20.0, True, "env"),
-    "vcaAttackMs":              (0.3, 20.0, True, "env"),
-    "vcfDecayMinSec":           (0.05, 0.8, True, "env"),
-    "vcfDecayMaxSec":           (0.8, 6.0, True, "env"),
-    "accentDecaySec":           (0.05, 0.8, True, "env"),
+    "vcfAttackMs":              (0.02, 1.0, True, "env"),
+    "vcaAttackMs":              (0.3, 8.0, True, "env"),     # VCA onset: few ms, R134/C41 2.2 ms (§15.2)
+    "vcfDecayMinSec":           (0.055, 0.10, True, "env"),   # tau, R136 x C62 (+-20 % caps)
+    "vcfDecayMaxSec":           (0.85, 1.35, True, "env"),    # tau, (R136 + VR6) x C62
+    "accentDecaySec":           (0.055, 0.10, True, "env"),
     "vegDecaySec":              (0.5, 10.0, True, "env"),
     "vcaGateOffMs":             (0.3, 20.0, True, "env"),
     "vcaGateOffAccentMs":       (0.3, 80.0, True, "env"),
-    "vcaGainSaturationDrive":   (0.1, 10.0, True, "env"),
+    "vcaGainSaturationDrive":   (0.0, 10.0, False, "env"),   # 0 = linear control law (default)
 }
 
 # Plugin-side front-panel parameters that the knob positions map onto.
@@ -360,6 +373,7 @@ def compute_features(x, spec):
     Sc = np.concatenate([np.zeros((S.shape[0], 1)), np.cumsum(S, axis=1)], axis=1)
     bands = Sc[:, spec.st_edges[1:]] - Sc[:, spec.st_edges[:-1]]
     return {
+        "y": x,
         "harm": db(harm * norm),
         "inter": db(inter * norm),
         "env": db(env),
@@ -392,6 +406,41 @@ def weighted_rms(e, w=None):
     if w is None:
         return float(np.sqrt(np.mean(e * e)))
     return float(np.sqrt(np.sum(w * e * e) / np.sum(w)))
+
+
+def wave_error(ref, y):
+    """Phase-aligned, per-frame-normalised waveform error (see docstring)."""
+    x, sr = ref.x, ref.sr
+    lo, hi = ref.wave_lo, ref.wave_hi
+    if hi - lo < 64:
+        return 0.0
+    P = sr / ref.f0
+    maxlag = int(math.ceil(P / 2)) + 1
+    seg = x[lo:hi]
+    # Integer lag by direct correlation over +-P/2, then parabolic refinement.
+    best, lags = None, np.arange(-maxlag, maxlag + 1)
+    c = np.array([np.dot(seg, y[lo - l:hi - l]) if lo - l >= 0 and hi - l <= len(y) else -np.inf for l in lags])
+    i = int(np.argmax(c))
+    frac = 0.0
+    if 0 < i < len(c) - 1 and np.isfinite(c[i - 1]) and np.isfinite(c[i + 1]):
+        den = c[i - 1] - 2 * c[i] + c[i + 1]
+        if den < 0:
+            frac = 0.5 * (c[i - 1] - c[i + 1]) / den
+    lag = lags[i] + frac
+    # Fractional shift of the render by `lag` samples (FFT phase ramp).
+    n = len(y)
+    Y = np.fft.rfft(y)
+    k = np.fft.rfftfreq(n)
+    ys = np.fft.irfft(Y * np.exp(-2j * np.pi * k * lag), n)[lo:hi]
+    fl = max(64, int(round(0.020 * sr)))
+    num = den = 0.0
+    for a in range(0, len(seg) - fl + 1, fl):
+        r, m = seg[a:a + fl], ys[a:a + fl]
+        mm = float(np.dot(m, m))
+        g = float(np.dot(r, m)) / mm if mm > 0 else 0.0
+        num += float(np.sum((r - g * m) ** 2))
+        den += float(np.dot(r, r))
+    return 10.0 * math.sqrt(num / den) if den > 0 else 0.0
 
 
 def local_bump(h, smooth_half):
@@ -524,7 +573,7 @@ class Problem:
         self.r = renderer
         self.args = args
         self.w = {"harm": args.w_harm, "inter": args.w_inter, "env": args.w_env, "stft": args.w_stft,
-                  "peak": args.w_peak}
+                  "peak": args.w_peak, "wave": args.w_wave}
         self.pool = ThreadPoolExecutor(max_workers=args.workers)
 
         # Per-reference analysis
@@ -536,6 +585,10 @@ class Problem:
             ref.spec = FeatureSpec(ref, ref.f0, args.fmax, 1 << int(math.ceil(math.log2(ref.n * 4))))
             ref.feat = compute_features(ref.x, ref.spec)
             ref.onset_ms, ref.gate_ms = detect_timing(ref)
+            # Waveform window: sustained part, 15 ms after onset to 5 ms
+            # before the gate closes (skips the VCA attack and release).
+            ref.wave_lo = int((ref.onset_ms + 15.0) * ref.sr / 1000.0)
+            ref.wave_hi = int((ref.onset_ms + ref.gate_ms - 5.0) * ref.sr / 1000.0)
             ref.has_peak = ref.digits["resonance"] >= 1
             ref.peak_k, ref.peak_lo, ref.peak_hi, ref.peak_ref_rel, ref.peak_weight = \
                 peak_window(ref.feat, ref.spec, has_peak=ref.has_peak)
@@ -563,11 +616,16 @@ class Problem:
         self.capscale_idx = [i for i, p in enumerate(self.params)
                              if p.kind == "model" and p.target in
                              ("filterCapScale1", "filterCapScale2", "filterCapScale3", "filterCapScale4")]
-        onset0 = float(np.median([r.onset_ms for r in refs]))
+        onset0 = max(0.0, float(np.median([r.onset_ms for r in refs])))
         gate0 = float(np.median([r.gate_ms for r in refs if not r.accent_step] or [r.gate_ms for r in refs]))
         self.timing_init = {"onsetMs": onset0, "gateMs": gate0}
         if not (only and "timing" not in only) and "timing" not in fixed:
-            self.params.append(Param("onsetMs", -8.0, 8.0, False, onset0, "timing", "timing"))
+            # Never below 0: a negative onset starts the render mid-attack, and
+            # the resulting step at sample 0 adds a broadband -6 dB/oct
+            # "harmonic" tail the hardware (trimmed ~1 ms before its onset)
+            # doesn't have -- the optimizer will happily use it to fake a
+            # faster VCA attack.
+            self.params.append(Param("onsetMs", 0.0, 8.0, False, max(0.0, onset0), "timing", "timing"))
             self.params.append(Param("gateMs", max(10.0, gate0 - 30), gate0 + 30, False, gate0, "timing", "timing"))
         self.u0 = np.array([p.to_unit(p.init) for p in self.params])
 
@@ -639,6 +697,7 @@ class Problem:
             "env": weighted_rms(e["env"]),
             "stft": weighted_rms(e["stft"]),
             "peak": weighted_rms(sim_rel - ref.peak_ref_rel, ref.peak_weight),
+            "wave": wave_error(ref, sf["y"]) if self.w["wave"] > 0 else 0.0,
         }
         cost = sum(self.w[k] * comp[k] for k in comp) / sum(self.w.values())
         return cost, comp
@@ -866,7 +925,7 @@ def summarize(problem, u, gain=None):
     per = [sample_stats(problem, ref, sf, d["gain_db"]) for ref, sf in zip(problem.refs, d["feats"])]
     agg = {k: float(np.mean([p[k] for p in per if not p.get("failed")]))
            for k in ("cost", "harm_within_1db", "harm_within_3db", "harm_within_6db", "harm_mean_abs_db")}
-    for comp in ("harm", "inter", "env", "stft"):
+    for comp in ("harm", "inter", "env", "stft", "wave"):
         agg[comp] = float(np.mean([p["components"][comp] for p in per if not p.get("failed")]))
     peak_costs = [p["components"]["peak"] for p, ref in zip(per, problem.refs) if ref.has_peak and not p.get("failed")]
     agg["peak"] = float(np.mean(peak_costs)) if peak_costs else 0.0
@@ -1061,6 +1120,8 @@ def main():
     ap.add_argument("--only", default="", help="comma list of groups/params to fit "
                     "(groups: osc, filter, cv, env, knobs, timing)")
     ap.add_argument("--fix", default="", help="comma list of groups/params to keep at their current value")
+    ap.add_argument("--include", default="",
+                    help="comma list of substrings; if given, only matching reference files are used")
     ap.add_argument("--exclude", default="",
                     help="comma list of substrings; matching reference files are left out of the fit")
     ap.add_argument("--accent", choices=("knob", "all", "none"), default="knob",
@@ -1078,6 +1139,8 @@ def main():
                     help="weight on the resonant-peak shape (height+width+implicit frequency) at "
                     "Resonance=max samples; deliberately > w-harm so a broadband harmonic fit can't "
                     "trade the peak away (see 2026-09 peak-vs-broadband tradeoff)")
+    ap.add_argument("--w-wave", type=float, default=0.0,
+                    help="weight on the phase-aligned, per-frame-normalised waveform comparison (0 = off)")
     ap.add_argument("--evaluate-only", action="store_true", help="score the current code, no fitting")
     ap.add_argument("--apply", action="store_true", help="write fitted defaults into src/core/SynthEngine.hpp")
     args = ap.parse_args()
@@ -1085,6 +1148,9 @@ def main():
     ref_paths = sorted(Path(args.refs).glob("*.wav"))
     excludes = [e for e in args.exclude.split(",") if e]
     ref_paths = [p for p in ref_paths if not any(e in p.name for e in excludes)]
+    includes = [e for e in args.include.split(",") if e]
+    if includes:
+        ref_paths = [p for p in ref_paths if any(e in p.name for e in includes)]
     refs = []
     for p in ref_paths:
         try:
@@ -1230,6 +1296,7 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
                      ("harm", "harmonic error (dB)"), ("peak", "resonant-peak shape error (dB)"),
                      ("inter", "inter-harmonic error (dB)"),
                      ("env", "envelope error (dB)"), ("stft", "spectrogram error (dB)"),
+                     ("wave", "aligned waveform error (10*sqrt(residual/ref))"),
                      ("harm_mean_abs_db", "mean |harmonic error| (dB)"),
                      ("harm_within_1db", "harmonics within 1 dB (%)"),
                      ("harm_within_3db", "harmonics within 3 dB (%)"),
@@ -1250,8 +1317,9 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
                      f"{sa['components']['peak']:.1f}" if ref.has_peak else "-",
                      f"{sa['components']['inter']:.1f}",
                      f"{sa['components']['env']:.1f}", f"{sa['components']['stft']:.1f}",
+                     f"{sa['components']['wave']:.1f}",
                      f"{sa['harm_within_3db']:.0f}%", f"{ref.tune_cents:+.1f}", f"{ref.drift_cents:.2f}"])
-    md.append(fmt_table(rows, ["sample", "before", "after", "harm", "peak", "inter", "env", "stft",
+    md.append(fmt_table(rows, ["sample", "before", "after", "harm", "peak", "inter", "env", "stft", "wave",
                                "harm ±3dB", "tuning (c)", "drift (c)"]))
     md.append("")
     md.append("### Resonant peak (Resonance=max samples)")

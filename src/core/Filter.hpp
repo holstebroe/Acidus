@@ -101,8 +101,8 @@ public:
     float processSample(float input, float cutoffHz, float resonance);
 
     // Tunables exposed as CLAP parameters for experimentation.
-    void setResCouplingHz(float hz) { resCouplingHz_ = hz; }           // plausible range 100-250 Hz
-    void setFeedbackGainCeiling(float k) { feedbackGainCeiling_ = k; } // plausible range 12-17
+    void setResCouplingHz(float hz) { resCouplingHz_ = hz; }           // plausible range 70-150 Hz (antto 122, Open303 150)
+    void setFeedbackGainCeiling(float k) { feedbackGainCeiling_ = k; } // plausible range 16-21 (see resonanceLimit below)
     void setPostFilterHpHz(float hz) { postFilterHpHz_ = hz; }         // plausible range 15-35 Hz
     void setNotchFreqHz(float hz) { notchFreqHz_ = hz; }               // plausible range 4-15 Hz
     void setNotchBandwidthHz(float hz) { notchBandwidthHz_ = hz; }     // plausible range 2-10 Hz
@@ -111,13 +111,13 @@ public:
     void setOutputCouplingHz(float hz) { outputCouplingHz_ = hz; }     // plausible range 10-25 kHz
 
     // Per-stage ladder pole-frequency scale, relative to the nominal cutoff
-    // (w_n = wc * capScaleN_). All default to 1.0 (coincident poles, the
-    // idealized equal-component approximation). The real ladder's poles are
-    // documented as unevenly spread (TB303_EMULATION_GUIDE.md: "4-pole
-    // diode ladder, spread pole frequencies"; TB303_RESEARCH_COMPENDIUM.md
-    // Sec6 gives illustrative normalized pole values -0.13/-1.04/-2.33/-3.24,
-    // explicitly flagged as unsourced, not a spec) -- these four let that
-    // spread be fit against a reference recording instead of guessed.
+    // (w_n = wc * capScaleN_). All default to 1.0, which is NOT "coincident
+    // poles": the coupled ladder equations below already contain the TB-303's
+    // half-size bottom capacitor (C18 = C/2), and with every scale at 1.0 the
+    // linear core is exactly Stinchcombe's H_tb(s), poles -0.128 / -1.038 /
+    // -2.325 / -3.236 wc (TB303_REFERENCE.md §10.2; reference test A1).
+    // Anything other than 1.0 is an unsourced departure from the schematic's
+    // 33/33/33/18 nF; kept only as experimental knobs.
     void setCapScale1(float s) { capScale1_ = s; } // plausible range 0.2-4.0
     void setCapScale2(float s) { capScale2_ = s; } // plausible range 0.2-4.0
     void setCapScale3(float s) { capScale3_ = s; } // plausible range 0.2-4.0
@@ -145,8 +145,24 @@ public:
     // ladder's self-oscillation ceiling, the same way the real feedback
     // loop does it, not from a post-hoc broadband multiply.
     void setResonanceSkew(float k) { resonanceSkew_ = k; }
-    void setFeedbackHeadroomHz(float hz) { feedbackHeadroomHz_ = hz; }
-    void setResCouplingTrackHz(float hz) { resCouplingTrackHz_ = hz; }
+
+    // Resonance limit, as a fraction of the loop's critical (self-oscillation)
+    // feedback gain at the current cutoff. The feedback applied at Resonance
+    // = 1 is min(feedbackGainCeiling_, resonanceLimit_ * k_crit(cutoff)),
+    // where k_crit comes from the linearised loop (ladder core + in-loop
+    // coupling high-pass). Around ~1 kHz and below, the ceiling is what
+    // binds and the loop's own coupling network sets how close it gets to
+    // oscillation, as in the hardware. At high cutoff, Stinchcombe's full
+    // model (§11.1) goes past threshold while hardware reports "no clean
+    // self-oscillation" (§12) -- this knob picks between the two:
+    //   < 1.0  never self-oscillates (0.98 = stays ~2 % below threshold)
+    //   > 1.0  allows nonlinearity-limited self-oscillation at the top
+    //   > ~1.08 off with the default 18.5 ceiling (the ceiling binds everywhere)
+    void setResonanceLimit(float r) { resonanceLimit_ = r; }
+
+    // Critical feedback gain of the linearised loop at this cutoff (exposed
+    // for tests/diagnostics).
+    float criticalFeedbackGain(float cutoffHz);
 
 private:
     double sampleRate_{44100.0};
@@ -182,11 +198,19 @@ private:
 
     float ladderInputScale_{0.05f};
 
-    static constexpr float kLadderCriticalGain_ = 17.0f;
-    static constexpr float kResonanceGainMargin_ = 0.90f;
-    float feedbackHeadroomHz_{6600.0f};
     float resonanceSkew_{3.0f};
-    float resCouplingTrackHz_{100.0f};
+    float resonanceLimit_{0.98f};
+
+    // Normalised ladder pole magnitudes (units of wc) for the current cap
+    // scales; recomputed only when a scale changes.
+    float polesForScales_[4]{-1.0f, -1.0f, -1.0f, -1.0f};
+    double poles_[4]{0.152241, 1.234633, 2.765367, 3.847759};
+    void updatePoles();
+
+    // k_crit cache, so the search only runs when cutoff/coupling change.
+    float kcCutoffHz_{-1.0f};
+    float kcCouplingHz_{-1.0f};
+    float kcValue_{17.0f};
 
     inline float skewResonance(float resNorm) const {
         if (std::abs(resonanceSkew_) < 1e-4f) return resNorm;
@@ -194,8 +218,8 @@ private:
     }
     static constexpr float kCutoffToOmegaScale_ = 0.70710678f; // 1/sqrt(2)
 
-    float resCouplingHz_{150.0f};
-    float feedbackGainCeiling_{kLadderCriticalGain_ * kResonanceGainMargin_};
+    float resCouplingHz_{100.0f};
+    float feedbackGainCeiling_{18.5f};
 
     // Defaults cross-checked against Open303's shipped, working values for
     // its equivalent (fixed, non-resonance-swept) stages -- see

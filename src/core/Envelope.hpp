@@ -9,7 +9,7 @@ public:
     ~Envelope() = default;
 
     void setSampleRate(double sampleRate);
-    void setDecay(float decayParam); // 0.0 to 1.0 -> 200ms to 2.5s
+    void setDecay(float decayParam); // 0.0 to 1.0 -> MEG tau 68 ms .. 1.07 s (A-taper pot)
 
     void setFaithfulAccentDecay(bool faithful) { faithfulAccentDecay_ = faithful; }
 
@@ -19,6 +19,16 @@ public:
     void setAttackTimesMs(float vcfMs, float vcaMs) { vcfAttackSec_ = vcfMs * 0.001f; vcaAttackSec_ = vcaMs * 0.001f; updateCoefficients(); }
     void setDecayRangeSec(float minSec, float maxSec) { vcfDecayMinSec_ = minSec; vcfDecayMaxSec_ = maxSec; setDecay(decayNorm_); }
     void setAccentDecaySec(float seconds) { accentDecaySec_ = seconds; updateCoefficients(); }
+
+    // Accent-sweep capacitor C13 (TB303_REFERENCE.md §16.2): charges from the
+    // accented MEG through D24 + R46 47k + the Resonance pot's second gang
+    // (VR4b, 0-50k with Resonance), discharges through the wiper and mixing
+    // resistor. Resonance sets the charge tau: 47 ms at min, ~97 ms at max.
+    void setAccentSweepResonance(float res) { accentSweepRes_ = res; }
+    void setAccentSweepTimes(float chargeBaseSec, float chargePotSec, float dischargeSec) {
+        accentChargeBaseSec_ = chargeBaseSec; accentChargePotSec_ = chargePotSec; accentDischargeSec_ = dischargeSec;
+        updateCoefficients();
+    }
 
     void noteOn(bool isAccent, bool isSlide, float accentKnob = 1.0f);
     void noteOff();
@@ -39,11 +49,11 @@ private:
     bool isAccent_{false};
     bool faithfulAccentDecay_{false};
 
-    float accentDecaySec_{0.20f};
-    float vcfAttackSec_{0.0035f};
+    float accentDecaySec_{0.068f};
+    float vcfAttackSec_{0.0001f};
     float vcaAttackSec_{0.003f};
-    float vcfDecayMinSec_{0.20f};
-    float vcfDecayMaxSec_{2.5f};
+    float vcfDecayMinSec_{0.068f};
+    float vcfDecayMaxSec_{1.068f};
     float decayNorm_{0.0f};
 
     float vcfDecayTimeSec_{0.20f};
@@ -61,6 +71,10 @@ private:
 
     float accentChargeCoeff_{0.0f};
     float accentDischargeCoeff_{0.0f};
+    float accentSweepRes_{0.0f};
+    float accentChargeBaseSec_{0.047f};
+    float accentChargePotSec_{0.050f};
+    float accentDischargeSec_{0.12f};
     float accentVcaCoeff_{0.0f};
 
     float vcfEnv_{0.0f};

@@ -24,6 +24,7 @@ public:
 
     float processNextSample();
     bool isSliding() const { return isSliding_; }
+    double getCurrentFreqHz() const { return currentFreq_; } // read-only probe for tests
 
     void resetFilterStates();
 
@@ -76,6 +77,8 @@ private:
     float sawShape_{0.05f};
 
     void recomputeSawLpfCoeff() {
+        // At or above ~0.45*fs the (unsourced) saw LPF is bypassed entirely.
+        if (sawLpfHz_ >= 0.45 * sampleRate_) { lpfSawCoeff_ = 1.0; return; }
         lpfSawCoeff_ = 1.0 - std::exp(-2.0 * 3.14159265358979323846 * static_cast<double>(sawLpfHz_) / sampleRate_);
     }
 

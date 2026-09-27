@@ -73,10 +73,11 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     env_.setAttackTimesMs(params_.vcfAttackMs, params_.vcaAttackMs);
     env_.setDecayRangeSec(params_.vcfDecayMinSec, params_.vcfDecayMaxSec);
     env_.setAccentDecaySec(params_.accentDecaySec);
+    env_.setAccentSweepResonance(params_.resonance);
+    env_.setAccentSweepTimes(params_.accentChargeBaseSec, params_.accentChargePotSec, params_.accentDischargeSec);
     osc_.setSawShaping(params_.oscSawLpfHz, params_.oscSawShape);
     filter_.setResonanceSkew(params_.filterResonanceSkew);
-    filter_.setFeedbackHeadroomHz(params_.filterFeedbackHeadroomHz);
-    filter_.setResCouplingTrackHz(params_.filterResCouplingTrackHz);
+    filter_.setResonanceLimit(params_.filterResonanceLimit);
 
     for (int i = 0; i < numFrames; ++i) {
         if (!env_.isActive() && !isNoteActive_) {
@@ -100,19 +101,22 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float accentNorm = std::min(std::max(params_.accent, 0.0f), 1.0f);
 
         float cTaper = std::pow(cNorm, params_.cutoffTaperExp);
-        float envModTaper = envModNorm;
 
         float cv_base = params_.cutoffSpanOct * cTaper;
-        float cv_offset = envModTaper * params_.envModOffsetOct;
 
-        // Env Mod's depth is set purely by the Env Mod pot, on every note --
-        // Accent never bypasses it. The real circuit's accent contribution
-        // to the filter is a separate, parallel Accent Sweep current
-        // injected at the same summing node (cv_accent, below), not a
-        // forced 100% Env Mod depth (TB303_RESEARCH_COMPENDIUM.md §9:
-        // Open303 "never overrides its envelope scaler on accent -- it only
-        // adds a separate, smaller, purely-accent-driven term on top").
-        float cv_envmod = envModTaper * vcfEnvVal * params_.envModDepthOct;
+        // Env Mod law (TB303_REFERENCE.md §13.1-13.2, Open303's fit of
+        // hardware measurements): the MEG enters the antilog converter in
+        // the octave domain, scaled by an Env-Mod- and Cutoff-dependent
+        // factor and offset so that raising Env Mod *lowers* the settled
+        // cutoff (Q9 bias shift) while the MEG peak lifts it. envScaler is
+        // non-zero at Env Mod = 0: the real 303 keeps a residual MEG sweep
+        // there (visible in the hardware samples as the resonant peak
+        // gliding down during a Env Mod = 0 note). Accent never overrides
+        // this; its sweep is the separate cv_accent term below.
+        float envScaler = (1.0f - cNorm) * (params_.envModScaleC0 + params_.envModScaleC0Slope * envModNorm)
+                        + cNorm * (params_.envModScaleC1 + params_.envModScaleC1Slope * envModNorm);
+        float envOffset = params_.envModOffset + params_.envModOffsetCutSlope * cNorm;
+        float cv_envmod = envScaler * (vcfEnvVal - envOffset);
 
         // Accent Sweep circuit: the Resonance pot's second gang blends
         // between the MEG reaching the filter almost directly (low
@@ -120,24 +124,19 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // 1uF-capacitor path (high Resonance -> curved, delayed "wow"/
         // "wapp"); the wiper should be able to reach (near-)all-direct or
         // (near-)all-capacitor at its travel extremes (compendium §9).
-        float directAccentPortion = (1.0f - resNorm) * vcfEnvVal;
-        float sweepCapPortion = resNorm * accentCapVal;
-        float accentSweepSignal = directAccentPortion + sweepCapPortion;
+        // Only the direct (R46-end) part is gated by the accent switch --
+        // MEG_acc exists only on accented steps. The C13 end is a capacitor
+        // voltage the wiper sees on every note: after an accent it is still
+        // discharging, so the following notes start higher (§16.2).
+        float directAccentPortion = noteAccent ? (1.0f - resNorm) * vcfEnvVal : 0.0f;
+        float accentSweepSignal = directAccentPortion + resNorm * accentCapVal;
+        float cv_accent = accentNorm * accentSweepSignal * params_.accentSweepDepthOct;
 
-        // The whole Accent Sweep path is gated by the same per-step accent
-        // switch as the MEG-decay override and the accent-VCA path (§9:
-        // "all sourced from the MEG through a switch that is only closed
-        // during accented steps") -- zero contribution to the filter on a
-        // non-accented note. The capacitor's own charge persists and decays
-        // between notes regardless (Envelope::accentCap_), ready for the
-        // next accented step -- that's what produces the documented rising
-        // peaks across consecutive accents (§9/§30).
-        float cv_accent = noteAccent ? (accentNorm * accentSweepSignal * params_.accentSweepDepthOct) : 0.0f;
-
-        float cv_total = cv_base + cv_offset + cv_envmod + cv_accent;
+        float cv_total = cv_base + cv_envmod + cv_accent;
 
         float effectiveCutoff = params_.cutoffBaseHz * std::pow(2.0f, cv_total);
         float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 15000.0f);
+        lastCutoffHz_ = totalCutoff;
 
         float filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
 
@@ -155,21 +154,26 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
             vcaControl += accentVcaVal * accentNorm * params_.accentVcaDepth;
         }
 
-        // BA662-style transconductance VCA: model the amplifier's own gain
-        // as a saturating function of its control current, not a hard
-        // linear multiply into the output stage (EMULATION_REFERENCE §23:
-        // "should not simply be output = input*envelope ... nonlinear
-        // current-to-gain behavior, saturation at high control levels,
-        // especially for high-level accented material"). The gain stage
-        // and the following signal-path buffer stage are two distinct
-        // nonlinearities, not one shared tanh.
+        // Control-current sum -> gain. vcaGainSaturationDrive > 0 bends the
+        // control-to-gain law into a tanh ceiling normalised to 1 at full
+        // VEG; at the old default (6.9) that ceiling sat on every normal
+        // note, so the accent term had no headroom left (+0.6 dB, where the
+        // hardware pair D2 c1r1 a0/a1 shows +7.8 dB). Default 0 = linear
+        // control law (TB303_REFERENCE.md §15.3: accent is a control-current
+        // sum); the saturation lives on the signal below.
         float driveNorm = vcaControl * params_.vcaGainSaturationDrive;
         float vcaGain = (params_.vcaGainSaturationDrive > 0.0f)
                             ? std::tanh(driveNorm) / std::tanh(std::max(params_.vcaGainSaturationDrive, 1e-6f))
                             : vcaControl;
 
+        // Smooth OTA-style soft ceiling on the signal. Must stay smooth
+        // through zero: the previous (x > 0 ? tanh(1.1x) : tanh(0.9x)) had a
+        // slope kink at every zero crossing, i.e. x + 0.1|x| at normal
+        // levels, which sprayed a -12 dB/oct comb of harmonics up to
+        // Nyquist -- audible as "harmonic noise" above a closed filter,
+        // where the hardware rolls off cleanly (test/resources c0r1).
         float xVal = filterOut * vcaGain;
-        float vcaSignal = (xVal > 0.0f) ? std::tanh(xVal * 1.1f) : std::tanh(xVal * 0.9f);
+        float vcaSignal = std::tanh(xVal);
 
         float drivenSignal = distortion_.processSample(vcaSignal, params_.drive);
         float finalSample = drivenSignal * params_.masterVolume;

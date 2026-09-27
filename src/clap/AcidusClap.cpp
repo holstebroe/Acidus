@@ -156,6 +156,9 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_FILTER_CAP_SCALE_3] = kCalibrationDefaults.filterCapScale3;
     paramValues_[PARAM_FILTER_CAP_SCALE_4] = kCalibrationDefaults.filterCapScale4;
     paramValues_[PARAM_FILTER_LADDER_INPUT_SCALE] = kCalibrationDefaults.filterLadderInputScale;
+    paramValues_[PARAM_FILTER_RES_LIMIT] = kCalibrationDefaults.filterResonanceLimit;
+    paramValues_[PARAM_ACCENT_VCA_DEPTH] = kCalibrationDefaults.accentVcaDepth;
+    paramValues_[PARAM_ACCENT_SWEEP_DEPTH] = kCalibrationDefaults.accentSweepDepthOct;
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
@@ -230,6 +233,9 @@ void AcidusClap::syncParamsToEngine() {
     params.filterCapScale3 = static_cast<float>(paramValues_[PARAM_FILTER_CAP_SCALE_3]);
     params.filterCapScale4 = static_cast<float>(paramValues_[PARAM_FILTER_CAP_SCALE_4]);
     params.filterLadderInputScale = static_cast<float>(paramValues_[PARAM_FILTER_LADDER_INPUT_SCALE]);
+    params.filterResonanceLimit = static_cast<float>(paramValues_[PARAM_FILTER_RES_LIMIT]);
+    params.accentVcaDepth = static_cast<float>(paramValues_[PARAM_ACCENT_VCA_DEPTH]);
+    params.accentSweepDepthOct = static_cast<float>(paramValues_[PARAM_ACCENT_SWEEP_DEPTH]);
 #endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
@@ -470,7 +476,7 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
         case PARAM_VCA_GAIN_SATURATION_DRIVE:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gain Saturation Drive");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
-            paramInfo->min_value = 0.1;
+            paramInfo->min_value = 0.0; // 0 = linear control law
             paramInfo->max_value = 10.0;
             paramInfo->default_value = kCalibrationDefaults.vcaGainSaturationDrive;
             break;
@@ -543,6 +549,36 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->min_value = 0.01;
             paramInfo->max_value = 0.4;
             paramInfo->default_value = kCalibrationDefaults.filterLadderInputScale;
+            break;
+        case PARAM_FILTER_RES_LIMIT:
+            // Max feedback at Resonance 1 as a fraction of the loop's critical
+            // (self-oscillation) gain at the current cutoff. Only binds at
+            // high cutoff: < 1 never self-oscillates (hardware reports), > 1
+            // lets the top of the sweep tip into nonlinearity-limited
+            // oscillation (Stinchcombe's model); above ~1.08 the fixed feedback
+            // ceiling binds everywhere, i.e. the limit is off.
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Resonance Limit");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 0.90;
+            paramInfo->max_value = 1.20;
+            paramInfo->default_value = kCalibrationDefaults.filterResonanceLimit;
+            break;
+        case PARAM_ACCENT_VCA_DEPTH:
+            // Accent term in the VCA control sum, x accented MEG (tau 68 ms)
+            // x Accent knob, relative to the normal VCA envelope.
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Accent VCA Depth");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 6.0;
+            paramInfo->default_value = kCalibrationDefaults.accentVcaDepth;
+            break;
+        case PARAM_ACCENT_SWEEP_DEPTH:
+            // Accent sweep into the cutoff, octaves at full Accent.
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Accent Sweep Depth");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 5.0;
+            paramInfo->default_value = kCalibrationDefaults.accentSweepDepthOct;
             break;
 
         case PARAM_DRIVE:
@@ -663,6 +699,10 @@ bool AcidusClap::paramsValueToText(clap_id paramId, double value, char* outBuffe
                || paramId == PARAM_FILTER_NOTCH_BANDWIDTH_HZ || paramId == PARAM_FILTER_ALLPASS_HZ
                || paramId == PARAM_FILTER_INPUT_COUPLING_HZ || paramId == PARAM_FILTER_OUTPUT_COUPLING_HZ) {
         snprintf(outBuffer, outBufferCapacity, "%.2f Hz", value);
+    } else if (paramId == PARAM_ACCENT_SWEEP_DEPTH) {
+        snprintf(outBuffer, outBufferCapacity, "%.2f oct", value);
+    } else if (paramId == PARAM_FILTER_RES_LIMIT) {
+        snprintf(outBuffer, outBufferCapacity, "%.3f x critical", value);
     } else if (paramId == PARAM_VEG_DECAY_SEC) {
         snprintf(outBuffer, outBufferCapacity, "%.2f s", value);
     } else if (paramId == PARAM_VCA_GATE_OFF_MS || paramId == PARAM_VCA_GATE_OFF_ACCENT_MS) {
