@@ -48,17 +48,24 @@ struct SynthParameters {
     float cutoffBaseHz{341.5f};          // SynthEngine.cpp - cutoff at knob minimum, no env (rescaled x0.43 when capScales returned to 1.0)
     float cutoffSpanOct{2.93f};       // SynthEngine.cpp - octaves swept by the Cutoff knob (settled Res-max peak ~370 Hz -> ~2.6 kHz; TB303_REFERENCE.md §13.3)
     float cutoffTaperExp{2.0f};          // SynthEngine.cpp - knob taper: cv = span * knob^exp
-    float envModOffsetOct{0.80735f};     // SynthEngine.cpp - static cutoff offset from the Env Mod pot
-    float envModDepthOct{3.17556f};          // SynthEngine.cpp - MEG sweep depth at full Env Mod
+    // Env Mod law, octaves per unit MEG: envScaler = (1-c)*(C0 + C0Slope*e) + c*(C1 + C1Slope*e),
+    // cutoff shift = envScaler * (MEG - (Offset + OffsetCutSlope*c)). Defaults are Open303's fit of
+    // hardware measurements (TB303_REFERENCE.md §13.2); non-zero at Env Mod 0 (residual sweep).
+    float envModScaleC0{0.737f};         // SynthEngine.cpp - envScaler at Cutoff min, Env Mod 0
+    float envModScaleC0Slope{3.774f};    // SynthEngine.cpp - envScaler increase per unit Env Mod, Cutoff min
+    float envModScaleC1{0.864f};         // SynthEngine.cpp - envScaler at Cutoff max, Env Mod 0
+    float envModScaleC1Slope{4.195f};    // SynthEngine.cpp - envScaler increase per unit Env Mod, Cutoff max
+    float envModOffset{0.2944f};         // SynthEngine.cpp - MEG level at which the Env Mod bias shift is neutral
+    float envModOffsetCutSlope{0.0483f}; // SynthEngine.cpp - envOffset increase at Cutoff max
     float accentSweepDepthOct{1.44827f};     // SynthEngine.cpp - Accent Sweep circuit depth at full Accent
     float accentVcaDepth{0.8f};          // SynthEngine.cpp - MEG->VCA bleed on accented notes
-    float oscSawLpfHz{14000.0f};         // Oscillator.cpp - saw-core bandwidth limit
-    float oscSawShape{-0.170989f};            // Oscillator.cpp - saw waveshaper 2nd-order curvature
-    float vcfAttackMs{3.59341f};             // Envelope.cpp - MEG attack time constant
+    float oscSawLpfHz{40000.0f};         // Oscillator.cpp - saw-core bandwidth limit; unsourced (TB303_REFERENCE.md §7.2), bypassed above 0.45*fs
+    float oscSawShape{0.0f};            // Oscillator.cpp - saw x - s*x^2 bend; unsourced (§7.2: "drop them"), 0 = clean ramp
+    float vcfAttackMs{0.1f};             // Envelope.cpp - MEG charge time constant (D37 + R152 100R into C62: ~0.1 ms, §14.1)
     float vcaAttackMs{3.0f};             // Envelope.cpp - VEG attack time constant
-    float vcfDecayMinSec{0.2f};          // Envelope.cpp - MEG decay at Decay knob minimum
-    float vcfDecayMaxSec{2.5f};          // Envelope.cpp - MEG decay at Decay knob maximum
-    float accentDecaySec{0.331401f};          // Envelope.cpp - MEG decay forced on accented notes
+    float vcfDecayMinSec{0.068f};        // Envelope.cpp - MEG decay tau at Decay min: R136 68k x C62 1uF (§14.1)
+    float vcfDecayMaxSec{1.068f};        // Envelope.cpp - MEG decay tau at Decay max: (68k + VR6 1M) x 1uF; A-taper law in between
+    float accentDecaySec{0.068f};        // Envelope.cpp - MEG decay tau on accented notes (VR6 shorted -> R136 alone)
     float filterResonanceSkew{3.0f};     // Filter.hpp - Resonance pot curve (exponential skew)
     float filterResonanceLimit{0.98f};   // Filter.hpp - max feedback as a fraction of the loop's critical gain (<1 never self-oscillates)
 };

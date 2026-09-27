@@ -16,8 +16,12 @@ void Envelope::setSampleRate(double sampleRate) {
 void Envelope::setDecay(float decayParam) {
     float norm = std::min(std::max(decayParam, 0.0f), 1.0f);
     decayNorm_ = norm;
-    // Exponential knob law between the two end-stop decay times.
-    vcfDecayTimeSec_ = vcfDecayMinSec_ * std::pow(vcfDecayMaxSec_ / vcfDecayMinSec_, norm);
+    // tau = C62 * (R136 + VR6(theta)), VR6 a 1M audio-taper pot:
+    // R(theta) = Rtot * (81^theta - 1) / 80 (10 % at mid-rotation;
+    // TB303_REFERENCE.md §14.1).
+    const float kTaper = 81.0f;
+    float potFrac = (std::pow(kTaper, norm) - 1.0f) / (kTaper - 1.0f);
+    vcfDecayTimeSec_ = vcfDecayMinSec_ + (vcfDecayMaxSec_ - vcfDecayMinSec_) * potFrac;
     updateCoefficients();
 }
 
@@ -75,7 +79,9 @@ void Envelope::processNextSample() {
     // 1. VCF Filter Envelope Processing
     if (vcfTarget_ > vcfEnv_) {
         vcfEnv_ += vcfAttackCoeff_ * (vcfTarget_ - vcfEnv_);
-        if (vcfEnv_ >= 0.99f) {
+        // C62 charges fully (tau ~0.1 ms) before the one-shot releases it.
+        if (vcfEnv_ >= 0.999f) {
+            vcfEnv_ = 1.0f;
             vcfTarget_ = 0.0f; // Transition smoothly to decay phase
         }
     } else {

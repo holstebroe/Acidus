@@ -9,7 +9,7 @@ public:
     ~Envelope() = default;
 
     void setSampleRate(double sampleRate);
-    void setDecay(float decayParam); // 0.0 to 1.0 -> 200ms to 2.5s
+    void setDecay(float decayParam); // 0.0 to 1.0 -> MEG tau 68 ms .. 1.07 s (A-taper pot)
 
     void setFaithfulAccentDecay(bool faithful) { faithfulAccentDecay_ = faithful; }
 
@@ -39,11 +39,11 @@ private:
     bool isAccent_{false};
     bool faithfulAccentDecay_{false};
 
-    float accentDecaySec_{0.20f};
-    float vcfAttackSec_{0.0035f};
+    float accentDecaySec_{0.068f};
+    float vcfAttackSec_{0.0001f};
     float vcaAttackSec_{0.003f};
-    float vcfDecayMinSec_{0.20f};
-    float vcfDecayMaxSec_{2.5f};
+    float vcfDecayMinSec_{0.068f};
+    float vcfDecayMaxSec_{1.068f};
     float decayNorm_{0.0f};
 
     float vcfDecayTimeSec_{0.20f};
