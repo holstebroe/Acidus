@@ -116,7 +116,7 @@ MODEL_PARAMS = {
     "filterLadderInputScale":   (0.01, 0.4, True, "filter"),
     "filterInputCouplingHz":    (3.0, 60.0, True, "filter"),
     "filterOutputCouplingHz":   (6000.0, 40000.0, True, "filter"),
-    "filterPostHpHz":           (5.0, 60.0, True, "filter"),
+    "filterPostHpHz":           (5.0, 200.0, True, "filter"),  # also stands in for the VCA-input coupling (10 nF into BA662, tens-hundreds of Hz, §15.4)
     "filterNotchHz":            (2.0, 25.0, True, "filter"),
     "filterNotchBandwidthHz":   (1.0, 15.0, True, "filter"),
     "filterAllpassHz":          (4.0, 50.0, True, "filter"),
@@ -134,7 +134,7 @@ MODEL_PARAMS = {
     "accentVcaDepth":           (0.0, 2.5, False, "cv"),
     # Envelopes / VCA
     "vcfAttackMs":              (0.02, 1.0, True, "env"),
-    "vcaAttackMs":              (0.3, 20.0, True, "env"),
+    "vcaAttackMs":              (0.3, 8.0, True, "env"),     # VCA onset: few ms, R134/C41 2.2 ms (§15.2)
     "vcfDecayMinSec":           (0.055, 0.10, True, "env"),   # tau, R136 x C62 (+-20 % caps)
     "vcfDecayMaxSec":           (0.85, 1.35, True, "env"),    # tau, (R136 + VR6) x C62
     "accentDecaySec":           (0.055, 0.10, True, "env"),
@@ -613,11 +613,16 @@ class Problem:
         self.capscale_idx = [i for i, p in enumerate(self.params)
                              if p.kind == "model" and p.target in
                              ("filterCapScale1", "filterCapScale2", "filterCapScale3", "filterCapScale4")]
-        onset0 = float(np.median([r.onset_ms for r in refs]))
+        onset0 = max(0.0, float(np.median([r.onset_ms for r in refs])))
         gate0 = float(np.median([r.gate_ms for r in refs if not r.accent_step] or [r.gate_ms for r in refs]))
         self.timing_init = {"onsetMs": onset0, "gateMs": gate0}
         if not (only and "timing" not in only) and "timing" not in fixed:
-            self.params.append(Param("onsetMs", -8.0, 8.0, False, onset0, "timing", "timing"))
+            # Never below 0: a negative onset starts the render mid-attack, and
+            # the resulting step at sample 0 adds a broadband -6 dB/oct
+            # "harmonic" tail the hardware (trimmed ~1 ms before its onset)
+            # doesn't have -- the optimizer will happily use it to fake a
+            # faster VCA attack.
+            self.params.append(Param("onsetMs", 0.0, 8.0, False, max(0.0, onset0), "timing", "timing"))
             self.params.append(Param("gateMs", max(10.0, gate0 - 30), gate0 + 30, False, gate0, "timing", "timing"))
         self.u0 = np.array([p.to_unit(p.init) for p in self.params])
 
