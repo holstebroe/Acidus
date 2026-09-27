@@ -144,7 +144,7 @@ MODEL_PARAMS = {
     "vegDecaySec":              (0.5, 10.0, True, "env"),
     "vcaGateOffMs":             (0.3, 20.0, True, "env"),
     "vcaGateOffAccentMs":       (0.3, 80.0, True, "env"),
-    "vcaGainSaturationDrive":   (0.1, 10.0, True, "env"),
+    "vcaGainSaturationDrive":   (0.0, 10.0, False, "env"),   # 0 = linear control law (default)
 }
 
 # Plugin-side front-panel parameters that the knob positions map onto.

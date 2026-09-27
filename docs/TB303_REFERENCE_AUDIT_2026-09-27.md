@@ -32,6 +32,45 @@ The exit code is the number of failed checks. **Before this audit: 11 pass, 25 f
     Below ~1 kHz the ceiling binds, so the loop's own coupling network sets the margin there, as in the hardware.
 - **Phase 1 items 4–5 are still open.** These are the single pre-ladder HP ≈ 44.5 Hz (C1) and the Open303 out-of-loop values with an explicit output inversion.
 
+### Status update 2 (hardware samples, later still)
+
+**Harmonic noise above a closed filter.** The cause was the VCA output stage `x > 0 ? tanh(1.1x) : tanh(0.9x)`. At normal levels that is `x + 0.1|x|`, and its slope kink at every zero crossing sprayed a −12 dB/oct harmonic comb up to Nyquist. It is now a smooth tanh. On A2 c0r1 our 2–4 / 4–8 kHz bands dropped from −64 / −78 dB to below the 303 recording's own noise floor.
+
+**Residual Env Mod sweep.** It was confirmed on hardware: at Env Mod 0 and Decay max, the A2 c1r1 resonant peak glides 3.35 → 3.0 kHz over the note. We now implement Open303's octave-domain Env Mod law (§13.2) and the sourced MEG timing (instant charge; τ 68 ms – 1.07 s on an A-taper law; 68 ms on accents). Our peak now tracks the hardware glide.
+
+**Accent.** Hardware pair D2 c1r1 a0/a1:
+
+| | Hardware | Before | After |
+|---|---|---|---|
+| Volume | +7.8 dB at the note start, decaying with τ ≈ 61 ms (the accented MEG) | +0.6 dB | within ~1 dB over the note |
+| Filter | delayed +1.2 oct rise at ~40 ms (C13) | — | +1.1 oct, somewhat faster fall-off |
+
+- **Cause:** the saturating VCA control law (`vcaGainSaturationDrive` 6.9) had left the accent term no headroom.
+- **Fix, VCA:** the control law is now linear (§15.3).
+- **Fix, C13 capacitor:** it is modelled per §16.2 (diode charge τ 47 + 50·Res ms, discharge 0.14 s, reaching the cutoff on every note).
+- **Fitted depths:** `accentVcaDepth` = 2.05, `accentSweepDepthOct` = 4.7. Both are exposed in the calibration build.
+- **Caveat:** the D2 normal note falls faster than the A2 notes at the same settings (Decay possibly not quite at max), so the sweep shape is only loosely pinned.
+
+**Tuning.** It was measured per file (harmonic fit and time-domain period, which agree within ~2 cents). The files are renamed to their measured `t` values: −40 … −43 cents, except A1/D2 at c0, which are ≈ −50 (another sitting).
+
+**Calibrator.**
+- New phase-aligned, per-frame-normalised waveform term (`--w-wave`) and `--include`.
+- The note-on offset can no longer go negative. A negative offset cut into the render, and the resulting step produced a fake −6 dB/oct tail that the fit had used to imitate a faster attack.
+
+**Fits on A2 c0r1 + c1r1.**
+
+| Run | What was free | Objective | Waveform error | Outcome |
+|---|---|---|---|---|
+| fit 2 | cutoff law and Env Mod law both free | 2.56 | — | moved the settled cutoff ~30 % below the reference; can't be separated from these Decay-max samples |
+| fit 3 | cutoff law frozen at the reference | 5.73 | — | the unit genuinely sits lower in cutoff |
+| **fit 4, applied** | reference Env Mod law; unit cutoff trim free | 2.61 | — | cutoff base 251 Hz / span 3.15 oct, taper 1 = exponential knob law (§13.2), ladder drive 0.0486, VCF input HP 45 Hz, post-filter HP 125 Hz (VCA-input coupling, §15.4) |
+
+- **Fit 4 as applied (unconstrained parameters left at their reference values):** objective 7.10 → **2.97**, waveform error 7.0 → 2.5, peak-shape error 8.0 → 1.0 dB.
+- **Remaining misses:**
+  - E2: this unit's cutoff minimum settles at 224 Hz, 5 % below the Open303 unit's ±25 % band.
+  - At 1–2 kHz on c0r1 we sit ~5 dB under the hardware. The likely cause is the input-pair saturation that the mirrored ladder lacks (S1).
+  - The VEG τ (D6) is untouched. The hardware notes look even flatter than τ = 1.5 s would give, so it needs its own look.
+
 ### On decision 2: is Stinchcombe the only source for the full coupling network?
 
 Yes, for the quantitative model. §11.1's 10-pole / 6-zero transfer function is his alone. It was validated against:

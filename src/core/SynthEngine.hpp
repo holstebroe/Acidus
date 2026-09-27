@@ -25,17 +25,17 @@ struct SynthParameters {
     float oscCouplingHz{44.5f};   // Oscillator.hpp - pre-filter HP; Open303 44.486 Hz (TB303_REFERENCE.md §11.3; hardware: none before the VCF)
     float resCouplingHz{100.0f};       // Filter.hpp - in-loop coupling HP; plausible range 70-150 Hz (antto 122, Open303 150)
     float filterFeedbackGain{18.5f};   // Filter.hpp - feedback ceiling at Resonance 1; puts max resonance ~x1.06 below threshold near 1 kHz (TB303_REFERENCE.md §11.2, reference test B8)
-    float filterPostHpHz{24.167f};   // Filter.hpp - out-of-loop HP; Open303 24.167 Hz, also stands in for the VCA-input coupling (§15.4)
+    float filterPostHpHz{125.0f};   // Filter.hpp - out-of-loop HP; Open303 24.167 Hz, also stands in for the VCA-input coupling (§15.4) (fitted 2026-09-27 to A2 c0r1/c1r1)
     float filterNotchHz{7.5164f};   // Filter.hpp - out-of-loop notch; Open303 7.5164 Hz
     float filterNotchBandwidthHz{4.7f};   // Filter.hpp - notch bandwidth; Open303 4.7
     float filterAllpassHz{14.008f};   // Filter.hpp - out-of-loop allpass; Open303 14.008 Hz
-    float filterInputCouplingHz{50.0f};   // Filter.hpp - VCF input coupling HP; ~50 Hz keeps the Res-0 low end on Stinchcombe (reference test B6)
+    float filterInputCouplingHz{45.0f};   // Filter.hpp - VCF input coupling HP (fitted 2026-09-27 to A2 c0r1/c1r1)
     float filterOutputCouplingHz{20000.0f};   // Filter.hpp - plausible range 10-25 kHz
     float filterCapScale1{1.0f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 1)
     float filterCapScale2{1.0f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 2)
     float filterCapScale3{1.0f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 3)
     float filterCapScale4{1.0f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 4)
-    float filterLadderInputScale{0.0551989f};   // Filter.hpp - plausible range 0.02-0.20 (ladder nonlinearity drive)
+    float filterLadderInputScale{0.0486f};   // Filter.hpp - plausible range 0.02-0.20 (ladder nonlinearity drive) (fitted 2026-09-27 to A2 c0r1/c1r1)
     float vegDecaySec{3.5f};           // Envelope.hpp - plausible range 2.5-5.0 s
     float vcaGateOffMs{3.44988f};          // Envelope.hpp - plausible range 1-5 ms (measured against hardware 2026-09-20, was 1ms)
     float vcaGateOffAccentMs{6.80945f};    // Envelope.hpp - plausible range 1-80 ms (measured against hardware 2026-09-20: no accent asymmetry found, was 50ms)
@@ -45,9 +45,9 @@ struct SynthParameters {
     // Previously hard-coded in the DSP; hoisted here so the reference-sample
     // calibrator (tools/calibrate_reference.py) can fit them. Not exposed as
     // CLAP parameters -- update these defaults with the calibrator's output.
-    float cutoffBaseHz{341.5f};          // SynthEngine.cpp - cutoff at knob minimum, no env (rescaled x0.43 when capScales returned to 1.0)
-    float cutoffSpanOct{2.93f};       // SynthEngine.cpp - octaves swept by the Cutoff knob (settled Res-max peak ~370 Hz -> ~2.6 kHz; TB303_REFERENCE.md §13.3)
-    float cutoffTaperExp{2.0f};          // SynthEngine.cpp - knob taper: cv = span * knob^exp
+    float cutoffBaseHz{251.0f};          // SynthEngine.cpp - cutoff at knob minimum, no env (rescaled x0.43 when capScales returned to 1.0) (fitted 2026-09-27 to A2 c0r1/c1r1)
+    float cutoffSpanOct{3.154f};       // SynthEngine.cpp - octaves swept by the Cutoff knob (settled Res-max peak ~370 Hz -> ~2.6 kHz; TB303_REFERENCE.md §13.3) (fitted 2026-09-27 to A2 c0r1/c1r1)
+    float cutoffTaperExp{1.0f};          // SynthEngine.cpp - knob taper, cv = span * knob^exp; 1 = exponential knob-to-Hz law (TB303_REFERENCE.md §13.2)
     // Env Mod law, octaves per unit MEG: envScaler = (1-c)*(C0 + C0Slope*e) + c*(C1 + C1Slope*e),
     // cutoff shift = envScaler * (MEG - (Offset + OffsetCutSlope*c)). Defaults are Open303's fit of
     // hardware measurements (TB303_REFERENCE.md §13.2); non-zero at Env Mod 0 (residual sweep).
