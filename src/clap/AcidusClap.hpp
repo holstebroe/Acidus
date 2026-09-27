@@ -86,8 +86,10 @@ enum ParamId : clap_id {
     PARAM_FILTER_RES_LIMIT = 27,                // Filter.hpp - max feedback as a fraction of the loop's critical gain
     PARAM_ACCENT_VCA_DEPTH = 28,                // SynthEngine.cpp - accent term in the VCA control sum
     PARAM_ACCENT_SWEEP_DEPTH = 29,              // SynthEngine.cpp - accent sweep depth into the cutoff, octaves
+    PARAM_VCA_RES_TAP_RATIO = 30,               // SynthEngine.cpp - filter->VCA wiper tap vs fixed tap (Resonance level balance)
+    PARAM_FILTER_LADDER_TOPOLOGY = 31,          // Filter.hpp - 0 = legacy mirrored ladder, 1 = circuit orientation
 
-    PARAM_EXPERIMENTAL_COUNT = 30,
+    PARAM_EXPERIMENTAL_COUNT = 32,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

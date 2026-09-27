@@ -71,6 +71,67 @@ The exit code is the number of failed checks. **Before this audit: 11 pass, 25 f
   - At 1–2 kHz on c0r1 we sit ~5 dB under the hardware. The likely cause is the input-pair saturation that the mirrored ladder lacks (S1).
   - The VEG τ (D6) is untouched. The hardware notes look even flatter than τ = 1.5 s would give, so it needs its own look.
 
+### Status update 3 (all 13 hardware samples, waveform term on)
+
+**Reference suite: 27 pass, 9 fail, 1 informational** (was 24 / 12).
+
+**Sample labels.** Five files contradicted their knob labels. They were renamed, and the evidence is in `test/resources/reference_resources.md`.
+- All `t-43` and `t-50/-51` notes were recorded at Decay **min**, not max: their resonant peak glides 3050 → 1900 Hz (or 350 → 215 Hz at c0) within 140 ms.
+- `D3 c1r1 a1` was an unaccented step.
+- Among other things, this means last round's D2 a0/a1 accent pair compared Decay-min and Decay-max notes.
+
+**Calibrator objective.**
+- Harmonic, inter-harmonic and band levels are now clamped at each recording's own measured noise floor.
+- Above ~2–4 kHz at Cutoff min the hardware notes are hiss (harmonic ≈ inter-harmonic level), and the old objective scored our clean roll-off below it as a harmonic deficit.
+- The mean harmonic error on the unchanged code fell from 6.0 to 2.7 dB from this fix alone.
+
+**Structural changes.**
+
+| Item | Change | Check |
+|---|---|---|
+| Slide (§6) | RC on the pitch CV in semitones, τ = 22 ms; no snap on note-off | C6 now passes |
+| Accent sweep (§16.2, option 1) | R46 / VR4b / C13 / 100 k mixing resistor solved as the circuit. At Resonance 0 the wiper sees ≈ 0.42 × MEG_acc; the old code used the full MEG, which made accented Res-0 notes 9–13 dB too loud | E10–E12 still pass |
+| Filter → VCA taps (§12, S7) | VCA input = filter out × (1 + r·Resonance). Fitted r = 1.59, between the two readings of the trace (0.45 or 2.2). Hardware: A2 c0r0 is only 1.4 dB louder than c0r1; the ladder alone gives ~7 dB | — |
+| Ladder orientation (§10.3, S1) | Circuit form (input pair tanh(x − k·y4), half cap on stage 1, terminal tanh(y4)) added as `filterLadderTopology` = 1, with a full-Newton solve | Linearly identical: A1/B-series match within 0.2 dB (`acidus_reference_test --ladder-topology 1`) |
+
+**Ladder orientation result.**
+- Fitted jointly with everything else, the circuit form scores **worse** (2.88 against 2.58–2.66).
+- It recovers ~2 dB at 0.8–1.6 kHz on every Cutoff-min note, a partial fix for the 1–2 kHz shortfall.
+- It loses on the resonant accented notes: the D2 c1r1 a1 peak-shape error rises from 2.5 to 5.7 dB.
+- **The default stays at 0**; the switch is exposed in the calibration build.
+
+**Fit applied** (fit 2; objective 3.72 → **2.58** once the label and noise-floor corrections are in, and 6.0 for the code this round started from):
+
+| Metric | Before | After |
+|---|---|---|
+| Waveform error | 4.38 | 3.58 |
+| Peak-shape error | 4.02 dB | 1.90 dB |
+| Envelope error | 5.2 dB | 4.0 dB |
+
+What moved, and the checks it affects:
+
+| Parameter | Value | Reference | Check |
+|---|---|---|---|
+| VEG τ | 2.16 s | 1.5 s (R123 × C42). This unit's notes lose only 0.3–0.7 dB in 140 ms | **D6 fails**, E8 at 3.3 dB (needs 3.5) |
+| VCA onset τ | 0.54 ms | "a few ms" | D7 passes |
+| Gate-off release | 1.1 ms normal, 2.4 ms accented | Open303: 1 / 50 ms. No long accent tail in these samples | — |
+| VCF input HP | 9.8 Hz | — | B5 now passes (+13.5 dB hump); **B6 fails** (+2.1 dB against −4.8). The lumped model cannot do both; the waveform term clearly prefers the low value (2.66 at 9.8 Hz against 2.89 at 45 Hz) |
+| Post-filter HP | 153 Hz | stands in for the VCA-input coupling (§15.4) | — |
+| Accent | sweep 5.0 oct per unit wiper voltage, VCA depth 1.54, R46·C13 at its −25 % bound (35 ms) | — | — |
+| Cutoff trim | base 248 Hz, span 3.16 oct | — | E2 still fails (222 Hz): this unit's trim |
+
+**MEG → VCA leak (E9).** Not added. The Decay-min notes (`t-43`) are flat within 0.6 dB over 140 ms while their filter falls 0.7 oct. Open303's 0.45·MEG would drop them ≈ 3.5 dB. This unit shows no such term, so E9 stays failing as a documented hardware disagreement.
+
+**Still open.**
+- Square wave (C3–C5): no square samples yet.
+- E7: the 15 / 18 kHz clamps and decimation.
+- The remaining 1–2 kHz shortfall at Cutoff min.
+- **Accented Res-0 notes** (A1/A2/D2 c0r0 a1) still carry the largest envelope errors (5–9 dB).
+  - They come out 4–7 dB louder than the hardware throughout the note, with the right decay shape.
+  - The resonant accent (D2 c1r1 a1) is within ~1–3 dB.
+  - All three measure −51 to −54 cents (the D2 c1r1 accent is −41), so they are probably from the Decay-min sitting. Its Accent knob may not have been at max, but relabelling them a5/a7 doesn't improve the joint fit, so the labels stand.
+  - A clean pair (same sitting, same note, Accent max, a0 and a1, Resonance 0 and max) would pin the accent VCA depth and sweep independently.
+
 ### On decision 2: is Stinchcombe the only source for the full coupling network?
 
 Yes, for the quantitative model. §11.1's 10-pole / 6-zero transfer function is his alone. It was validated against:

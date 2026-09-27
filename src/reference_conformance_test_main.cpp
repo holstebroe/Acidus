@@ -11,7 +11,7 @@
 // section of TB303_REFERENCE.md it comes from. Rows tagged INFO report a
 // number whose reference value is only an estimate ([E]/[I]) and never fail.
 //
-// Usage: acidus_reference_test [--fast]
+// Usage: acidus_reference_test [--fast] [--ladder-topology 0|1]
 //   --fast skips the slowest filter sweeps (oscillation-margin bisection).
 // Exit code: number of failed (non-INFO) checks.
 
@@ -26,6 +26,7 @@
 #include <complex>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <functional>
 #include <string>
 #include <vector>
@@ -77,6 +78,10 @@ bool inRange(double v, double lo, double hi) { return v >= lo && v <= hi; }
 // filter/oscillator/envelope tests run with exactly the shipped defaults.
 // ---------------------------------------------------------------------------
 
+// --ladder-topology N: run every check with that ladder orientation instead
+// of the shipped default (Filter.hpp setLadderTopology).
+int gLadderTopologyOverride = -1;
+
 void applyFilterParams(Filter& f, const SynthParameters& p) {
     f.setResCouplingHz(p.resCouplingHz);
     f.setFeedbackGainCeiling(p.filterFeedbackGain);
@@ -91,6 +96,7 @@ void applyFilterParams(Filter& f, const SynthParameters& p) {
     f.setCapScale3(p.filterCapScale3);
     f.setCapScale4(p.filterCapScale4);
     f.setLadderInputScale(p.filterLadderInputScale);
+    f.setLadderTopology(gLadderTopologyOverride >= 0 ? gLadderTopologyOverride : (p.filterLadderTopology >= 0.5f ? 1 : 0));
     f.setResonanceSkew(p.filterResonanceSkew);
     f.setResonanceLimit(p.filterResonanceLimit);
 }
@@ -253,6 +259,7 @@ Render renderEngine(const SynthParameters& p, double sr, std::vector<Ev> evs, do
     SynthEngine e;
     e.setSampleRate(sr);
     e.getParams() = p;
+    if (gLadderTopologyOverride >= 0) e.getParams().filterLadderTopology = static_cast<float>(gLadderTopologyOverride);
     std::sort(evs.begin(), evs.end(), [](const Ev& a, const Ev& b) { return a.t < b.t; });
     size_t n = static_cast<size_t>(dur * sr);
     Render r{std::vector<float>(n), std::vector<float>(n), sr};
@@ -889,6 +896,7 @@ int main(int argc, char** argv) {
     bool fast = false;
     for (int i = 1; i < argc; ++i)
         if (std::strcmp(argv[i], "--fast") == 0) fast = true;
+        else if (std::strcmp(argv[i], "--ladder-topology") == 0 && i + 1 < argc) gLadderTopologyOverride = std::atoi(argv[++i]);
 
     std::printf("Acidus reference-conformance tests (docs/TB-303 Reference/TB303_REFERENCE.md)\n");
     testLadderCore();

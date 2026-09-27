@@ -159,6 +159,8 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_FILTER_RES_LIMIT] = kCalibrationDefaults.filterResonanceLimit;
     paramValues_[PARAM_ACCENT_VCA_DEPTH] = kCalibrationDefaults.accentVcaDepth;
     paramValues_[PARAM_ACCENT_SWEEP_DEPTH] = kCalibrationDefaults.accentSweepDepthOct;
+    paramValues_[PARAM_VCA_RES_TAP_RATIO] = kCalibrationDefaults.vcaResTapRatio;
+    paramValues_[PARAM_FILTER_LADDER_TOPOLOGY] = kCalibrationDefaults.filterLadderTopology;
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
@@ -236,6 +238,8 @@ void AcidusClap::syncParamsToEngine() {
     params.filterResonanceLimit = static_cast<float>(paramValues_[PARAM_FILTER_RES_LIMIT]);
     params.accentVcaDepth = static_cast<float>(paramValues_[PARAM_ACCENT_VCA_DEPTH]);
     params.accentSweepDepthOct = static_cast<float>(paramValues_[PARAM_ACCENT_SWEEP_DEPTH]);
+    params.vcaResTapRatio = static_cast<float>(paramValues_[PARAM_VCA_RES_TAP_RATIO]);
+    params.filterLadderTopology = static_cast<float>(paramValues_[PARAM_FILTER_LADDER_TOPOLOGY]);
 #endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
@@ -577,8 +581,27 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Accent Sweep Depth");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 0.0;
-            paramInfo->max_value = 5.0;
+            paramInfo->max_value = 9.0;
             paramInfo->default_value = kCalibrationDefaults.accentSweepDepthOct;
+            break;
+        case PARAM_VCA_RES_TAP_RATIO:
+            // Filter -> VCA taps (TB303_REFERENCE.md §12): wiper tap relative
+            // to the fixed tap. Higher = Resonance-max notes louder relative
+            // to Resonance-min notes.
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Resonance Tap Ratio");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 3.0;
+            paramInfo->default_value = kCalibrationDefaults.vcaResTapRatio;
+            break;
+        case PARAM_FILTER_LADDER_TOPOLOGY:
+            // 0 = legacy mirrored ladder, 1 = circuit orientation (§10.3).
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Ladder Topology");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = kCalibrationDefaults.filterLadderTopology;
             break;
 
         case PARAM_DRIVE:

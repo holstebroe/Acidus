@@ -45,8 +45,8 @@ public:
         if (cents == tuningCents_) return;
         tuningCents_ = cents;
         if (heldNote_ >= 0) {
-            targetFreq_ = noteToFreq(heldNote_) * tuningRatio();
-            if (!isSliding_) currentFreq_ = targetFreq_;
+            targetPitch_ = heldNote_ + tuningCents_ / 100.0;
+            if (!isSliding_) currentPitch_ = targetPitch_;
         }
     }
 
@@ -55,15 +55,18 @@ private:
     Waveform waveform_{Waveform::Saw};
 
     double phase_{0.0};
+    // Pitch CV in semitones (MIDI note number + tuning). Slide is an RC on
+    // this CV, before the exponential converter (TB303_REFERENCE.md §6).
+    double currentPitch_{69.0};
+    double targetPitch_{69.0};
     double currentFreq_{440.0};
-    double targetFreq_{440.0};
+    double freqPitch_{69.0};   // pitch currentFreq_ was computed for
     bool isSliding_{false};
     double slideCoeff_{0.0};
 
     int heldNote_{-1};
     float tuningCents_{0.0f};
 
-    double tuningRatio() const { return std::pow(2.0, static_cast<double>(tuningCents_) / 1200.0); }
 
     double lpfSawCoeff_{0.0};
     double lpfSawState_{0.0};
@@ -86,8 +89,8 @@ private:
         couplingAlpha_ = std::exp(-2.0 * 3.14159265358979323846 * static_cast<double>(couplingHz_) / sampleRate_);
     }
 
-    static double noteToFreq(int note) {
-        return 440.0 * std::pow(2.0, (note - 69) / 12.0);
+    static double pitchToFreq(double pitch) {
+        return 440.0 * std::pow(2.0, (pitch - 69.0) / 12.0);
     }
 };
 
