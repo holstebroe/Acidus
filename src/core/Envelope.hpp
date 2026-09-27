@@ -20,6 +20,16 @@ public:
     void setDecayRangeSec(float minSec, float maxSec) { vcfDecayMinSec_ = minSec; vcfDecayMaxSec_ = maxSec; setDecay(decayNorm_); }
     void setAccentDecaySec(float seconds) { accentDecaySec_ = seconds; updateCoefficients(); }
 
+    // Accent-sweep capacitor C13 (TB303_REFERENCE.md §16.2): charges from the
+    // accented MEG through D24 + R46 47k + the Resonance pot's second gang
+    // (VR4b, 0-50k with Resonance), discharges through the wiper and mixing
+    // resistor. Resonance sets the charge tau: 47 ms at min, ~97 ms at max.
+    void setAccentSweepResonance(float res) { accentSweepRes_ = res; }
+    void setAccentSweepTimes(float chargeBaseSec, float chargePotSec, float dischargeSec) {
+        accentChargeBaseSec_ = chargeBaseSec; accentChargePotSec_ = chargePotSec; accentDischargeSec_ = dischargeSec;
+        updateCoefficients();
+    }
+
     void noteOn(bool isAccent, bool isSlide, float accentKnob = 1.0f);
     void noteOff();
 
@@ -61,6 +71,10 @@ private:
 
     float accentChargeCoeff_{0.0f};
     float accentDischargeCoeff_{0.0f};
+    float accentSweepRes_{0.0f};
+    float accentChargeBaseSec_{0.047f};
+    float accentChargePotSec_{0.050f};
+    float accentDischargeSec_{0.12f};
     float accentVcaCoeff_{0.0f};
 
     float vcfEnv_{0.0f};

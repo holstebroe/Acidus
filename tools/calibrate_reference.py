@@ -131,7 +131,10 @@ MODEL_PARAMS = {
     "envModOffset":             (0.1, 0.5, False, "cv"),
     "envModOffsetCutSlope":     (-0.2, 0.3, False, "cv"),
     "accentSweepDepthOct":      (0.0, 5.0, False, "cv"),
-    "accentVcaDepth":           (0.0, 2.5, False, "cv"),
+    "accentVcaDepth":           (0.0, 6.0, False, "cv"),
+    "accentChargeBaseSec":      (0.035, 0.065, True, "cv"),   # R46 x C13 +-30 %
+    "accentChargePotSec":       (0.030, 0.070, True, "cv"),   # VR4b x C13
+    "accentDischargeSec":       (0.07, 0.20, True, "cv"),
     # Envelopes / VCA
     "vcfAttackMs":              (0.02, 1.0, True, "env"),
     "vcaAttackMs":              (0.3, 8.0, True, "env"),     # VCA onset: few ms, R134/C41 2.2 ms (§15.2)

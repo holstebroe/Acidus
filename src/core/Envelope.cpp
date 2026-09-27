@@ -42,9 +42,9 @@ void Envelope::updateCoefficients() {
     vcaQuickDrainCoeff_       = std::exp(-1.0f / static_cast<float>(sampleRate_ * vcaGateOffSec_));
     vcaQuickDrainAccentCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * vcaGateOffAccentSec_));
 
-    // Accent Sweep RC (47 kOhm + 1 uF -> tau ~ 47ms)
-    accentChargeCoeff_    = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.047));
-    accentDischargeCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.047));
+    // Accent-sweep capacitor C13 discharge (charge tau depends on Resonance
+    // and is computed per sample in processNextSample).
+    accentDischargeCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * accentDischargeSec_));
 
     // Accent VCA RC smoothing (47 kOhm + 0.033 uF -> tau ~ 1.55ms)
     accentVcaCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.00155));
@@ -102,8 +102,13 @@ void Envelope::processNextSample() {
         vcaEnv_ *= isAccent_ ? vcaQuickDrainAccentCoeff_ : vcaQuickDrainCoeff_;
     }
 
-    // 3. Accent Sweep Capacitor Processing (1uF capacitor charge memory)
-    if (isAccent_ && gate_) {
+    // 3. Accent-sweep capacitor C13. D24 only conducts while the accented
+    // MEG is above the capacitor, so it charges through R46 + VR4b and
+    // otherwise discharges; the charge is never reset between notes.
+    if (isAccent_ && gate_ && vcfEnv_ > accentCap_) {
+        float res = std::min(std::max(accentSweepRes_, 0.0f), 1.0f);
+        float tauC = accentChargeBaseSec_ + accentChargePotSec_ * res;
+        accentChargeCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * tauC));
         accentCap_ += accentChargeCoeff_ * (vcfEnv_ - accentCap_);
     } else {
         accentCap_ *= accentDischargeCoeff_;
