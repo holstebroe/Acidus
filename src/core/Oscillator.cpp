@@ -38,8 +38,7 @@ void Oscillator::setSampleRate(double sampleRate) {
     double slideTimeSec = 0.060;
     slideCoeff_ = std::exp(-1.0 / (sampleRate_ * slideTimeSec));
 
-    double fcLpf = 14000.0;
-    lpfSawCoeff_ = 1.0 - std::exp(-2.0 * 3.14159265358979323846 * fcLpf / sampleRate_);
+    recomputeSawLpfCoeff();
 
     recomputeCouplingAlpha();
     resetFilterStates();
@@ -92,7 +91,7 @@ float Oscillator::processNextSample() {
         double rawSaw = 1.0 - 2.0 * phase_ + polyblep(phase_, phaseInc);
         lpfSawState_ += lpfSawCoeff_ * (rawSaw - lpfSawState_);
         double x = lpfSawState_;
-        raw = x - 0.05 * x * x;
+        raw = x - sawShape_ * x * x;
     } else {
         double duty = 0.45 + 0.25 * std::exp(-currentFreq_ / 180.0);
         duty = std::min(0.70, std::max(0.45, duty));

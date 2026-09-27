@@ -1,2 +1,6 @@
 build/
 dsp_test
+calibration_results/
+build-cal/
+__pycache__/
+calibration_results_*.log

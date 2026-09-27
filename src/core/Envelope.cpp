@@ -15,7 +15,9 @@ void Envelope::setSampleRate(double sampleRate) {
 
 void Envelope::setDecay(float decayParam) {
     float norm = std::min(std::max(decayParam, 0.0f), 1.0f);
-    vcfDecayTimeSec_ = 0.20f * std::pow(12.5f, norm);
+    decayNorm_ = norm;
+    // Exponential knob law between the two end-stop decay times.
+    vcfDecayTimeSec_ = vcfDecayMinSec_ * std::pow(vcfDecayMaxSec_ / vcfDecayMinSec_, norm);
     updateCoefficients();
 }
 
@@ -23,15 +25,15 @@ void Envelope::updateCoefficients() {
     float dt = 1.0f / static_cast<float>(sampleRate_);
 
     // VCF envelope attack/decay time constants
-    vcfAttackCoeff_ = 1.0f - std::exp(-dt / 0.0035f);
+    vcfAttackCoeff_ = 1.0f - std::exp(-dt / vcfAttackSec_);
     if (faithfulAccentDecay_ && isAccent_) {
-        vcfDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * kAccentDecayTimeSec));
+        vcfDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * accentDecaySec_));
     } else {
         vcfDecayCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * vcfDecayTimeSec_));
     }
 
     // VCA envelope attack/decay time constants
-    vcaAttackCoeff_           = 1.0f - std::exp(-dt / 0.003f);
+    vcaAttackCoeff_           = 1.0f - std::exp(-dt / vcaAttackSec_);
     vcaGateHighDecayCoeff_    = std::exp(-1.0f / static_cast<float>(sampleRate_ * vegDecaySec_));
     vcaQuickDrainCoeff_       = std::exp(-1.0f / static_cast<float>(sampleRate_ * vcaGateOffSec_));
     vcaQuickDrainAccentCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * vcaGateOffAccentSec_));

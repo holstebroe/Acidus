@@ -142,3 +142,15 @@ add_executable(acidus_gui_test
     src/gui_test_main.cpp
 )
 target_link_libraries(acidus_gui_test PRIVATE ${GUI_LIBS})
+
+# Shared library with a C ABI that tools/calibrate_reference.py loads through
+# ctypes to render candidate notes while fitting the model to hardware
+# reference samples (test/resources). Same DSP core as the plugin.
+add_library(acidus_calibration_render SHARED
+    ${CORE_SOURCES}
+    src/calibration/CalibrationRender.cpp
+)
+set_target_properties(acidus_calibration_render PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    PREFIX ""
+)
