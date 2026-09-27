@@ -35,8 +35,13 @@ Oscillator::Oscillator() {
 void Oscillator::setSampleRate(double sampleRate) {
     sampleRate_ = sampleRate;
 
-    double slideTimeSec = 0.060;
-    slideCoeff_ = std::exp(-1.0 / (sampleRate_ * slideTimeSec));
+    // Slide: C35 0.22 uF charged from the R-2R DAC's 100 k Thevenin
+    // resistance, tau = 22 ms, applied to the pitch CV in volts (1 V/oct),
+    // i.e. linear in semitones along an exponential approach
+    // (TB303_REFERENCE.md §6). Open303's 60 ms lag on frequency in Hz is a
+    // simplification: slower, and asymmetric between up and down.
+    const double slideTauSec = 0.022;
+    slideCoeff_ = std::exp(-1.0 / (sampleRate_ * slideTauSec));
 
     recomputeSawLpfCoeff();
 
@@ -52,11 +57,12 @@ void Oscillator::resetFilterStates() {
 
 void Oscillator::noteOn(int noteNumber, bool slide) {
     heldNote_ = noteNumber;
-    double freq = noteToFreq(noteNumber) * tuningRatio();
-    targetFreq_ = freq;
+    targetPitch_ = noteNumber + tuningCents_ / 100.0;
 
     if (!slide) {
-        currentFreq_ = targetFreq_;
+        // Slide off: C35 is driven straight from the op-amp, effectively
+        // instant.
+        currentPitch_ = targetPitch_;
         isSliding_ = false;
     } else {
         isSliding_ = true;
@@ -64,18 +70,24 @@ void Oscillator::noteOn(int noteNumber, bool slide) {
 }
 
 void Oscillator::noteOff() {
-    isSliding_ = false;
+    // The gate has no say over the pitch CV: a slide in progress keeps
+    // settling on the RC after note-off (no snap to the target), and the
+    // next un-slid note jumps.
 }
 
 float Oscillator::processNextSample() {
     if (isSliding_) {
-        currentFreq_ = targetFreq_ + (currentFreq_ - targetFreq_) * slideCoeff_;
-        if (std::abs(currentFreq_ - targetFreq_) < 0.001) {
-            currentFreq_ = targetFreq_;
+        currentPitch_ = targetPitch_ + (currentPitch_ - targetPitch_) * slideCoeff_;
+        if (std::abs(currentPitch_ - targetPitch_) < 1e-5) {
+            currentPitch_ = targetPitch_;
             isSliding_ = false;
         }
     } else {
-        currentFreq_ = targetFreq_;
+        currentPitch_ = targetPitch_;
+    }
+    if (currentPitch_ != freqPitch_) {
+        freqPitch_ = currentPitch_;
+        currentFreq_ = pitchToFreq(currentPitch_);
     }
 
     double phaseInc = currentFreq_ / sampleRate_;

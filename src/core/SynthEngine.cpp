@@ -67,6 +67,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     filter_.setCapScale3(params_.filterCapScale3);
     filter_.setCapScale4(params_.filterCapScale4);
     filter_.setLadderInputScale(params_.filterLadderInputScale);
+    filter_.setLadderTopology(params_.filterLadderTopology >= 0.5f ? 1 : 0);
     env_.setVegDecaySec(params_.vegDecaySec);
     env_.setVcaGateOffMs(params_.vcaGateOffMs);
     env_.setVcaGateOffAccentMs(params_.vcaGateOffAccentMs);
@@ -74,7 +75,8 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     env_.setDecayRangeSec(params_.vcfDecayMinSec, params_.vcfDecayMaxSec);
     env_.setAccentDecaySec(params_.accentDecaySec);
     env_.setAccentSweepResonance(params_.resonance);
-    env_.setAccentSweepTimes(params_.accentChargeBaseSec, params_.accentChargePotSec, params_.accentDischargeSec);
+    env_.setAccentSweepTimes(params_.accentChargeBaseSec, params_.accentChargePotSec, params_.accentMixSec);
+    env_.setAccentKnob(std::min(std::max(params_.accent, 0.0f), 1.0f));
     osc_.setSawShaping(params_.oscSawLpfHz, params_.oscSawShape);
     filter_.setResonanceSkew(params_.filterResonanceSkew);
     filter_.setResonanceLimit(params_.filterResonanceLimit);
@@ -91,7 +93,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         env_.processNextSample();
         float vcfEnvVal = env_.getVcfEnv();
         float vcaEnvVal = env_.getVcaEnv();
-        float accentCapVal = env_.getAccentCap();
+        float accentSweepVal = env_.getAccentSweep();
         float accentVcaVal = env_.getAccentVca();
         bool noteAccent = env_.isAccent();
 
@@ -118,19 +120,12 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float envOffset = params_.envModOffset + params_.envModOffsetCutSlope * cNorm;
         float cv_envmod = envScaler * (vcfEnvVal - envOffset);
 
-        // Accent Sweep circuit: the Resonance pot's second gang blends
-        // between the MEG reaching the filter almost directly (low
-        // Resonance -> sharp, fast filter "kick") and through the smoothed
-        // 1uF-capacitor path (high Resonance -> curved, delayed "wow"/
-        // "wapp"); the wiper should be able to reach (near-)all-direct or
-        // (near-)all-capacitor at its travel extremes (compendium §9).
-        // Only the direct (R46-end) part is gated by the accent switch --
-        // MEG_acc exists only on accented steps. The C13 end is a capacitor
-        // voltage the wiper sees on every note: after an accent it is still
-        // discharging, so the following notes start higher (§16.2).
-        float directAccentPortion = noteAccent ? (1.0f - resNorm) * vcfEnvVal : 0.0f;
-        float accentSweepSignal = directAccentPortion + resNorm * accentCapVal;
-        float cv_accent = accentNorm * accentSweepSignal * params_.accentSweepDepthOct;
+        // Accent sweep: the VR4b wiper voltage of the R46 / VR4b / C13 network
+        // (Envelope.hpp, TB303_REFERENCE.md §16.2), already scaled by the
+        // Accent knob. Low Resonance: a sharp kick of ~0.42 x MEG_acc; high
+        // Resonance: the delayed, rounded C13 bump ("wow"). C13's charge is
+        // seen on every note, so notes after an accent start higher.
+        float cv_accent = accentSweepVal * params_.accentSweepDepthOct;
 
         float cv_total = cv_base + cv_envmod + cv_accent;
 
@@ -172,7 +167,15 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // levels, which sprayed a -12 dB/oct comb of harmonics up to
         // Nyquist -- audible as "harmonic noise" above a closed filter,
         // where the hardware rolls off cleanly (test/resources c0r1).
-        float xVal = filterOut * vcaGain;
+        // Filter -> VCA through two AC-coupled taps (TB303_REFERENCE.md §12,
+        // audit S7): one from the top of the Resonance pot VR4a, one from its
+        // wiper. Resonance (a linear pot) therefore sends more signal to the
+        // VCA as it rises, partly offsetting the ladder's ~20 dB pass-band
+        // loss. This is the circuit's own level path, not a compensation
+        // stage: the hardware samples show only 1.4 dB between A2 c0r0 and
+        // c0r1, where the ladder alone gives ~7 dB.
+        float tapGain = (1.0f + params_.vcaResTapRatio * resNorm) / (1.0f + params_.vcaResTapRatio);
+        float xVal = filterOut * tapGain * vcaGain;
         float vcaSignal = std::tanh(xVal);
 
         float drivenSignal = distortion_.processSample(vcaSignal, params_.drive);

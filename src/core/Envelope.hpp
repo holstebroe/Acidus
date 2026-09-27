@@ -20,15 +20,22 @@ public:
     void setDecayRangeSec(float minSec, float maxSec) { vcfDecayMinSec_ = minSec; vcfDecayMaxSec_ = maxSec; setDecay(decayNorm_); }
     void setAccentDecaySec(float seconds) { accentDecaySec_ = seconds; updateCoefficients(); }
 
-    // Accent-sweep capacitor C13 (TB303_REFERENCE.md §16.2): charges from the
-    // accented MEG through D24 + R46 47k + the Resonance pot's second gang
-    // (VR4b, 0-50k with Resonance), discharges through the wiper and mixing
-    // resistor. Resonance sets the charge tau: 47 ms at min, ~97 ms at max.
+    // Accent-sweep network (TB303_REFERENCE.md §16.2), solved as the circuit:
+    //   MEG_acc -> D24 -> R46 47k -> VR4b (50k, Resonance gang B) -> C13 1uF -> gnd
+    //                                   wiper -> R_mix 100k -> cutoff summing node
+    // Resonance moves the wiper from the R46 end (0) to the C13 end (1).
+    // All resistances are given as time constants with C13 (R x 1 uF).
+    // getAccentSweep() is the wiper voltage, in MEG units: at Resonance 0 it
+    // jumps to ~0.42 x MEG_acc (the divider R46 / pot / R_mix) and follows
+    // C13 from there; at Resonance 1 it is C13 alone, charging towards
+    // ~0.51 x MEG_acc with tau ~49 ms. C13 discharges through the pot and
+    // R_mix (0.10-0.15 s) on every note, accented or not.
     void setAccentSweepResonance(float res) { accentSweepRes_ = res; }
-    void setAccentSweepTimes(float chargeBaseSec, float chargePotSec, float dischargeSec) {
-        accentChargeBaseSec_ = chargeBaseSec; accentChargePotSec_ = chargePotSec; accentDischargeSec_ = dischargeSec;
-        updateCoefficients();
+    void setAccentSweepTimes(float r46Sec, float potSec, float mixSec) {
+        accentR46Sec_ = r46Sec; accentPotSec_ = potSec; accentMixSec_ = mixSec;
     }
+    // Accent knob (VR7) level of MEG_acc feeding the sweep network.
+    void setAccentKnob(float k) { accentKnob_ = k; }
 
     void noteOn(bool isAccent, bool isSlide, float accentKnob = 1.0f);
     void noteOff();
@@ -37,7 +44,7 @@ public:
 
     float getVcfEnv() const { return vcfEnv_; }
     float getVcaEnv() const { return vcaEnv_; }
-    float getAccentCap() const { return accentCap_; }
+    float getAccentSweep() const { return accentWiper_; }
     float getAccentVca() const { return accentVca_; }
     bool isAccent() const { return isAccent_; }
     bool isActive() const { return gate_ || (vcaEnv_ > 0.0001f) || (vcfEnv_ > 0.0001f); }
@@ -69,12 +76,11 @@ private:
     float vcaGateOffSec_{0.001f};
     float vcaGateOffAccentSec_{0.05f};
 
-    float accentChargeCoeff_{0.0f};
-    float accentDischargeCoeff_{0.0f};
     float accentSweepRes_{0.0f};
-    float accentChargeBaseSec_{0.047f};
-    float accentChargePotSec_{0.050f};
-    float accentDischargeSec_{0.12f};
+    float accentKnob_{1.0f};
+    float accentR46Sec_{0.047f};
+    float accentPotSec_{0.050f};
+    float accentMixSec_{0.100f};
     float accentVcaCoeff_{0.0f};
 
     float vcfEnv_{0.0f};
@@ -83,7 +89,8 @@ private:
     float vcaEnv_{0.0f};
     float vcaTarget_{0.0f};
 
-    float accentCap_{0.0f};
+    float accentCap_{0.0f};     // C13 voltage (MEG units)
+    float accentWiper_{0.0f};   // VR4b wiper voltage into the summing node
     float accentVca_{0.0f};
 
     void updateCoefficients();

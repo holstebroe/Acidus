@@ -135,6 +135,16 @@ public:
     // gain unchanged as this is swept.
     void setLadderInputScale(float s) { ladderInputScale_ = s; } // plausible range 0.02-0.20 (default 0.05)
 
+    // Ladder orientation (audit S1, TB303_REFERENCE.md §10.3).
+    //   0: legacy mirrored form -- input stage tanh(u - v1), half capacitor
+    //      on the output stage, no terminal tanh.
+    //   1: circuit form -- the Q12 input pair saturates on tanh(u) with
+    //      u = input - feedback, half capacitor (C18) on stage 1, and the
+    //      top stage terminates in tanh(y4).
+    // Both are linearly identical (same poles, DC gain 1); only the large-
+    // signal behaviour differs.
+    void setLadderTopology(int t) { ladderTopology_ = t; }
+
     // Resonance-pot law and the resonance-dependent feedback/coupling terms.
     // Deliberately NOT a resonance-dependent output gain: TB303_EMULATION_
     // REFERENCE.md Sec60 documents passband/bass gain *falling* as
@@ -197,6 +207,7 @@ private:
     float capScale4_{1.0000f};
 
     float ladderInputScale_{0.05f};
+    int ladderTopology_{0};
 
     float resonanceSkew_{3.0f};
     float resonanceLimit_{0.98f};

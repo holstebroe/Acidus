@@ -25,6 +25,29 @@ inline void solveTridiagonal4(float a[4], const float bUp[3], const float cLow[3
     }
 }
 
+// Solve a dense 4x4 system with partial pivoting; A and b are overwritten.
+inline void solveDense4(float A[4][4], float b[4], float x[4]) {
+    for (int c = 0; c < 4; ++c) {
+        int piv = c;
+        for (int r = c + 1; r < 4; ++r)
+            if (std::abs(A[r][c]) > std::abs(A[piv][c])) piv = r;
+        if (piv != c) {
+            for (int k = 0; k < 4; ++k) std::swap(A[c][k], A[piv][k]);
+            std::swap(b[c], b[piv]);
+        }
+        for (int r = c + 1; r < 4; ++r) {
+            float w = A[r][c] / A[c][c];
+            for (int k = c; k < 4; ++k) A[r][k] -= w * A[c][k];
+            b[r] -= w * b[c];
+        }
+    }
+    for (int r = 3; r >= 0; --r) {
+        float acc = b[r];
+        for (int k = r + 1; k < 4; ++k) acc -= A[r][k] * x[k];
+        x[r] = acc / A[r][r];
+    }
+}
+
 } // namespace
 
 void Filter::updatePoles() {
@@ -163,56 +186,98 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
             return inSample - hpOut * kFb;
         };
 
-        float T1o = std::tanh((u0 - v1) * VtInv);
-        float T2o = std::tanh((v1 - v2) * VtInv);
-        float T3o = std::tanh((v2 - v3) * VtInv);
-        float T4o = std::tanh((v3 - v4) * VtInv);
-        float f1o = w1 * Vt * (T1o - T2o);
-        float f2o = w2 * Vt * (T2o - T3o);
-        float f3o = w3 * Vt * (T3o - T4o);
-        float f4o = 2.0f * w4 * Vt * T4o;
-
-        float k1 = v1 + h * f1o, k2 = v2 + h * f2o;
-        float k3 = v3 + h * f3o, k4 = v4 + h * f4o;
-
-        for (int iter = 0; iter < kNewtonIters; ++iter) {
-            float uk = feedbackFor(k4);
-            float T1 = std::tanh((uk - k1) * VtInv);
-            float T2 = std::tanh((k1 - k2) * VtInv);
-            float T3 = std::tanh((k2 - k3) * VtInv);
-            float T4 = std::tanh((k3 - k4) * VtInv);
-            float S1 = 1.0f - T1 * T1;
-            float S2 = 1.0f - T2 * T2;
-            float S3 = 1.0f - T3 * T3;
-            float S4 = 1.0f - T4 * T4;
-
-            float f1 = w1 * Vt * (T1 - T2);
-            float f2 = w2 * Vt * (T2 - T3);
-            float f3 = w3 * Vt * (T3 - T4);
-            float f4 = 2.0f * w4 * Vt * T4;
-
-            float R1 = k1 - v1 - 0.5f * h * (f1o + f1);
-            float R2 = k2 - v2 - 0.5f * h * (f2o + f2);
-            float R3 = k3 - v3 - 0.5f * h * (f3o + f3);
-            float R4 = k4 - v4 - 0.5f * h * (f4o + f4);
-
-            float hh = 0.5f * h;
-            float a[4] = {
-                1.0f + hh * w1 * (S1 + S2),
-                1.0f + hh * w2 * (S2 + S3),
-                1.0f + hh * w3 * (S3 + S4),
-                1.0f + hh * 2.0f * w4 * S4
+        float k1, k2, k3, k4;
+        if (ladderTopology_ == 1) {
+            // Circuit orientation (§10.3): input pair tanh(u), half capacitor
+            // on stage 1, terminal tanh(y4). Full Newton, including the
+            // feedback path's dependence on the new y4 (dense 4x4 solve).
+            auto rhs = [&](float u, float y1, float y2, float y3, float y4, float f[4]) {
+                float Tu = std::tanh(u * VtInv), T12 = std::tanh((y1 - y2) * VtInv);
+                float T23 = std::tanh((y2 - y3) * VtInv), T34 = std::tanh((y3 - y4) * VtInv);
+                float T4 = std::tanh(y4 * VtInv);
+                f[0] = 2.0f * w1 * Vt * (Tu - T12);
+                f[1] = w2 * Vt * (T12 - T23);
+                f[2] = w3 * Vt * (T23 - T34);
+                f[3] = w4 * Vt * (T34 - T4);
             };
-            float bUp[3] = { -hh * w1 * S2, -hh * w2 * S3, -hh * w3 * S4 };
-            float cLow[3] = { -hh * w2 * S2, -hh * w3 * S3, -hh * 2.0f * w4 * S4 };
-            float d[4] = { -R1, -R2, -R3, -R4 };
-            float delta[4];
-            solveTridiagonal4(a, bUp, cLow, d, delta);
+            float fo[4];
+            rhs(u0, v1, v2, v3, v4, fo);
+            k1 = v1 + h * fo[0]; k2 = v2 + h * fo[1];
+            k3 = v3 + h * fo[2]; k4 = v4 + h * fo[3];
+            const float dUdY4 = -kFb * resCouplingAlpha;
+            for (int iter = 0; iter < kNewtonIters; ++iter) {
+                float uk = feedbackFor(k4);
+                float Tu = std::tanh(uk * VtInv), T12 = std::tanh((k1 - k2) * VtInv);
+                float T23 = std::tanh((k2 - k3) * VtInv), T34 = std::tanh((k3 - k4) * VtInv);
+                float T4 = std::tanh(k4 * VtInv);
+                float Su = 1.0f - Tu * Tu, S12 = 1.0f - T12 * T12, S23 = 1.0f - T23 * T23;
+                float S34 = 1.0f - T34 * T34, S4 = 1.0f - T4 * T4;
+                float f[4] = {2.0f * w1 * Vt * (Tu - T12), w2 * Vt * (T12 - T23),
+                              w3 * Vt * (T23 - T34), w4 * Vt * (T34 - T4)};
+                float hh = 0.5f * h;
+                float b[4] = {-(k1 - v1 - hh * (fo[0] + f[0])), -(k2 - v2 - hh * (fo[1] + f[1])),
+                              -(k3 - v3 - hh * (fo[2] + f[2])), -(k4 - v4 - hh * (fo[3] + f[3]))};
+                float A[4][4] = {
+                    {1.0f + hh * 2.0f * w1 * S12, -hh * 2.0f * w1 * S12, 0.0f, -hh * 2.0f * w1 * Su * dUdY4},
+                    {-hh * w2 * S12, 1.0f + hh * w2 * (S12 + S23), -hh * w2 * S23, 0.0f},
+                    {0.0f, -hh * w3 * S23, 1.0f + hh * w3 * (S23 + S34), -hh * w3 * S34},
+                    {0.0f, 0.0f, -hh * w4 * S34, 1.0f + hh * w4 * (S34 + S4)}};
+                float delta[4];
+                solveDense4(A, b, delta);
+                k1 += delta[0]; k2 += delta[1]; k3 += delta[2]; k4 += delta[3];
+            }
+        } else {
+            float T1o = std::tanh((u0 - v1) * VtInv);
+            float T2o = std::tanh((v1 - v2) * VtInv);
+            float T3o = std::tanh((v2 - v3) * VtInv);
+            float T4o = std::tanh((v3 - v4) * VtInv);
+            float f1o = w1 * Vt * (T1o - T2o);
+            float f2o = w2 * Vt * (T2o - T3o);
+            float f3o = w3 * Vt * (T3o - T4o);
+            float f4o = 2.0f * w4 * Vt * T4o;
 
-            k1 += delta[0];
-            k2 += delta[1];
-            k3 += delta[2];
-            k4 += delta[3];
+            k1 = v1 + h * f1o; k2 = v2 + h * f2o;
+            k3 = v3 + h * f3o; k4 = v4 + h * f4o;
+
+            for (int iter = 0; iter < kNewtonIters; ++iter) {
+                float uk = feedbackFor(k4);
+                float T1 = std::tanh((uk - k1) * VtInv);
+                float T2 = std::tanh((k1 - k2) * VtInv);
+                float T3 = std::tanh((k2 - k3) * VtInv);
+                float T4 = std::tanh((k3 - k4) * VtInv);
+                float S1 = 1.0f - T1 * T1;
+                float S2 = 1.0f - T2 * T2;
+                float S3 = 1.0f - T3 * T3;
+                float S4 = 1.0f - T4 * T4;
+
+                float f1 = w1 * Vt * (T1 - T2);
+                float f2 = w2 * Vt * (T2 - T3);
+                float f3 = w3 * Vt * (T3 - T4);
+                float f4 = 2.0f * w4 * Vt * T4;
+
+                float R1 = k1 - v1 - 0.5f * h * (f1o + f1);
+                float R2 = k2 - v2 - 0.5f * h * (f2o + f2);
+                float R3 = k3 - v3 - 0.5f * h * (f3o + f3);
+                float R4 = k4 - v4 - 0.5f * h * (f4o + f4);
+
+                float hh = 0.5f * h;
+                float a[4] = {
+                    1.0f + hh * w1 * (S1 + S2),
+                    1.0f + hh * w2 * (S2 + S3),
+                    1.0f + hh * w3 * (S3 + S4),
+                    1.0f + hh * 2.0f * w4 * S4
+                };
+                float bUp[3] = { -hh * w1 * S2, -hh * w2 * S3, -hh * w3 * S4 };
+                float cLow[3] = { -hh * w2 * S2, -hh * w3 * S3, -hh * 2.0f * w4 * S4 };
+                float d[4] = { -R1, -R2, -R3, -R4 };
+                float delta[4];
+                solveTridiagonal4(a, bUp, cLow, d, delta);
+
+                k1 += delta[0];
+                k2 += delta[1];
+                k3 += delta[2];
+                k4 += delta[3];
+            }
         }
 
         if (std::isfinite(k1) && std::isfinite(k2) && std::isfinite(k3) && std::isfinite(k4)) {

@@ -46,6 +46,11 @@ How a match is scored (all errors are in dB, lower is better)
            10*sqrt(residual energy / reference energy): 0 = identical,
            3.2 = 10 % residual energy, 10 = no better than silence.
 The other features are deliberately insensitive to exact waveform phase.
+harm / inter / stft are clamped at the recording's own noise floor (the
+inter-harmonic level beside each harmonic; the quietest frame of each band):
+at low cutoff the hardware's upper bands are hiss, and a model that rolls off
+cleanly below it must not be scored as missing harmonics. `inter` therefore
+only counts content the model adds on top of the hardware's noise.
 
 Output (in --out, default calibration_results/<timestamp>/)
 ------------------------------------------------------------
@@ -130,20 +135,21 @@ MODEL_PARAMS = {
     "envModScaleC1Slope":       (2.0, 6.0, False, "cv"),
     "envModOffset":             (0.1, 0.5, False, "cv"),
     "envModOffsetCutSlope":     (-0.2, 0.3, False, "cv"),
-    "accentSweepDepthOct":      (0.0, 5.0, False, "cv"),
+    "accentSweepDepthOct":      (0.0, 9.0, False, "cv"),
     "accentVcaDepth":           (0.0, 6.0, False, "cv"),
     "accentChargeBaseSec":      (0.035, 0.065, True, "cv"),   # R46 x C13 +-30 %
     "accentChargePotSec":       (0.030, 0.070, True, "cv"),   # VR4b x C13
-    "accentDischargeSec":       (0.07, 0.20, True, "cv"),
+    "accentMixSec":             (0.07, 0.15, True, "cv"),     # R_mix x C13 (100k +-30 %)
     # Envelopes / VCA
     "vcfAttackMs":              (0.02, 1.0, True, "env"),
     "vcaAttackMs":              (0.3, 8.0, True, "env"),     # VCA onset: few ms, R134/C41 2.2 ms (§15.2)
     "vcfDecayMinSec":           (0.055, 0.10, True, "env"),   # tau, R136 x C62 (+-20 % caps)
     "vcfDecayMaxSec":           (0.85, 1.35, True, "env"),    # tau, (R136 + VR6) x C62
     "accentDecaySec":           (0.055, 0.10, True, "env"),
-    "vegDecaySec":              (0.5, 10.0, True, "env"),
+    "vegDecaySec":              (1.0, 6.0, True, "env"),      # R123 x C42 = 1.5 s (§15.1); hardware samples look flatter
     "vcaGateOffMs":             (0.3, 20.0, True, "env"),
     "vcaGateOffAccentMs":       (0.3, 80.0, True, "env"),
+    "vcaResTapRatio":           (0.0, 3.0, False, "env"),     # filter->VCA taps, §12: 100k/220k = 0.45 or reversed 2.2
     "vcaGainSaturationDrive":   (0.0, 10.0, False, "env"),   # 0 = linear control law (default)
 }
 
@@ -384,14 +390,40 @@ def compute_features(x, spec):
 FLOORS = {"harm": 80.0, "inter": 80.0, "env": 50.0, "stft": 70.0}
 
 
+def noise_floors(rf):
+    """The recording's own noise floor, per feature bin (dB). Above a few kHz
+    at low cutoff the hardware notes are hiss, not harmonics (harmonic and
+    inter-harmonic levels agree within ~1 dB), so a model that rolls off
+    cleanly below that must not be scored as a harmonic deficit.
+      harm:  the reference's inter-harmonic level on either side (same
+             bandwidth, f0/2), +3 dB
+      inter: the reference's own inter-harmonic level (only content the
+             model adds on top of the hardware's noise counts)
+      stft:  the quietest frame of each band (the silence around the note),
+             +3 dB"""
+    if "floors" in rf:
+        return rf["floors"]
+    inter = rf["inter"]
+    nb = np.concatenate([[inter[0]], inter])
+    na = np.concatenate([inter, [inter[-1]]])
+    harm_fl = 10 * np.log10(0.5 * (10 ** (nb / 10) + 10 ** (na / 10))) + 3.0
+    stft_fl = rf["stft"].min(axis=0) + 3.0
+    rf["floors"] = {"harm": harm_fl, "inter": inter.copy(), "stft": stft_fl[None, :]}
+    return rf["floors"]
+
+
 def feature_errors(rf, sf, gain_db, spec):
     """Per-feature error vectors (dB), both sides clamped at a floor relative
-    to the reference's own maximum so the fit doesn't chase the noise floor."""
+    to the reference's own maximum so the fit doesn't chase the noise floor,
+    and (harm / inter / stft) at the recording's measured noise floor."""
+    nf = noise_floors(rf)
     out = {}
     for key in ("harm", "inter", "env", "stft"):
         r = rf[key]
         s = sf[key] + gain_db
         fl = r.max() - FLOORS[key] if key != "inter" else rf["harm"].max() - FLOORS[key]
+        if key in nf:
+            fl = np.maximum(fl, nf[key])
         rc, sc = np.maximum(r, fl), np.maximum(s, fl)
         e = sc - rc
         if key in ("env", "stft"):
@@ -872,7 +904,7 @@ def sample_stats(problem, ref, sf, gain):
         return {"cost": cost, "failed": True}
     spec = ref.spec
     rh, sh = ref.feat["harm"], sf["harm"] + gain
-    fl = rh.max() - FLOORS["harm"]
+    fl = np.maximum(rh.max() - FLOORS["harm"], noise_floors(ref.feat)["harm"])
     valid = rh > fl
     e = np.maximum(sh, fl) - np.maximum(rh, fl)
     ev = e[valid]
@@ -882,7 +914,7 @@ def sample_stats(problem, ref, sf, gain):
               "err_db": round(float(e[k]), 1)} for k in order[:6]]
     # Content the model adds that the hardware doesn't have, above 4 kHz.
     ri, si = ref.feat["inter"], sf["inter"] + gain
-    fl_i = rh.max() - FLOORS["inter"]
+    fl_i = np.maximum(rh.max() - FLOORS["inter"], noise_floors(ref.feat)["inter"])
     ie = np.maximum(si, fl_i) - np.maximum(ri, fl_i)
     hf = spec.harm_freqs >= 4000
     excess = []

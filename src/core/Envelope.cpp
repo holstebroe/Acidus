@@ -42,10 +42,6 @@ void Envelope::updateCoefficients() {
     vcaQuickDrainCoeff_       = std::exp(-1.0f / static_cast<float>(sampleRate_ * vcaGateOffSec_));
     vcaQuickDrainAccentCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * vcaGateOffAccentSec_));
 
-    // Accent-sweep capacitor C13 discharge (charge tau depends on Resonance
-    // and is computed per sample in processNextSample).
-    accentDischargeCoeff_ = std::exp(-1.0f / static_cast<float>(sampleRate_ * accentDischargeSec_));
-
     // Accent VCA RC smoothing (47 kOhm + 0.033 uF -> tau ~ 1.55ms)
     accentVcaCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * 0.00155));
 }
@@ -102,16 +98,32 @@ void Envelope::processNextSample() {
         vcaEnv_ *= isAccent_ ? vcaQuickDrainAccentCoeff_ : vcaQuickDrainCoeff_;
     }
 
-    // 3. Accent-sweep capacitor C13. D24 only conducts while the accented
-    // MEG is above the capacitor, so it charges through R46 + VR4b and
-    // otherwise discharges; the charge is never reset between notes.
-    if (isAccent_ && gate_ && vcfEnv_ > accentCap_) {
-        float res = std::min(std::max(accentSweepRes_, 0.0f), 1.0f);
-        float tauC = accentChargeBaseSec_ + accentChargePotSec_ * res;
-        accentChargeCoeff_ = 1.0f - std::exp(-1.0f / static_cast<float>(sampleRate_ * tauC));
-        accentCap_ += accentChargeCoeff_ * (vcfEnv_ - accentCap_);
-    } else {
-        accentCap_ *= accentDischargeCoeff_;
+    // 3. Accent-sweep network (see Envelope.hpp). MEG_acc only exists on
+    // accented steps while the gate is high. Ideal diode: D24 conducts when
+    // MEG_acc is above the voltage the network would sit at without it.
+    {
+        const double res = std::min(std::max(static_cast<double>(accentSweepRes_), 0.0), 1.0);
+        const double rS = accentR46Sec_ + res * accentPotSec_;           // R46 + upper pot section
+        const double rBot = (1.0 - res) * accentPotSec_;                 // lower pot section to C13
+        const double rMix = accentMixSec_;
+        const double vMeg = (isAccent_ && gate_) ? accentKnob_ * vcfEnv_ : 0.0;
+        const double vc = accentCap_;
+        const double vOff = vc * rMix / (rMix + rBot);                   // wiper with D24 off
+        double a, b;                                                     // dVc/dt = a - b*Vc
+        double vw;
+        if (vMeg > vOff) {
+            const double den = 1.0 + rBot / rS + rBot / rMix;
+            a = vMeg / rS / den;
+            b = (1.0 / rS + 1.0 / rMix) / den;
+            vw = (rBot > 0.0) ? (vMeg / rS + vc / rBot) / (1.0 / rS + 1.0 / rMix + 1.0 / rBot) : vc;
+        } else {
+            a = 0.0;
+            b = 1.0 / (rMix + rBot);
+            vw = vOff;
+        }
+        const double k = 1.0 - std::exp(-b / sampleRate_);
+        accentCap_ = static_cast<float>(vc + k * (a / b - vc));
+        accentWiper_ = static_cast<float>(vw);
     }
 
     // 4. Accent VCA control path smoothing

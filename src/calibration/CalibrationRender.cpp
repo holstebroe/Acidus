@@ -59,6 +59,8 @@ const ParamEntry kParams[] = {
     ACIDUS_PARAM(vcaGateOffMs),
     ACIDUS_PARAM(vcaGateOffAccentMs),
     ACIDUS_PARAM(vcaGainSaturationDrive),
+    ACIDUS_PARAM(vcaResTapRatio),
+    ACIDUS_PARAM(filterLadderTopology),
     // Offline-calibration constants
     ACIDUS_PARAM(cutoffBaseHz),
     ACIDUS_PARAM(cutoffSpanOct),
@@ -73,7 +75,7 @@ const ParamEntry kParams[] = {
     ACIDUS_PARAM(accentVcaDepth),
     ACIDUS_PARAM(accentChargeBaseSec),
     ACIDUS_PARAM(accentChargePotSec),
-    ACIDUS_PARAM(accentDischargeSec),
+    ACIDUS_PARAM(accentMixSec),
     ACIDUS_PARAM(oscSawLpfHz),
     ACIDUS_PARAM(oscSawShape),
     ACIDUS_PARAM(vcfAttackMs),
