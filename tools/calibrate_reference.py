@@ -99,10 +99,8 @@ MODEL_PARAMS = {
     # already rejected by Problem._job's isfinite/amplitude check, so the
     # bound itself doesn't need to pre-guess where that line is.
     "filterFeedbackGain":       (6.0, 30.0, False, "filter"),
-    "filterFeedbackHeadroomHz": (0.0, 20000.0, False, "filter"),
     "filterResonanceSkew":      (0.05, 8.0, False, "filter"),
     "resCouplingHz":            (40.0, 400.0, True, "filter"),
-    "filterResCouplingTrackHz": (0.0, 400.0, False, "filter"),
     "filterCapScale1":          (0.2, 4.0, True, "filter"),
     "filterCapScale2":          (0.2, 4.0, True, "filter"),
     "filterCapScale3":          (0.2, 4.0, True, "filter"),

@@ -75,8 +75,7 @@ const ParamEntry kParams[] = {
     ACIDUS_PARAM(vcfDecayMaxSec),
     ACIDUS_PARAM(accentDecaySec),
     ACIDUS_PARAM(filterResonanceSkew),
-    ACIDUS_PARAM(filterFeedbackHeadroomHz),
-    ACIDUS_PARAM(filterResCouplingTrackHz),
+    ACIDUS_PARAM(filterResonanceLimit),
 };
 
 #undef ACIDUS_PARAM

@@ -75,8 +75,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     env_.setAccentDecaySec(params_.accentDecaySec);
     osc_.setSawShaping(params_.oscSawLpfHz, params_.oscSawShape);
     filter_.setResonanceSkew(params_.filterResonanceSkew);
-    filter_.setFeedbackHeadroomHz(params_.filterFeedbackHeadroomHz);
-    filter_.setResCouplingTrackHz(params_.filterResCouplingTrackHz);
+    filter_.setResonanceLimit(params_.filterResonanceLimit);
 
     for (int i = 0; i < numFrames; ++i) {
         if (!env_.isActive() && !isNoteActive_) {

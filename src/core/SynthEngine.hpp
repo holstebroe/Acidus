@@ -23,18 +23,18 @@ struct SynthParameters {
     // Exposed as CLAP parameters only in a ACIDUS_CALIBRATION_BUILD; a
     // Release build keeps these at their defaults (see AcidusClap.hpp).
     float oscCouplingHz{120.0f};        // Oscillator.hpp - plausible range 30-60 Hz
-    float resCouplingHz{69.4202f};       // Filter.hpp - plausible range 100-250 Hz
-    float filterFeedbackGain{17.0415f};   // Filter.hpp - plausible range 12-17
+    float resCouplingHz{100.0f};       // Filter.hpp - in-loop coupling HP; plausible range 70-150 Hz (antto 122, Open303 150)
+    float filterFeedbackGain{18.5f};   // Filter.hpp - feedback ceiling at Resonance 1; puts max resonance ~x1.06 below threshold near 1 kHz (TB303_REFERENCE.md §11.2, reference test B8)
     float filterPostHpHz{5.0f};        // Filter.hpp - plausible range 15-35 Hz
     float filterNotchHz{7.5164f};         // Filter.hpp - plausible range 4-15 Hz
     float filterNotchBandwidthHz{4.7f};   // Filter.hpp - plausible range 2-10 Hz
     float filterAllpassHz{24.3309f};       // Filter.hpp - plausible range 8-25 Hz
     float filterInputCouplingHz{59.8661f};       // Filter.hpp - plausible range 10-30 Hz
     float filterOutputCouplingHz{20000.0f};   // Filter.hpp - plausible range 10-25 kHz
-    float filterCapScale1{0.27655f};       // Filter.hpp - plausible range 0.2-4.0 (ladder pole-frequency spread, stage 1)
-    float filterCapScale2{0.712276f};       // Filter.hpp - plausible range 0.2-4.0 (ladder pole-frequency spread, stage 2)
-    float filterCapScale3{0.341049f};       // Filter.hpp - plausible range 0.2-4.0 (ladder pole-frequency spread, stage 3)
-    float filterCapScale4{0.530458f};       // Filter.hpp - plausible range 0.2-4.0 (ladder pole-frequency spread, stage 4)
+    float filterCapScale1{1.0f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 1)
+    float filterCapScale2{1.0f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 2)
+    float filterCapScale3{1.0f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 3)
+    float filterCapScale4{1.0f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 4)
     float filterLadderInputScale{0.0551989f};   // Filter.hpp - plausible range 0.02-0.20 (ladder nonlinearity drive)
     float vegDecaySec{3.5f};           // Envelope.hpp - plausible range 2.5-5.0 s
     float vcaGateOffMs{3.44988f};          // Envelope.hpp - plausible range 1-5 ms (measured against hardware 2026-09-20, was 1ms)
@@ -45,8 +45,8 @@ struct SynthParameters {
     // Previously hard-coded in the DSP; hoisted here so the reference-sample
     // calibrator (tools/calibrate_reference.py) can fit them. Not exposed as
     // CLAP parameters -- update these defaults with the calibrator's output.
-    float cutoffBaseHz{797.557f};          // SynthEngine.cpp - cutoff at knob minimum, no env
-    float cutoffSpanOct{3.19599f};       // SynthEngine.cpp - octaves swept by the Cutoff knob
+    float cutoffBaseHz{341.5f};          // SynthEngine.cpp - cutoff at knob minimum, no env (rescaled x0.43 when capScales returned to 1.0)
+    float cutoffSpanOct{2.93f};       // SynthEngine.cpp - octaves swept by the Cutoff knob (settled Res-max peak ~370 Hz -> ~2.6 kHz; TB303_REFERENCE.md §13.3)
     float cutoffTaperExp{2.0f};          // SynthEngine.cpp - knob taper: cv = span * knob^exp
     float envModOffsetOct{0.80735f};     // SynthEngine.cpp - static cutoff offset from the Env Mod pot
     float envModDepthOct{3.17556f};          // SynthEngine.cpp - MEG sweep depth at full Env Mod
@@ -60,8 +60,7 @@ struct SynthParameters {
     float vcfDecayMaxSec{2.5f};          // Envelope.cpp - MEG decay at Decay knob maximum
     float accentDecaySec{0.331401f};          // Envelope.cpp - MEG decay forced on accented notes
     float filterResonanceSkew{3.0f};     // Filter.hpp - Resonance pot curve (exponential skew)
-    float filterFeedbackHeadroomHz{21.402f}; // Filter.hpp - low-cutoff feedback-gain compensation numerator
-    float filterResCouplingTrackHz{31.1379f};  // Filter.cpp - resonance-dependent shift of the feedback coupling pole
+    float filterResonanceLimit{0.98f};   // Filter.hpp - max feedback as a fraction of the loop's critical gain (<1 never self-oscillates)
 };
 
 class SynthEngine {

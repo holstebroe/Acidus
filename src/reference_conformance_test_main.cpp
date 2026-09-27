@@ -92,8 +92,7 @@ void applyFilterParams(Filter& f, const SynthParameters& p) {
     f.setCapScale4(p.filterCapScale4);
     f.setLadderInputScale(p.filterLadderInputScale);
     f.setResonanceSkew(p.filterResonanceSkew);
-    f.setFeedbackHeadroomHz(p.filterFeedbackHeadroomHz);
-    f.setResCouplingTrackHz(p.filterResCouplingTrackHz);
+    f.setResonanceLimit(p.filterResonanceLimit);
 }
 
 void applyOscParams(Oscillator& o, const SynthParameters& p) {
@@ -373,7 +372,7 @@ void testLadderCore() {
     run("A1", "Solver control: equal cap scales (1,1,1,1), couplings removed",
         [](Filter& f) { neutralizeCouplings(f); }, true);
     SynthParameters p;
-    run("A2", "Shipped defaults: calibrated capScale1..4, couplings removed",
+    run("A2", "Shipped defaults: capScale1..4 as shipped, couplings removed",
         [p](Filter& f) { applyFilterParams(f, p); neutralizeCouplings(f); }, false);
 }
 
@@ -468,7 +467,7 @@ void testResonanceLoop(bool fast) {
             auto stableAt = [&](double m) {
                 SynthParameters q = p;
                 q.filterFeedbackGain = static_cast<float>(p.filterFeedbackGain * m);
-                q.filterFeedbackHeadroomHz = static_cast<float>(p.filterFeedbackHeadroomHz * m);
+                q.filterResonanceLimit = static_cast<float>(p.filterResonanceLimit * m);
                 return filterIsStable([q](Filter& f) { applyFilterParams(f, q); }, sr, cut, 1.0f);
             };
             if (stableAt(hi)) {
@@ -505,7 +504,7 @@ void testResonanceLoop(bool fast) {
             auto stableAt = [&](double m) {
                 SynthParameters q = p;
                 q.filterFeedbackGain = static_cast<float>(p.filterFeedbackGain * m);
-                q.filterFeedbackHeadroomHz = static_cast<float>(p.filterFeedbackHeadroomHz * m);
+                q.filterResonanceLimit = static_cast<float>(p.filterResonanceLimit * m);
                 return filterIsStable([q](Filter& f) { applyFilterParams(f, q); }, sr, c, 1.0f);
             };
             double lo = 0.25, hi = 4.0, m;

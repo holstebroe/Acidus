@@ -10,7 +10,42 @@ cmake --build build --target acidus_reference_test
 ./build/acidus_reference_test          # ~50 s; --fast skips the margin sweeps (B8, B9)
 ```
 
-The exit code is the number of failed checks. **Current code: 11 pass, 25 fail, 1 informational.** The full table is at the end.
+The exit code is the number of failed checks. **Before this audit: 11 pass, 25 fail. After the Phase 1 loop fix (below): 15 pass, 21 fail, 1 informational.** The full table is at the end.
+
+### Status update (later on 2026-09-27)
+
+- **Phase 1, items 1–3 are done.**
+  - Cap scales are back to 1.0 and the in-loop HP is a fixed 100 Hz.
+  - `resCouplingTrackHz` and the `feedbackHeadroomHz / cutoffHz` term are deleted from the DSP, `SynthParameters`, the calibration renderer and the calibrator.
+  - `filterFeedbackGain` = 18.5, `cutoffBaseHz` = 341.5, `cutoffSpanOct` = 2.93.
+  - B1–B4, B6–B9 and E1–E3 now pass.
+- **Decision 1 (max resonance at high cutoff) is now a parameter, `filterResonanceLimit`.** In the calibration build it appears as the CLAP parameter *Experimental/Filter/Filter Resonance Limit*, range 0.90–1.20, default 0.98.
+  - At Resonance = 1 the feedback is `min(ceiling, limit × k_crit(cutoff))`. `k_crit` is the critical gain of the linearised loop (ladder poles plus the in-loop HP), solved analytically and cached per cutoff. The estimate matches the simulated loop: the default puts the top of the sweep at exactly ×1.02 from threshold (B9).
+  - What the settings do, measured:
+
+    | Limit | Effect |
+    | --- | --- |
+    | ≤ 1.00 | stable at every cutoff |
+    | 1.05 | self-oscillates at cutoffHz ≥ ~2.4 kHz (peak ≥ ~1 kHz); matches Stinchcombe's model |
+    | ≳ 1.08 | off; the 18.5 ceiling binds everywhere |
+
+    Below ~1 kHz the ceiling binds, so the loop's own coupling network sets the margin there, as in the hardware.
+- **Phase 1 items 4–5 are still open.** These are the single pre-ladder HP ≈ 44.5 Hz (C1) and the Open303 out-of-loop values with an explicit output inversion.
+
+### On decision 2: is Stinchcombe the only source for the full coupling network?
+
+Yes, for the quantitative model. §11.1's 10-pole / 6-zero transfer function is his alone. It was validated against:
+- a component-level SPICE simulation of the schematic, which checks the algebra, not a real unit;
+- measurements on his own **TBX-303 clone**, which confirmed that the lower resonant peak exists (his test loading made it oscillate at ~8 Hz).
+
+Nobody in the reference has measured a *stock* TB-303's in-loop sub-audio response. The rest of the support is qualitative or indirect:
+- aciddose counts ~7 HP sections between oscillator and output [M].
+- mystran argues that the slow offset from the hump modulates the ladder's operating point [M].
+- Open303's and antto's lumped HP / notch / all-pass values were fitted by ear and scope against real 303 recordings [I]. They reproduce what reaches the output, but not the in-loop hump.
+
+His model also has a known weak spot. Its loop-gain scaling predicts self-oscillation above ωc ≈ 1.4 kHz at k = 1, which the hardware reports contradict (decision 1).
+
+Now that the lumped loop tracks his oscillation-margin profile within a few percent (B9), the only thing the full network would add is the 8–20 Hz hump (B5). There is no hardware measurement confirming that hump on an original unit. That makes Phase 3.4 **optional and low priority**: worth doing only if a DC-coupled stock recording shows a slow baseline wobble after notes at high resonance that the lumped model lacks.
 
 ---
 
@@ -166,47 +201,47 @@ Each phase has a gate: the tests listed must pass before moving on. Hardware-sam
 
 ---
 
-## 6. Current results (shipped defaults, 2026-09-27)
+## 6. Current results (after the Phase 1 loop fix, 2026-09-27)
 
 | ID | Ref | Check | Measured | Target | Result |
 |---|---|---|---|---|---|
 | A1 | §10.2 | Solver control: equal cap scales (1,1,1,1), couplings removed | best-fit wc = 0.822 x 2pi*cutoffHz, worst deviation from H_tb(s) = 0.31 dB | worst deviation <= 1.0 dB (poles -0.128/-1.038/-2.325/-3.236 wc, 24 dB/oct asymptote) | PASS |
-| A2 | §10.2 | Shipped defaults: calibrated capScale1..4, couplings removed | best-fit wc = 0.352 x 2pi*cutoffHz, worst deviation from H_tb(s) = 0.38 dB | worst deviation <= 1.0 dB | PASS (magnitude hides it; the cap scales show up in B8/B9) |
-| B1 | §12 | No self-oscillation at Resonance = 1 (shipped defaults), cutoffHz 100..12800 | stable at every tested cutoff | stable everywhere | PASS |
-| B2 | §11.2 | Pass-band loss at 100 Hz, Resonance 0 -> 1 (peak matched to 1034 Hz) | 19.9 dB | 20.6 dB +/- 3 | PASS |
-| B3 | §11.2 | Pass-band loss at 30 Hz, Resonance 0 -> 1 | 14.6 dB | 14.2 dB +/- 3 | PASS |
-| B4 | §11.2 | Resonant peak height at Resonance 1, relative to the Resonance-0 level at 100 Hz | -2.9 dB | +9.1 dB +/- 3 | **FAIL** |
-| B5 | §11.2 | Sub-bass hump at Resonance 1 (VCF output): gain(8.7 Hz) - gain(100 Hz) | +1.3 dB | +15.4 dB +/- 4 | **FAIL** |
-| B6 | §11.2 | Low-frequency shape at Resonance 0: gain(30 Hz) - gain(100 Hz) | -3.3 dB | -4.8 dB +/- 3 | PASS |
-| B7 | §11.2 | Peak frequency rises with Resonance: f(1.0)/f(0.5) | 1.08 | > 1.05 | PASS |
-| B8 | §11.2 | Oscillation margin at the 1 kHz peak | x1.240 | x1.02 .. x1.15 | **FAIL** |
-| B9 | §11.1/§12 | Oscillation margin across cutoff | x2.66 / 1.79 / 1.42 / 1.24 / 1.16 / 1.12 | x2.42 / 1.58 / 1.22 / 1.06 / 1.02 / 1.02 (+/-15 %) | **FAIL** |
-| C1 | §7.2/§11.3 | Pre-filter high-pass: fundamental loss of a 55 Hz saw | 7.2 dB | <= 2.5 dB | **FAIL** |
-| C2 | §7.2 | Saw ramp linearity | 4.52 % of p-p | <= 1 % | **FAIL** |
-| C3 | §8.2 | Square pulse width at 110 Hz | 58.6 % | 47..53 % | **FAIL** |
-| C4 | §9 | Saw / square p-p level ratio | 1.31 | 1.6..2.6 (~2) | **FAIL** |
-| C5 | §8.2 | Square: ringing after the soft vs the hard edge | -0.5 dB | <= -6 dB | **FAIL** |
-| C6 | §6 | Slide, 63 % time up / down | 47.9 / 74.2 ms | 22 / 22 ms | **FAIL** |
-| C7 | §2.3/§7.2 | Output polarity of the saw | sharp edge falls | sharp edge falls | PASS (via the all-pass, see S8) |
-| D1 | §14.1 | MEG charge time to 95 % | 10.16 ms | <= 1 ms | **FAIL** |
-| D2 | §14.1 | MEG τ at Decay min | 200 ms | 68..87 ms | **FAIL** |
-| D3 | §14.1 | MEG τ at Decay max | 2.50 s | ~1.07 s | **FAIL** |
-| D4 | §14.1 | MEG τ at Decay 12 o'clock | 707 ms | ~168 ms [E] | INFO |
-| D5 | §14.1/§16.1 | MEG τ on accented notes | 331 ms | 68..87 ms | **FAIL** |
-| D6 | §15.1 | VEG τ, gate held | 3.49 s | 1.2..1.5 s | **FAIL** |
-| D7 | §15.2 | VEG onset to 90 % | 6.7 ms | <= ~5 ms (accept 6) | **FAIL** |
-| E1 | §13.3 | Service VCF calibration ring (Cutoff centre, Res max, key C) | 577 Hz | 400..670 Hz [S] | PASS |
-| E2 | §13.3 | Cutoff knob minimum, settled | 333 Hz | 235..390 Hz | PASS |
-| E3 | §13.3 | Cutoff knob maximum, settled | 3008 Hz | 1800..3000 Hz | **FAIL** (marginal) |
-| E4 | §13.1/§13.2 | Residual MEG sweep at Env Mod 0 | 0.00 oct | >= 0.5 oct | **FAIL** |
-| E5 | §13.1 | Env Mod bias shift (settled, Env Mod 1 vs 0) | +0.81 oct | <= -0.8 oct | **FAIL** |
-| E6 | §13.2 | MEG sweep depth at Env Mod 1 | 3.14 oct | 4.5..5.7 oct | **FAIL** |
-| E7 | §13.3 | Resonant peak at full Cutoff + Env Mod | ~6.2 kHz | ~25-28 kHz (>= 20) | **FAIL** |
-| E8 | §15.1/§15.3 | Held-note VCA decay 0.2 s -> 1.0 s | 0.0 dB | 3.5..8 dB | **FAIL** |
-| E9 | §15.3 | Fast MEG term in the VCA (normal note) | 0.97 | >= 1.35 | **FAIL** |
-| E10 | §15.3 | Accent loudness (Accent max, Res min) | +0.8 dB | >= +3 dB | **FAIL** |
-| E11 | §16.2 | Normal note after an accent starts higher (C13) | +0.01 oct | >= +0.1 oct | **FAIL** |
-| E12 | §16.2 | Accent chain, 4th peak vs 1st | +0.16 oct | > +0.1 oct | PASS |
+| A2 | §10.2 | Shipped defaults: capScale1..4 as shipped, couplings removed | best-fit wc = 0.822 x 2pi*cutoffHz, worst deviation from H_tb(s) = 0.31 dB | worst deviation <= 1.0 dB (poles -0.128/-1.038/-2.325/-3.236 wc, 24 dB/oct asymptote) | PASS |
+| B1 | §12 | No self-oscillation at Resonance = 1 (shipped defaults), cutoffHz 100..12800 | stable at every tested cutoff | stable everywhere (stock unit sits just below the threshold) | PASS |
+| B2 | §11.2 | Pass-band loss at 100 Hz, Resonance 0 -> 1 (peak matched to 1034 Hz) | 20.3 dB | 20.6 dB +/- 3 (Stinchcombe full model; core-only 1/(1+k) = 25 dB) | PASS |
+| B3 | §11.2 | Pass-band loss at 30 Hz, Resonance 0 -> 1 | 15.2 dB | 14.2 dB +/- 3 | PASS |
+| B4 | §11.2 | Resonant peak height at Resonance 1, relative to the Resonance-0 level at 100 Hz | +8.2 dB (peak at 1034 Hz) | +9.1 dB +/- 3 | PASS |
+| B5 | §11.2 | Sub-bass hump at Resonance 1 (VCF output): gain(8.7 Hz) - gain(100 Hz) | +1.5 dB | +15.4 dB +/- 4 ("stays ~15 dB above the 100 Hz level") | **FAIL** |
+| B6 | §11.2 | Low-frequency shape at Resonance 0: gain(30 Hz) - gain(100 Hz) | -3.1 dB | -4.8 dB +/- 3 | PASS |
+| B7 | §11.2 | Peak frequency rises with Resonance at fixed cutoff current: f(1.0)/f(0.5) | 1.07 (964 Hz -> 1034 Hz) | > 1.05 (Stinchcombe: 854 -> 1034 Hz between k=0.6 and k=1; knob law uncertain) | PASS |
+| B8 | §11.2 | Oscillation margin: feedback-gain multiplier that tips Resonance=1 into oscillation | x1.057 | x1.02 .. x1.15 (Stinchcombe: unstable at k ~ 1.065) | PASS |
+| B9 | §11.1/§12 | Oscillation margin across cutoff (wc = 820 Hz x 1/8, 1/4, 1/2, 1, 2, 4) | x2.27 / 1.52 / 1.20 / 1.06 / 1.02 / 1.02 | x2.42 / 1.58 / 1.22 / 1.06 / 1.02 / 1.02 (+/-15 %; 1.00..1.10 where Stinchcombe < 1) | PASS |
+| C1 | §7.2/§11.3 | Oscillator-side high-pass: fundamental loss of a 55 Hz saw (vs 1/n law) | 7.2 dB (oscCouplingHz = 120.0 Hz; filter adds its own 59.9 Hz input HP on top) | <= 2.5 dB (44.5 Hz one-pole = 2.1 dB; hardware: none before the VCF's own coupling) | **FAIL** |
+| C2 | §7.2 | Saw ramp linearity (residual from a straight line, middle 80% of a cycle) | 4.52 % of p-p (oscSawShape = -0.171, oscSawLpfHz = 14000) | <= 1 % ("14 kHz saw LPF / x - 0.05x^2 bend not supported by any source -- drop them") | **FAIL** |
+| C3 | §8.2 | Square pulse width at 110 Hz | 58.6 % high | 47..53 % ("close to symmetric around 100-120 Hz", antto fit) | **FAIL** |
+| C4 | §9 | Saw / square peak-to-peak level ratio at the VCF input | 1.31 | ~2 (schematic sketches: saw ~5.5-12 V, square ~5-8 V); accept 1.6..2.6 | **FAIL** |
+| C5 | §8.2 | Square: resonance ringing after the soft edge vs the hard edge (Res 1, high cutoff) | -1.3 dB | <= -6 dB ("rings after the hard edge but hardly at all after the soft edge") | **FAIL** |
+| C6 | §6 | Slide time constant in the pitch (semitone) domain, octave up / octave down | up: 63% at 47.9 ms, 90% at 120.6 ms; down: 63% at 74.2 ms, 90% at 158.1 ms | tau = 22 ms (63% at 18..26 ms), 90% at ~51 ms, identical up and down (RC on the CV in volts) | **FAIL** |
+| C7 | §2.3/§7.2 | Output polarity of the saw (direction of the sharp edge) | sharp edge falls (max step up 0.014, down -0.032) | sharp edge falls ("in most DC-coupled recordings the saw rises from -1 to +1 and then drops") | PASS |
+| D1 | §14.1 | MEG charge time (to 95 % of peak) | 10.16 ms (vcfAttackMs = 3.59) | <= 1 ms (C62 recharges through R152 100 R, tau ~0.1 ms; "3 ms attack" is busted) | **FAIL** |
+| D2 | §14.1 | MEG decay time constant at Decay = min | tau = 200 ms | 68..87 ms (R136 68k x C62 1uF; printed T90 = 200 ms) | **FAIL** |
+| D3 | §14.1 | MEG decay time constant at Decay = max | tau = 2.50 s | 1.07..1.09 s (68k + 1M into 1 uF; printed T90 = 2.5 s); accept 0.95..1.2 | **FAIL** |
+| D4 | §14.1 | MEG decay time constant at Decay = 12 o'clock (A-taper pot law) | tau = 707 ms | ~168 ms if VR6 follows R = Rtot(81^x - 1)/80 [E] | INFO |
+| D5 | §14.1/§16.1 | MEG decay time constant on accented notes (Decay pot shorted) | tau = 331 ms (accentDecaySec = 0.331) | 68..87 ms, same as Decay = min | **FAIL** |
+| D6 | §15.1 | VEG decay time constant, gate held | tau = 3.49 s (vegDecaySec = 3.50) | 1.2..1.5 s (R123 1.5M x C42 1uF; Open303 fit 1.23 s); "3-4 s" is T90 | **FAIL** |
+| D7 | §15.2 | VEG onset: time for the VCA control to reach 90 % | 6.7 ms | a few ms, up to ~5 ms (R134 22k / C41 0.1uF, tau 2.2 ms); accept <= 6 ms | **FAIL** |
+| E1 | §13.3 | Service VCF calibration: Cutoff centre, Res max, EnvMod/Decay/Accent min, saw, key C | resonant peak 581 Hz (period 1.72 ms) | ring period 2 ms +/- 0.5 ms -> 400..670 Hz [S] | PASS |
+| E2 | §13.3 | Cutoff knob minimum (EnvMod min, Res max), settled | resonant peak 366 Hz | ~314 Hz (Open303 fit of hardware); accept +/-25 % TM3 tolerance: 235..390 | PASS |
+| E3 | §13.3 | Cutoff knob maximum (EnvMod min, Res max), settled | resonant peak 2618 Hz | ~2394 Hz settled, 3.2-3.5 kHz at note start; accept 1800..3000 | PASS |
+| E4 | §13.1/§13.2 | Residual MEG sweep at Env Mod = 0 (Cutoff min) | 0.00 oct | >= 0.5 oct (Open303 envScaler 0.737 oct; kunn 0.73-0.88) | **FAIL** |
+| E5 | §13.1 | Env Mod bias shift: settled cutoff at Env Mod 1 vs Env Mod 0 (Cutoff min) | +0.81 oct | <= -0.8 oct ("raising Env Mod ... shifts the bias so the cutoff drops"; Open303 ~ -1.3 oct) | **FAIL** |
+| E6 | §13.2 | MEG sweep depth at Env Mod = 1 (Cutoff min): peak vs settled | 3.14 oct | 4.5..5.7 oct (Open303 4.51 at Cutoff min; kunn 5.3-5.65) | **FAIL** |
+| E7 | §13.3 | Resonant peak at Cutoff max + Env Mod max (MEG peak), Res max | ~14.8 kHz (engine cutoff CV peaks at 15000 Hz; clamped at 15 kHz / 18 kHz) | ~25-28 kHz (rv0 units: 27.5-28 and 23.5 kHz); accept >= 20 kHz | **FAIL** |
+| E8 | §15.1/§15.3 | Audible VCA decay of a held note, 0.2 s -> 1.0 s (Res 0, Cutoff max, EnvMod 0) | 0.0 dB | 3.5..8 dB (VEG tau 1.2-1.5 s: 4.6-5.8 dB; Robin's fit e^(-t/1.23)+0.76e^(-t/58ms): 5.9 dB) | **FAIL** |
+| E9 | §15.3 | Fast MEG term in the VCA on a normal note: level(2-20 ms) / level(150-168 ms), Decay min | 0.97 | >= 1.35 (Robin's fit gives ~1.75; VEG alone gives ~1.13) | **FAIL** |
+| E10 | §15.3 | Accent loudness at Accent max, Resonance min (first ~30 ms) | +1.2 dB | >= +3 dB ("accented notes are much louder"; control-current sum, not +6 dB) | **FAIL** |
+| E11 | §16.2 | Normal note right after an accent starts higher (C13 still discharging), 120 BPM 16ths | +0.01 oct vs the same note after a normal note | >= +0.1 oct ("at fast tempos the notes after an accent also start higher") | **FAIL** |
+| E12 | §16.2 | Accent chain A-A-A-A at 120 BPM 16ths, Res max: 4th peak vs 1st | +0.16 oct | > +0.1 oct ("each peak is higher than the last") | PASS |
 
 ### Test caveats
 

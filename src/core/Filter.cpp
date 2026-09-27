@@ -27,6 +27,72 @@ inline void solveTridiagonal4(float a[4], const float bUp[3], const float cLow[3
 
 } // namespace
 
+void Filter::updatePoles() {
+    const float sc[4] = {capScale1_, capScale2_, capScale3_, capScale4_};
+    if (sc[0] == polesForScales_[0] && sc[1] == polesForScales_[1]
+        && sc[2] == polesForScales_[2] && sc[3] == polesForScales_[3]) return;
+    for (int i = 0; i < 4; ++i) polesForScales_[i] = sc[i];
+
+    // Characteristic polynomial of the linearised ladder (wc = 1) via the
+    // tridiagonal continuant. Diagonal -2*s_i; the off-diagonal products are
+    // s1*s2, s2*s3 and 2*s3*s4 (the x2 is the stage-4 term in processSample).
+    const double s1 = sc[0], s2 = sc[1], s3 = sc[2], s4 = sc[3];
+    auto charPoly = [&](double l) {
+        double f0 = 1.0;
+        double f1 = l + 2.0 * s1;
+        double f2 = (l + 2.0 * s2) * f1 - s1 * s2 * f0;
+        double f3 = (l + 2.0 * s3) * f2 - s2 * s3 * f1;
+        return (l + 2.0 * s4) * f3 - 2.0 * s3 * s4 * f2;
+    };
+    // All four roots are real and negative; Gershgorin bounds them to
+    // [-5*max(s), 0]. Bracket by scanning, then bisect.
+    const double lo = -5.0 * std::max({s1, s2, s3, s4}) - 1e-6;
+    const int kScan = 4000;
+    int found = 0;
+    double prevL = lo, prevV = charPoly(lo);
+    for (int i = 1; i <= kScan && found < 4; ++i) {
+        double l = lo * (1.0 - static_cast<double>(i) / kScan);
+        double v = charPoly(l);
+        if (v == 0.0 || (v > 0.0) != (prevV > 0.0)) {
+            double a = prevL, b = l, fa = prevV;
+            for (int it = 0; it < 60; ++it) {
+                double m = 0.5 * (a + b), fm = charPoly(m);
+                if ((fm > 0.0) == (fa > 0.0)) { a = m; fa = fm; } else { b = m; }
+            }
+            poles_[found++] = -0.5 * (a + b);
+        }
+        prevL = l;
+        prevV = v;
+    }
+    kcCutoffHz_ = -1.0f; // invalidate the k_crit cache
+}
+
+float Filter::criticalFeedbackGain(float cutoffHz) {
+    updatePoles();
+    if (cutoffHz == kcCutoffHz_ && resCouplingHz_ == kcCouplingHz_) return kcValue_;
+    const double wc = 2.0 * 3.14159265358979323846 * cutoffHz * kCutoffToOmegaScale_;
+    const double h = 2.0 * 3.14159265358979323846 * resCouplingHz_ / wc;
+    // Loop gain G(jx) = H_ladder(jx) * HP(jx), x = w / wc. Its phase falls
+    // monotonically from +90 deg to -360 deg; find the -180 deg crossing.
+    auto phase = [&](double x) {
+        double ph = std::atan2(h, x);
+        for (double p : poles_) ph -= std::atan(x / p);
+        return ph;
+    };
+    double a = std::log(1e-4), b = std::log(1e3);
+    for (int it = 0; it < 48; ++it) {
+        double m = 0.5 * (a + b);
+        if (phase(std::exp(m)) > -3.14159265358979323846) a = m; else b = m;
+    }
+    const double x = std::exp(0.5 * (a + b));
+    double mag = x / std::sqrt(x * x + h * h);
+    for (double p : poles_) mag *= p / std::sqrt(x * x + p * p);
+    kcCutoffHz_ = cutoffHz;
+    kcCouplingHz_ = resCouplingHz_;
+    kcValue_ = static_cast<float>(1.0 / mag);
+    return kcValue_;
+}
+
 Filter::Filter() {
     setSampleRate(44100.0);
 }
@@ -56,11 +122,12 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
 
     float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
 
-    const float resCouplingHz = resCouplingHz_ + resCouplingTrackHz_ * resNorm;
-    const float resCouplingAlpha = 1.0f / (1.0f + 2.0f * 3.14159265358979323846f * resCouplingHz * dt);
+    const float resCouplingAlpha = 1.0f / (1.0f + 2.0f * 3.14159265358979323846f * resCouplingHz_ * dt);
 
-    float kFb = skewResonance(resNorm)
-              * (feedbackGainCeiling_ + kResonanceGainMargin_ * feedbackHeadroomHz_ / totalCutoffHz);
+    // Feedback at full Resonance: the fixed ceiling, capped at a fraction of
+    // the loop's critical gain at this cutoff (see setResonanceLimit).
+    const float kMax = std::min(feedbackGainCeiling_, resonanceLimit_ * criticalFeedbackGain(totalCutoffHz));
+    float kFb = skewResonance(resNorm) * kMax;
 
     const float Vt = 0.052f;
     const float VtInv = 19.23f;
@@ -178,7 +245,7 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
     out = allpass_.process(out, apCoeff);
 
     // No resonance-dependent output gain here -- see the comment on
-    // setResonanceSkew/setFeedbackHeadroomHz in Filter.hpp. Whatever level
+    // setResonanceSkew in Filter.hpp. Whatever level
     // the resonant peak reaches is whatever kFb (above) actually produced.
     return out;
 }
