@@ -118,7 +118,7 @@ MODEL_PARAMS = {
     # already rejected by Problem._job's isfinite/amplitude check, so the
     # bound itself doesn't need to pre-guess where that line is.
     "filterFeedbackGain":       (6.0, 30.0, False, "filter"),
-    "filterResonanceSkew":      (0.05, 8.0, False, "filter"),
+    "filterResonanceSkew":      (-6.0, 8.0, False, "filter"),   # < 0: resonance builds late in the travel (x0x fit hit 0.05)
     "resCouplingHz":            (60.0, 160.0, True, "filter"),  # in-loop HP; antto 70-140, Open303 150 (§11.3)
     "filterCapScale1":          (0.2, 4.0, True, "filter"),
     "filterCapScale2":          (0.2, 4.0, True, "filter"),
