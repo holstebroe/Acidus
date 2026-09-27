@@ -312,16 +312,18 @@ def load_manifest(path, includes, excludes, analysis_ms=None, rotate=False):
     """Reference notes from a manifest JSON (tools/x0x_reference_manifest.py).
     includes/excludes are substrings matched against the clip ids, e.g.
     "A1-" (a set), "-p2-" (a position), "square", "-acc".
-    rotate: keep one note per (set, position), cycling through the note
+    rotate: None, or keep one note per (set, position), cycling through the note
     kinds (saw / saw-acc / square / square-acc) from one position and set to
     the next -- a quarter of the notes that still covers every knob setting
-    and every note kind evenly (a fast search subset)."""
+    and every note kind evenly (a fast search subset). The value (0-3) is an
+    offset that selects one of the four disjoint quarters."""
     path = Path(path)
     man = json.loads(path.read_text(encoding="utf-8"))
     clips = man["clips"]
-    if rotate:
+    if rotate is not None:
         sets = sorted({c["set"] for c in clips})
-        clips = [c for c in clips if (c["note_number"] - 1) % 4 == (c["position"] - 1 + sets.index(c["set"])) % 4]
+        clips = [c for c in clips
+                 if (c["note_number"] - 1) % 4 == (c["position"] - 1 + sets.index(c["set"]) + int(rotate)) % 4]
     clips = [c for c in clips if not any(e in c["id"] for e in excludes)]
     if includes:
         clips = [c for c in clips if any(e in c["id"] for e in includes)]
@@ -1268,9 +1270,10 @@ def main():
     ap.add_argument("--analysis-ms", type=float, default=None,
                     help="manifest only: compare just the first N ms after note-on (faster search; "
                     "anything after the window, e.g. the gate-off release, is then unconstrained)")
-    ap.add_argument("--rotate", action="store_true",
+    ap.add_argument("--rotate", nargs="?", type=int, const=0, default=None,
                     help="manifest only: one note per set/position, rotating through the four note kinds "
-                    "(a quarter of the notes; fast search subset)")
+                    "(a quarter of the notes; fast search subset). An optional offset 0-3 picks one of "
+                    "the four disjoint quarters")
     ap.add_argument("--max-renders", type=int, default=40,
                     help="write audio/plots for this many samples (the worst-fitting ones)")
     ap.add_argument("--no-sensitivity", action="store_true",

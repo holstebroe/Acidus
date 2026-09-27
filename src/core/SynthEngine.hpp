@@ -22,58 +22,58 @@ struct SynthParameters {
     // --- Experimental / calibration parameters ---------------------------
     // Exposed as CLAP parameters only in a ACIDUS_CALIBRATION_BUILD; a
     // Release build keeps these at their defaults (see AcidusClap.hpp).
-    float oscCouplingHz{44.5f};   // Oscillator.hpp - pre-filter HP; Open303 44.486 Hz (TB303_REFERENCE.md §11.3; hardware: none before the VCF)
-    float resCouplingHz{100.0f};       // Filter.hpp - in-loop coupling HP; plausible range 70-150 Hz (antto 122, Open303 150)
-    float filterFeedbackGain{18.5f};   // Filter.hpp - feedback ceiling at Resonance 1; puts max resonance ~x1.06 below threshold near 1 kHz (TB303_REFERENCE.md §11.2, reference test B8)
-    float filterPostHpHz{152.918f};   // Filter.hpp - out-of-loop HP; Open303 24.167 Hz, also stands in for the VCA-input coupling (§15.4) (fitted 2026-09-27 to all 13 hardware samples)
+    float oscCouplingHz{47.5271f};   // Oscillator.hpp - pre-filter HP; Open303 44.486 Hz (TB303_REFERENCE.md §11.3; hardware: none before the VCF)
+    float resCouplingHz{98.1816f};       // Filter.hpp - in-loop coupling HP; plausible range 70-150 Hz (antto 122, Open303 150)
+    float filterFeedbackGain{17.0749f};   // Filter.hpp - feedback ceiling at Resonance 1; puts max resonance ~x1.06 below threshold near 1 kHz (TB303_REFERENCE.md §11.2, reference test B8)
+    float filterPostHpHz{171.133f};   // Filter.hpp - out-of-loop HP; Open303 24.167 Hz, also stands in for the VCA-input coupling (§15.4) (fitted 2026-09-27 to all 13 hardware samples)
     float filterNotchHz{7.5164f};   // Filter.hpp - out-of-loop notch; Open303 7.5164 Hz
     float filterNotchBandwidthHz{4.7f};   // Filter.hpp - notch bandwidth; Open303 4.7
     float filterAllpassHz{14.008f};   // Filter.hpp - out-of-loop allpass; Open303 14.008 Hz
-    float filterInputCouplingHz{9.78899f};   // Filter.hpp - VCF input coupling HP; low values keep the fundamental's phase (waveform match) and the B5 sub-bass hump, at the cost of B6 (fitted 2026-09-27 to all 13 hardware samples)
+    float filterInputCouplingHz{9.24438f};   // Filter.hpp - VCF input coupling HP; low values keep the fundamental's phase (waveform match) and the B5 sub-bass hump, at the cost of B6 (fitted 2026-09-27 to all 13 hardware samples)
     float filterOutputCouplingHz{20000.0f};   // Filter.hpp - plausible range 10-25 kHz
-    float filterCapScale1{1.0f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 1)
-    float filterCapScale2{1.0f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 2)
-    float filterCapScale3{1.0f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 3)
-    float filterCapScale4{1.0f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 4)
-    float filterLadderInputScale{0.0490844f};   // Filter.hpp - plausible range 0.02-0.20 (ladder nonlinearity drive) (fitted 2026-09-27 to all 13 hardware samples)
+    float filterCapScale1{0.892281f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 1)
+    float filterCapScale2{1.10096f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 2)
+    float filterCapScale3{1.05478f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 3)
+    float filterCapScale4{1.2137f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 4)
+    float filterLadderInputScale{0.0264727f};   // Filter.hpp - plausible range 0.02-0.20 (ladder nonlinearity drive) (fitted 2026-09-27 to all 13 hardware samples)
     float filterLadderTopology{0.0f};   // Filter.hpp - 0 = legacy mirrored ladder, 1 = circuit orientation (input pair tanh(x - k*y4), half cap on stage 1, terminal tanh(y4); §10.3, audit S1)
-    float vegDecaySec{2.15793f};           // Envelope.hpp - VEG tau; R123 x C42 = 1.5 s (§15.1), this unit's notes decay slower (fitted 2026-09-27 to all 13 hardware samples)
+    float vegDecaySec{1.99705f};           // Envelope.hpp - VEG tau; R123 x C42 = 1.5 s (§15.1), this unit's notes decay slower (fitted 2026-09-27 to all 13 hardware samples)
     float vcaGateOffMs{1.12653f};          // Envelope.hpp - VCA release tau at gate-off; Open303 1 ms (fitted 2026-09-27 to all 13 hardware samples)
     float vcaGateOffAccentMs{2.40903f};    // Envelope.hpp - VCA release tau at gate-off on accented notes; Open303 50 ms, this unit shows no long accent tail (fitted 2026-09-27 to all 13 hardware samples)
-    float vcaResTapRatio{1.59394f};       // SynthEngine.cpp - filter->VCA wiper tap relative to the fixed tap (§12 trace: 100k/220k = 0.45, reversed 2.2) (fitted 2026-09-27 to all 13 hardware samples)
+    float vcaResTapRatio{1.30806f};       // SynthEngine.cpp - filter->VCA wiper tap relative to the fixed tap (§12 trace: 100k/220k = 0.45, reversed 2.2) (fitted 2026-09-27 to all 13 hardware samples)
     float vcaGainSaturationDrive{0.0f};   // SynthEngine.cpp - control-to-gain tanh ceiling; 0 = linear control law (§15.3). Old default 6.9 left accents no headroom
 
     // --- Offline-calibration constants -----------------------------------
     // Previously hard-coded in the DSP; hoisted here so the reference-sample
     // calibrator (tools/calibrate_reference.py) can fit them. Not exposed as
     // CLAP parameters -- update these defaults with the calibrator's output.
-    float cutoffBaseHz{248.195f};          // SynthEngine.cpp - cutoff at knob minimum, no env; this unit's TM3 trim (fitted 2026-09-27 to all 13 hardware samples)
-    float cutoffSpanOct{3.15839f};       // SynthEngine.cpp - octaves swept by the Cutoff knob (fitted 2026-09-27 to all 13 hardware samples)
-    float cutoffTaperExp{1.0f};          // SynthEngine.cpp - knob taper, cv = span * knob^exp; 1 = exponential knob-to-Hz law (TB303_REFERENCE.md §13.2)
+    float cutoffBaseHz{144.222f};          // SynthEngine.cpp - cutoff at knob minimum, no env; this unit's TM3 trim (fitted 2026-09-27 to all 13 hardware samples)
+    float cutoffSpanOct{2.8253f};       // SynthEngine.cpp - octaves swept by the Cutoff knob (fitted 2026-09-27 to all 13 hardware samples)
+    float cutoffTaperExp{1.365f};          // SynthEngine.cpp - knob taper, cv = span * knob^exp; 1 = exponential knob-to-Hz law (TB303_REFERENCE.md §13.2)
     // Env Mod law, octaves per unit MEG: envScaler = (1-c)*(C0 + C0Slope*e) + c*(C1 + C1Slope*e),
     // cutoff shift = envScaler * (MEG - (Offset + OffsetCutSlope*c)). Defaults are Open303's fit of
     // hardware measurements (TB303_REFERENCE.md §13.2); non-zero at Env Mod 0 (residual sweep).
-    float envModScaleC0{0.737f};         // SynthEngine.cpp - envScaler at Cutoff min, Env Mod 0
-    float envModScaleC0Slope{3.774f};    // SynthEngine.cpp - envScaler increase per unit Env Mod, Cutoff min
-    float envModScaleC1{0.864f};         // SynthEngine.cpp - envScaler at Cutoff max, Env Mod 0
-    float envModScaleC1Slope{4.195f};    // SynthEngine.cpp - envScaler increase per unit Env Mod, Cutoff max
-    float envModOffset{0.2944f};         // SynthEngine.cpp - MEG level at which the Env Mod bias shift is neutral
-    float envModOffsetCutSlope{0.0483f}; // SynthEngine.cpp - envOffset increase at Cutoff max
-    float accentSweepDepthOct{5.0f};     // SynthEngine.cpp - accent sweep into the cutoff, octaves per unit of VR4b wiper voltage (MEG units) (fitted 2026-09-27 to all 13 hardware samples)
-    float accentVcaDepth{1.53927f};          // SynthEngine.cpp - accent term in the VCA control sum (x accented MEG, x Accent knob) (fitted 2026-09-27 to all 13 hardware samples)
-    float accentChargeBaseSec{0.035f};   // Envelope.cpp - R46 47k x C13 1uF (§16.2); fitted at the -25 % bound (fitted 2026-09-27 to all 13 hardware samples)
-    float accentChargePotSec{0.0402092f};    // Envelope.cpp - VR4b 50k x C13 1uF (Resonance gang B) (fitted 2026-09-27 to all 13 hardware samples)
-    float accentMixSec{0.125f};          // Envelope.cpp - mixing resistor (Whittle 100k, likely R72) x C13 1uF; C13 discharges through it + the lower pot section (fitted 2026-09-27 to all 13 hardware samples)
+    float envModScaleC0{0.682877f};         // SynthEngine.cpp - envScaler at Cutoff min, Env Mod 0
+    float envModScaleC0Slope{3.56589f};    // SynthEngine.cpp - envScaler increase per unit Env Mod, Cutoff min
+    float envModScaleC1{0.822924f};         // SynthEngine.cpp - envScaler at Cutoff max, Env Mod 0
+    float envModScaleC1Slope{4.9578f};    // SynthEngine.cpp - envScaler increase per unit Env Mod, Cutoff max
+    float envModOffset{0.283849f};         // SynthEngine.cpp - MEG level at which the Env Mod bias shift is neutral
+    float envModOffsetCutSlope{-0.0311449f}; // SynthEngine.cpp - envOffset increase at Cutoff max
+    float accentSweepDepthOct{4.02391f};     // SynthEngine.cpp - accent sweep into the cutoff, octaves per unit of VR4b wiper voltage (MEG units) (fitted 2026-09-27 to all 13 hardware samples)
+    float accentVcaDepth{1.5777f};          // SynthEngine.cpp - accent term in the VCA control sum (x accented MEG, x Accent knob) (fitted 2026-09-27 to all 13 hardware samples)
+    float accentChargeBaseSec{0.0376478f};   // Envelope.cpp - R46 47k x C13 1uF (§16.2); fitted at the -25 % bound (fitted 2026-09-27 to all 13 hardware samples)
+    float accentChargePotSec{0.03953f};    // Envelope.cpp - VR4b 50k x C13 1uF (Resonance gang B) (fitted 2026-09-27 to all 13 hardware samples)
+    float accentMixSec{0.116786f};          // Envelope.cpp - mixing resistor (Whittle 100k, likely R72) x C13 1uF; C13 discharges through it + the lower pot section (fitted 2026-09-27 to all 13 hardware samples)
     float oscSawLpfHz{40000.0f};         // Oscillator.cpp - saw-core bandwidth limit; unsourced (TB303_REFERENCE.md §7.2), bypassed above 0.45*fs
     float oscSawShape{0.0f};            // Oscillator.cpp - saw x - s*x^2 bend; unsourced (§7.2: "drop them"), 0 = clean ramp
-    float oscSquareDutyDepth{0.25f};    // Oscillator.cpp - square duty = 0.45 + depth * exp(-f / 180 Hz); antto fit 0.25
-    float oscSquareLevel{0.75f};        // Oscillator.cpp - square level relative to the saw's +-1 (§9: saw p-p ~2x the square's)
+    float oscSquareDutyDepth{0.12f};    // Oscillator.cpp - square duty = 0.45 + depth * exp(-f / 180 Hz); antto fit 0.25. 0.12 = duty 0.533 at C2 reproduces the x0x set's square harmonics (15th nulled) within ~1-2 dB, measured directly
+    float oscSquareLevel{0.651587f};        // Oscillator.cpp - square level relative to the saw's +-1 (§9: saw p-p ~2x the square's)
     float vcfAttackMs{0.1f};             // Envelope.cpp - MEG charge time constant (D37 + R152 100R into C62: ~0.1 ms, §14.1)
-    float vcaAttackMs{0.536367f};             // Envelope.cpp - VEG onset time constant; ref 'a few ms' (§15.2), this unit opens faster (fitted 2026-09-27 to all 13 hardware samples)
-    float vcfDecayMinSec{0.068f};        // Envelope.cpp - MEG decay tau at Decay min: R136 68k x C62 1uF (§14.1)
-    float vcfDecayMaxSec{1.068f};        // Envelope.cpp - MEG decay tau at Decay max: (68k + VR6 1M) x 1uF; A-taper law in between
-    float accentDecaySec{0.068f};        // Envelope.cpp - MEG decay tau on accented notes (VR6 shorted -> R136 alone)
-    float filterResonanceSkew{3.0f};     // Filter.hpp - Resonance pot curve (exponential skew)
+    float vcaAttackMs{0.866539f};             // Envelope.cpp - VEG onset time constant; ref 'a few ms' (§15.2), this unit opens faster (fitted 2026-09-27 to all 13 hardware samples)
+    float vcfDecayMinSec{0.0663516f};        // Envelope.cpp - MEG decay tau at Decay min: R136 68k x C62 1uF (§14.1)
+    float vcfDecayMaxSec{1.04779f};        // Envelope.cpp - MEG decay tau at Decay max: (68k + VR6 1M) x 1uF; A-taper law in between
+    float accentDecaySec{0.0669753f};        // Envelope.cpp - MEG decay tau on accented notes (VR6 shorted -> R136 alone)
+    float filterResonanceSkew{0.129018f};     // Filter.hpp - Resonance pot curve (exponential skew)
     float filterResonanceLimit{0.98f};   // Filter.hpp - max feedback as a fraction of the loop's critical gain (<1 never self-oscillates)
 };
 
