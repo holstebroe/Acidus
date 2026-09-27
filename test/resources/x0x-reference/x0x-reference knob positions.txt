@@ -1,0 +1,252 @@
+From
+http://www.dinsync.info/2010/02/tb-303-reference-recordings-for-x0xb0x.html
+
+TB-303 reference recordings for x0xb0x builders
+When I built my first x0xb0x I didn't have the tb-303, and what I really missed was a set of recordings I could use to reference my build.
+
+So now that I have a 303 I thought it might be a nice idea to record some knob positions so that any future builders or current x0xb0x owners could use these as reference when tweaking the internals in order to get a more faithful sound.
+
+So here you have it, a large collection of knob positions so you can reference to your hearts content. Some of the recordings are a little quiet. This was done on purpose, since I didn't want to adjust levels between non accented and accented sounds. So you get the full dymanic range from soft to loud. You can always normalise the files if you need them louder.
+
+DOWNLOAD 73mb (unpacked in this folder)
+
+Here's a chart showing the knob positions for the sets.
+
+Each position has 4 notes to it and the notes are all C, thats the low C on the keypad without any transpose shifts.
+
+Each set has 16 notes recorded. So on the chart position 1 relates to notes 1-4, position 2 to notes 5-8, position 3 to notes 9-12 and position 4 to notes 13-16.
+
+For example:
+
+position 1:
+1st note: C unaccented saw
+2nd note: C accented saw
+3rd note: C unaccented square
+4th note: C accented sqaure
+
+position2:
+5tht note: C unaccented saw
+6th note: C accented saw
+7th note: C unaccented square
+8thnote: C accented sqaure
+
+position3:
+9th note: C unaccented saw
+10th note: C accented saw
+11th note: C unaccented square
+12th note: C accented sqaure
+
+position4:
+13th note: C unaccented saw
+14th note: C accented saw
+15th note: C unaccented square
+16th note: C accented sqaure
+
+so the 12th note (position 3) heard in SET-A1 would be an accented square with these knob positions,
+
+CUTOFF: 75%
+RESONANCE: 0%
+ENV MOD: 0%
+DECAY: 0%
+ACCENT: 0%
+
+All the knob positions are aproximate (hey these are analog knobs not digital after all).
+
+SET-A1.wav
+
+position 1 25% 0% 0% 0% 0%
+position 2 50% 0% 0% 0% 0%
+position 3 75% 0% 0% 0% 0%
+position 4 100% 0% 0% 0% 0%
+
+
+SET-A2.wav
+
+position 1 0% 25% 0% 0% 0%
+position 2 0% 50% 0% 0% 0%
+position 3 0% 75% 0% 0% 0%
+position 4 0% 100% 0% 0% 0%
+
+
+SET-A3.wav
+
+position 1 0% 0% 25% 0% 0%
+position 2 0% 0% 50% 0% 0%
+position 3 0% 0% 75% 0% 0%
+position 4 0% 0% 100% 0% 0%
+
+
+SET-A4.wav
+
+position 1 0% 0% 0% 25% 0%
+position 2 0% 0% 0% 50% 0%
+position 3 0% 0% 0% 75% 0%
+position 4 0% 0% 0% 100% 0%
+
+
+SET-A5.wav
+
+position 1 0% 0% 0% 0% 25%
+position 2 0% 0% 0% 0% 50%
+position 3 0% 0% 0% 0% 75%
+position 4 0% 0% 0% 0% 100%
+
+
+SET-B1.wav
+
+position 1 25% 25% 25% 25% 25%
+position 2 50% 25% 25% 25% 25%
+position 3 75% 25% 25% 25% 25%
+position 4 100% 25% 25% 25% 25%
+
+
+SET-B2.wav
+
+position 1 25% 25% 25% 25% 25%
+position 2 25% 50% 25% 25% 25%
+position 3 25% 75% 25% 25% 25%
+position 4 25% 100% 25% 25% 25%
+
+
+SET-B3.wav
+
+position 1 25% 25% 25% 25% 25%
+position 2 25% 25% 50% 25% 25%
+position 3 25% 25% 75% 25% 25%
+position 4 25% 25% 100% 25% 25%
+
+
+SET-B4.wav
+
+position 1 25% 25% 25% 25% 25%
+position 2 25% 25% 25% 50% 25%
+position 3 25% 25% 25% 75% 25%
+position 4 25% 25% 25% 100% 25%
+
+
+SET-B5.wav
+
+position 1 25% 25% 25% 25% 25%
+position 2 25% 25% 25% 25% 50%
+position 3 25% 25% 25% 25% 75%
+position 4 25% 25% 25% 25% 100%
+
+
+SET-C1.wav
+
+position 1 25% 50% 50% 50% 50%
+position 2 50% 50% 50% 50% 50%
+position 3 75% 50% 50% 50% 50%
+position 4 100% 50% 50% 50% 50%
+
+
+SET-C2.wav
+
+position 1 50% 25% 50% 50% 50%
+position 2 50% 50% 50% 50% 50%
+position 3 50% 75% 50% 50% 50%
+position 4 50% 100% 50% 50% 50%
+
+
+SET-C3.wav
+
+position 1 50% 50% 25% 50% 50%
+position 2 50% 50% 50% 50% 50%
+position 3 50% 50% 75% 50% 50%
+position 4 50% 50% 100% 50% 50%
+
+
+SET-C4.wav
+
+position 1 50% 50% 50% 25% 50%
+position 2 50% 50% 50% 50% 50%
+position 3 50% 50% 50% 75% 50%
+position 4 50% 50% 50% 100% 50%
+
+
+SET-C5.wav
+
+position 1 50% 50% 50% 50% 25%
+position 2 50% 50% 50% 50% 50%
+position 3 50% 50% 50% 50% 75%
+position 4 50% 50% 50% 50% 100%
+
+
+SET-D1.wav
+
+position 1 25% 75% 75% 75% 75%
+position 2 50% 75% 75% 75% 75%
+position 3 75% 75% 75% 75% 75%
+position 4 100% 75% 75% 75% 75%
+
+
+SET-D2.wav
+
+position 1 75% 25% 75% 75% 75%
+position 2 75% 50% 75% 75% 75%
+position 3 75% 75% 75% 75% 75%
+position 4 75% 100% 75% 75% 75%
+
+
+SET-D3.wav
+
+position 1 75% 75% 25% 75% 75%
+position 2 75% 75% 50% 75% 75%
+position 3 75% 75% 75% 75% 75%
+position 4 75% 75% 100% 75% 75%
+
+
+SET-D4.wav
+
+position 1 75% 75% 75% 25% 75%
+position 2 75% 75% 75% 50% 75%
+position 3 75% 75% 75% 75% 75%
+position 4 75% 75% 75% 100% 75%
+
+
+SET-D5.wav
+
+position 1 75% 75% 75% 75% 25%
+position 2 75% 75% 75% 75% 50%
+position 3 75% 75% 75% 75% 75%
+position 4 75% 75% 75% 75% 100%
+
+
+SET-E1.wav
+
+position 1 25% 100% 100% 100% 100%
+position 2 50% 100% 100% 100% 100%
+position 3 75% 100% 100% 100% 100%
+position 4 100% 100% 100% 100% 100%
+
+
+SET-E2.wav
+
+position 1 100% 25% 100% 100% 100%
+position 2 100% 50% 100% 100% 100%
+position 3 100% 75% 100% 100% 100%
+position 4 100% 100% 100% 100% 100%
+
+
+SET-E3.wav
+
+position 1 100% 100% 25% 100% 100%
+position 2 100% 100% 50% 100% 100%
+position 3 100% 100% 75% 100% 100%
+position 4 100% 100% 100% 100% 100%
+
+
+SET-E4.wav
+
+position 1 100% 100% 100% 25% 100%
+position 2 100% 100% 100% 50% 100%
+position 3 100% 100% 100% 75% 100%
+position 4 100% 100% 100% 100% 100%
+
+
+SET-E5.wav
+
+position 1 100% 100% 100% 100% 25%
+position 2 100% 100% 100% 100% 50%
+position 3 100% 100% 100% 100% 75%
+position 4 100% 100% 100% 100% 100%
