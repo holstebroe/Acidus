@@ -80,6 +80,10 @@ public:
     SynthParameters& getParams() { return params_; }
     const SynthParameters& getParams() const { return params_; }
 
+    // Read-only probe for tests: the cutoff (Hz) handed to the filter on the
+    // most recent processed sample, after the engine's clamp.
+    float getLastCutoffHz() const { return lastCutoffHz_; }
+
 private:
     double sampleRate_{44100.0};
     SynthParameters params_;
@@ -92,6 +96,7 @@ private:
     int currentNote_{-1};
     bool isNoteActive_{false};
     float accentLevel_{0.0f};
+    float lastCutoffHz_{0.0f};
 
     // Smooth VCA Gate Envelope to prevent Note On / Off clicks
     float vcaGateEnv_{0.0f};

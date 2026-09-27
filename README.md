@@ -89,4 +89,11 @@ Results go to `calibration_results/<timestamp>/`:
 ./build/acidus_dsp_test
 ./build/acidus_filter_stability_test
 ./build/acidus_gui_test
+./build/acidus_reference_test    # checks the DSP against docs/TB-303 Reference/TB303_REFERENCE.md
 ```
+
+`acidus_reference_test` measures frequency response, resonance-loop
+stability margin, envelope/slide time constants and control laws against the
+sourced claims in the consolidated reference, and exits with the number of
+failed checks. See `docs/TB303_REFERENCE_AUDIT_2026-09-27.md` for the current
+results and the corrective plan.

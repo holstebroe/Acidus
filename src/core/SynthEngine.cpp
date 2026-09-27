@@ -138,6 +138,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
 
         float effectiveCutoff = params_.cutoffBaseHz * std::pow(2.0f, cv_total);
         float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 15000.0f);
+        lastCutoffHz_ = totalCutoff;
 
         float filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
 

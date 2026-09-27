@@ -24,6 +24,7 @@ public:
 
     float processNextSample();
     bool isSliding() const { return isSliding_; }
+    double getCurrentFreqHz() const { return currentFreq_; } // read-only probe for tests
 
     void resetFilterStates();
 

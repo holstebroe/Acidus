@@ -119,6 +119,14 @@ add_executable(acidus_filter_stability_test
     src/filter_stability_test_main.cpp
 )
 
+# Reference-conformance tests: checks the DSP core against the sourced
+# claims in docs/TB-303 Reference/TB303_REFERENCE.md (frequency response,
+# loop stability margin, envelope/slide time constants, control laws).
+add_executable(acidus_reference_test
+    ${CORE_SOURCES}
+    src/reference_conformance_test_main.cpp
+)
+
 # Standalone offline optimizer: fits Filter.hpp's calibration constants
 # (ladder pole spread, feedback gain ceiling, input drive) against target
 # (frequency, relative-dB) points read off a reference hardware spectrum.
