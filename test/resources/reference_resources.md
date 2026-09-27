@@ -9,14 +9,14 @@ encodes the approximate parameters used to record the source sample.
 
 ## File name format
 
-Example: `303_saw-A2t-39c0r0e0d1a0.wav`
+Example: `303_saw-A2t-42c0r0e0d1a0.wav`
 
 | Token   | Meaning                                          |
 |---------|---------------------------------------------------|
 | `303`   | Source id (hardware Roland TB-303)                 |
 | `saw`   | Oscillator waveform mode                           |
 | `A2`    | Note played (A2)                                   |
-| `t-39`  | Tuning, 39 cents flat (approximately)               |
+| `t-42`  | Tuning, 42 cents flat (measured, see below)         |
 | `c0`    | Cutoff knob at minimum position                     |
 | `r0`    | Resonance knob at minimum position                  |
 | `e0`    | Env Mod knob at minimum position                    |
@@ -63,8 +63,13 @@ DIGIT         = %x30-39               ; "0"-"9"
 - **waveform** — oscillator mode: `saw` or `square`.
 - **note** — the note played, e.g. `A2` or `A#2`.
 - **tuning** — the source's tuning offset from equal temperament, in cents.
-  `t-39` means 39 cents flat; a value with no leading `-` means sharp (or
-  in tune, at `t0`).
+  `t-42` means 42 cents flat; a value with no leading `-` means sharp (or
+  in tune, at `t0`). The values are measured from each recording (mean of
+  a harmonic-comb f0 fit and a time-domain period estimate, which agree
+  within ~2 cents), not the nominal Tune setting: most samples sit at
+  -40..-43 cents, but `A1 c0` and `D2 c0` are ~-50 cents, i.e. ~8 cents
+  flatter than the same notes recorded at `c1`, so they were most likely
+  recorded in a different sitting.
 - **cutoff**, **resonance**, **env-mod**, **decay**, **accent** — the
   corresponding front-panel knob position, encoded as described below.
 
