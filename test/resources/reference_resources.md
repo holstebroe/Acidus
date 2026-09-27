@@ -87,3 +87,22 @@ of its full travel:
 Only `0`, `1` and `5` are used by the samples currently in this folder;
 other digits are reserved for intermediate positions that may be added
 later.
+
+## Label corrections (2026-09-27)
+
+Five files were renamed after their audio contradicted the knob label. Each
+correction was checked three ways: the time course of the resonant peak, a
+per-sample free-knob fit (`tools/calibrate_reference.py` label check), and
+the match error with the corrected label.
+
+| Original name | New name | Evidence |
+|---|---|---|
+| `303_saw-A1t-43c1r1e0d1a0` | `303_saw-A1t-43c1r1e0d0a0` | Resonant peak glides 3050 → 1930 Hz within 140 ms: the 68 ms MEG of Decay min, not the 1.07 s of Decay max (the `t-40` A2 note at the same label only moves 3330 → 3000 Hz). Match error 9.1 → 5.9. |
+| `303_saw-D2t-43c1r1e0d1a0` | `303_saw-D2t-43c1r1e0d0a0` | Same glide, 3050 → 1900 Hz. Match error 8.3 → 3.6; peak-shape error 11 → 1.3 dB. |
+| `303_saw-A1t-51c0r1e0d1a0` | `303_saw-A1t-51c0r1e0d0a0` | Peak falls ≈ 320 → 215 Hz over the note, the Env Mod law's 0.74 oct for a fully decayed MEG at Cutoff min; the `t-41` c0r1 notes stay put. Match error 6.1 → 3.7. |
+| `303_saw-D2t-50c0r1e0d1a0` | `303_saw-D2t-50c0r1e0d0a0` | Same, ≈ 350 → 215 Hz. Match error 4.7 → 2.5. |
+| `303_saw-D3t-41c1r1e0d1a1` | `303_saw-D3t-41c1r1e0d1a0` | Not an accented step: level is flat and the peak sits at 3.0–3.15 kHz like the unaccented A2 c1r1 note, where the accented D2 c1r1 note is +7.8 dB louder and peaks at 6.2 kHz. The Accent knob does nothing on an unaccented step, so `a0` describes it exactly. Match error 10.8 → 3.0. |
+
+So all the `t-43` and `t-50/-51` notes (the other sittings) were most likely
+recorded with Decay at minimum. An accented step with Accent at 0 would
+sound the same (it also shorts the Decay pot), so either reading fits.
