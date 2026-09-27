@@ -78,6 +78,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     env_.setAccentSweepTimes(params_.accentChargeBaseSec, params_.accentChargePotSec, params_.accentMixSec);
     env_.setAccentKnob(std::min(std::max(params_.accent, 0.0f), 1.0f));
     osc_.setSawShaping(params_.oscSawLpfHz, params_.oscSawShape);
+    osc_.setSquareShaping(params_.oscSquareDutyDepth, params_.oscSquareLevel);
     filter_.setResonanceSkew(params_.filterResonanceSkew);
     filter_.setResonanceLimit(params_.filterResonanceLimit);
 

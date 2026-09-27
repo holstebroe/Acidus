@@ -78,6 +78,8 @@ const ParamEntry kParams[] = {
     ACIDUS_PARAM(accentMixSec),
     ACIDUS_PARAM(oscSawLpfHz),
     ACIDUS_PARAM(oscSawShape),
+    ACIDUS_PARAM(oscSquareDutyDepth),
+    ACIDUS_PARAM(oscSquareLevel),
     ACIDUS_PARAM(vcfAttackMs),
     ACIDUS_PARAM(vcaAttackMs),
     ACIDUS_PARAM(vcfDecayMinSec),

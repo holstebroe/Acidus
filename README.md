@@ -75,6 +75,24 @@ python3 tools/calibrate_reference.py --evaluate-only     # score the current cod
 python3 tools/calibrate_reference.py --exclude c5r1 --apply   # drop a suspect sample, write defaults
 ```
 
+The dinsync.info reference set in `test/resources/x0x-reference` (25 files x
+16 notes: a systematic sweep of every knob, both waveforms, with and without
+accent, levels not normalised) is described in
+`test/resources/x0x-reference/x0x_reference.md` and, machine-readably, in
+`x0x_reference_manifest.json` next to it. Both are generated from the
+author's knob chart and the audio by `tools/x0x_reference_manifest.py`.
+`--manifest` fits against those notes instead (with one global recording
+gain, so absolute levels count):
+
+```bash
+python3 tools/x0x_reference_manifest.py                  # regenerate manifest + tables (--check: verify)
+python3 tools/calibrate_reference.py --manifest --evaluate-only --no-sensitivity
+# fast search: a quarter of the notes (--rotate), first 800 ms of each
+python3 tools/calibrate_reference.py --manifest --rotate --analysis-ms 800 --no-sensitivity --max-minutes 120
+```
+
+`--include`/`--exclude` then match note ids such as `C2-p3-square-acc`.
+
 Results go to `calibration_results/<timestamp>/`:
 - `report.md` has before/after scores, a per-sample ranking and a list of
   suspicious samples. Samples are flagged when they fit much worse than the

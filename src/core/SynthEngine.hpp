@@ -66,6 +66,8 @@ struct SynthParameters {
     float accentMixSec{0.125f};          // Envelope.cpp - mixing resistor (Whittle 100k, likely R72) x C13 1uF; C13 discharges through it + the lower pot section (fitted 2026-09-27 to all 13 hardware samples)
     float oscSawLpfHz{40000.0f};         // Oscillator.cpp - saw-core bandwidth limit; unsourced (TB303_REFERENCE.md §7.2), bypassed above 0.45*fs
     float oscSawShape{0.0f};            // Oscillator.cpp - saw x - s*x^2 bend; unsourced (§7.2: "drop them"), 0 = clean ramp
+    float oscSquareDutyDepth{0.25f};    // Oscillator.cpp - square duty = 0.45 + depth * exp(-f / 180 Hz); antto fit 0.25
+    float oscSquareLevel{0.75f};        // Oscillator.cpp - square level relative to the saw's +-1 (§9: saw p-p ~2x the square's)
     float vcfAttackMs{0.1f};             // Envelope.cpp - MEG charge time constant (D37 + R152 100R into C62: ~0.1 ms, §14.1)
     float vcaAttackMs{0.536367f};             // Envelope.cpp - VEG onset time constant; ref 'a few ms' (§15.2), this unit opens faster (fitted 2026-09-27 to all 13 hardware samples)
     float vcfDecayMinSec{0.068f};        // Envelope.cpp - MEG decay tau at Decay min: R136 68k x C62 1uF (§14.1)

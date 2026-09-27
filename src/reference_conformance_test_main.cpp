@@ -105,6 +105,7 @@ void applyOscParams(Oscillator& o, const SynthParameters& p) {
     o.setTuningCents(p.tuningCents);
     o.setCouplingHz(p.oscCouplingHz);
     o.setSawShaping(p.oscSawLpfHz, p.oscSawShape);
+    o.setSquareShaping(p.oscSquareDutyDepth, p.oscSquareLevel);
 }
 
 void applyEnvParams(Envelope& e, const SynthParameters& p, float decayKnob) {

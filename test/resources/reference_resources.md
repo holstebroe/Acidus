@@ -7,6 +7,13 @@ parameters to match the hardware reference as closely as possible.
 The samples are currently all single notes played at 142 BPM. The file name
 encodes the approximate parameters used to record the source sample.
 
+The `x0x-reference/` subfolder holds a second, much larger set (the
+dinsync.info recordings: 25 files x 16 notes, one systematic knob sweep).
+Those files carry several notes each and follow their own layout, described
+in [`x0x-reference/x0x_reference.md`](x0x-reference/x0x_reference.md); the
+file-name grammar below applies only to the single-note files in this
+folder.
+
 ## File name format
 
 Example: `303_saw-A2t-42c0r0e0d1a0.wav`
