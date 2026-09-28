@@ -72,6 +72,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     env_.setVcaGateOffMs(params_.vcaGateOffMs);
     env_.setVcaGateOffAccentMs(params_.vcaGateOffAccentMs);
     env_.setAttackTimesMs(params_.vcfAttackMs, params_.vcaAttackMs);
+    env_.setDecayTaper(params_.vcfDecayTaper);
     env_.setDecayRangeSec(params_.vcfDecayMinSec, params_.vcfDecayMaxSec);
     env_.setAccentDecaySec(params_.accentDecaySec);
     env_.setAccentSweepResonance(params_.resonance);

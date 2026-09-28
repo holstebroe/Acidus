@@ -113,8 +113,9 @@ enum ParamId : clap_id {
 
     PARAM_ENV_MOD_TAPER_EXP = 48,              // Env Mod pot taper, knob^exp (1 = linear)
     PARAM_ACCENT_DIODE_DROP = 49,              // D24 forward drop, fraction of the MEG swing (0 = ideal)
+    PARAM_VCF_DECAY_TAPER = 50,                // Decay pot taper a, R = Rtot*(a^x-1)/(a-1) (81 = 10 % at mid-travel)
 
-    PARAM_EXPERIMENTAL_COUNT = 50,
+    PARAM_EXPERIMENTAL_COUNT = 51,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

@@ -80,6 +80,7 @@ struct SynthParameters {
     float vcaAttackMs{1.23555f};             // Envelope.cpp - VEG onset time constant; ref 'a few ms' (§15.2), this unit opens faster (fitted 2026-09-28 to the x0x set)
     float vcfDecayMinSec{0.0677679f};        // Envelope.cpp - MEG decay tau at Decay min: R136 68k x C62 1uF (§14.1)
     float vcfDecayMaxSec{1.07576f};        // Envelope.cpp - MEG decay tau at Decay max: (68k + VR6 1M) x 1uF; A-taper law in between
+    float vcfDecayTaper{81.0f};          // Envelope.cpp - Decay pot (VR6) taper a: R = Rtot*(a^x-1)/(a-1); 81 = 10 % at mid-travel (§14.1)
     float accentDecaySec{0.0685938f};        // Envelope.cpp - MEG decay tau on accented notes (VR6 shorted -> R136 alone)
     float filterResonanceSkew{-0.562916f};     // Filter.hpp - Resonance pot curve (exponential skew; < 0 = resonance builds late in the travel) (fitted 2026-09-28 to the x0x set; was 3.0)
     float filterResonanceLimit{0.98f};   // Filter.hpp - max feedback as a fraction of the loop's critical gain (<1 never self-oscillates)

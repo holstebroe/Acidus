@@ -18,6 +18,8 @@ public:
     void setVcaGateOffAccentMs(float ms) { vcaGateOffAccentSec_ = ms * 0.001f; updateCoefficients(); }
     void setAttackTimesMs(float vcfMs, float vcaMs) { vcfAttackSec_ = vcfMs * 0.001f; vcaAttackSec_ = vcaMs * 0.001f; updateCoefficients(); }
     void setDecayRangeSec(float minSec, float maxSec) { vcfDecayMinSec_ = minSec; vcfDecayMaxSec_ = maxSec; setDecay(decayNorm_); }
+    // Decay pot taper a: R = Rtot * (a^x - 1) / (a - 1); 81 = 10 % at mid-travel, 1 = linear.
+    void setDecayTaper(float a) { if (a != decayTaper_) { decayTaper_ = a; setDecay(decayNorm_); } }
     void setAccentDecaySec(float seconds) { accentDecaySec_ = seconds; updateCoefficients(); }
 
     // Accent-sweep network (TB303_REFERENCE.md §16.2), solved as the circuit:
@@ -63,6 +65,7 @@ private:
     float vcaAttackSec_{0.003f};
     float vcfDecayMinSec_{0.068f};
     float vcfDecayMaxSec_{1.068f};
+    float decayTaper_{81.0f};
     float decayNorm_{0.0f};
 
     float vcfDecayTimeSec_{0.20f};

@@ -86,6 +86,7 @@ const ParamEntry kParams[] = {
     ACIDUS_PARAM(vcaAttackMs),
     ACIDUS_PARAM(vcfDecayMinSec),
     ACIDUS_PARAM(vcfDecayMaxSec),
+    ACIDUS_PARAM(vcfDecayTaper),
     ACIDUS_PARAM(accentDecaySec),
     ACIDUS_PARAM(filterResonanceSkew),
     ACIDUS_PARAM(filterResonanceLimit),

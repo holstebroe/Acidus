@@ -17,10 +17,11 @@ void Envelope::setDecay(float decayParam) {
     float norm = std::min(std::max(decayParam, 0.0f), 1.0f);
     decayNorm_ = norm;
     // tau = C62 * (R136 + VR6(theta)), VR6 a 1M audio-taper pot:
-    // R(theta) = Rtot * (81^theta - 1) / 80 (10 % at mid-rotation;
-    // TB303_REFERENCE.md §14.1).
-    const float kTaper = 81.0f;
-    float potFrac = (std::pow(kTaper, norm) - 1.0f) / (kTaper - 1.0f);
+    // R(theta) = Rtot * (a^theta - 1) / (a - 1); a = 81 is 10 % at
+    // mid-rotation (TB303_REFERENCE.md §14.1). a is calibratable: a real
+    // pot's taper, and a worn one, can differ.
+    const float a = decayTaper_;
+    float potFrac = (std::abs(a - 1.0f) < 1e-3f) ? norm : (std::pow(a, norm) - 1.0f) / (a - 1.0f);
     vcfDecayTimeSec_ = vcfDecayMinSec_ + (vcfDecayMaxSec_ - vcfDecayMinSec_) * potFrac;
     updateCoefficients();
 }

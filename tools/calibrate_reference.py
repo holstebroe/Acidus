@@ -157,6 +157,7 @@ MODEL_PARAMS = {
     "vcaAttackMs":              (0.3, 8.0, True, "env"),     # VCA onset: few ms, R134/C41 2.2 ms (§15.2)
     "vcfDecayMinSec":           (0.055, 0.10, True, "env"),   # tau, R136 x C62 (+-20 % caps)
     "vcfDecayMaxSec":           (0.85, 1.35, True, "env"),    # tau, (R136 + VR6) x C62
+    "vcfDecayTaper":            (1.5, 200.0, True, "env"),    # Decay pot taper a (81 = 10 % at mid-travel)
     "accentDecaySec":           (0.03, 0.15, True, "env"),
     "vegDecaySec":              (1.0, 6.0, True, "env"),      # R123 x C42 = 1.5 s (§15.1); hardware samples look flatter
     "vcaGateOffMs":             (0.3, 20.0, True, "env"),

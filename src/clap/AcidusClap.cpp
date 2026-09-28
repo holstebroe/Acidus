@@ -179,6 +179,7 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_ACCENT_MIX_SEC] = kCalibrationDefaults.accentMixSec;
     paramValues_[PARAM_ENV_MOD_TAPER_EXP] = kCalibrationDefaults.envModTaperExp;
     paramValues_[PARAM_ACCENT_DIODE_DROP] = kCalibrationDefaults.accentDiodeDrop;
+    paramValues_[PARAM_VCF_DECAY_TAPER] = kCalibrationDefaults.vcfDecayTaper;
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
@@ -276,6 +277,7 @@ void AcidusClap::syncParamsToEngine() {
     params.accentMixSec = static_cast<float>(paramValues_[PARAM_ACCENT_MIX_SEC]);
     params.envModTaperExp = static_cast<float>(paramValues_[PARAM_ENV_MOD_TAPER_EXP]);
     params.accentDiodeDrop = static_cast<float>(paramValues_[PARAM_ACCENT_DIODE_DROP]);
+    params.vcfDecayTaper = static_cast<float>(paramValues_[PARAM_VCF_DECAY_TAPER]);
 #endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
@@ -765,6 +767,13 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->min_value = 0.0;
             paramInfo->max_value = 0.5;
             paramInfo->default_value = kCalibrationDefaults.accentDiodeDrop;
+            break;
+        case PARAM_VCF_DECAY_TAPER:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Decay Knob Taper");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 1.0;
+            paramInfo->max_value = 200.0;
+            paramInfo->default_value = kCalibrationDefaults.vcfDecayTaper;
             break;
 
         case PARAM_DRIVE:
