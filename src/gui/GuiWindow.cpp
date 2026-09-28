@@ -134,6 +134,10 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY) {
     int plateY = startY - 14;
     int plateW = logoW + 32;
     int plateH = logoH + subtitleGap + subtitleH + 26;
+    logoPlateX_ = plateX;
+    logoPlateY_ = plateY;
+    logoPlateW_ = plateW;
+    logoPlateH_ = plateH;
 
     g.fillRect(plateX + 3, plateY + 4, plateW, plateH, 0x50000000);
     g.fillRect(plateX, plateY, plateW, plateH, 0xFF131517);
@@ -248,8 +252,21 @@ void GuiWindow::renderFrame() {
 #endif
 }
 
-void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
+void GuiWindow::handleMouseDown(int x, int y, bool isShift, bool isCtrl) {
     lastShiftState_ = isShift;
+
+#ifdef ACIDUS_CALIBRATION_BUILD
+    if (isCtrl && x >= logoPlateX_ && x < logoPlateX_ + logoPlateW_
+        && y >= logoPlateY_ && y < logoPlateY_ + logoPlateH_) {
+        if (plugin_) {
+            plugin_->resetCalibrationParamsFromGui();
+        }
+        renderFrame();
+        return;
+    }
+#else
+    (void)isCtrl;
+#endif
 
     for (size_t i = 0; i < controls_.size(); ++i) {
         auto& ctrl = controls_[i];
@@ -422,7 +439,8 @@ void GuiWindow::eventLoopX11() {
                 drawX11Frame();
             } else if (ev.type == ButtonPress) {
                 bool isShift = (ev.xbutton.state & ShiftMask) != 0;
-                handleMouseDown(ev.xbutton.x, ev.xbutton.y, isShift);
+                bool isCtrl = (ev.xbutton.state & ControlMask) != 0;
+                handleMouseDown(ev.xbutton.x, ev.xbutton.y, isShift, isCtrl);
             } else if (ev.type == MotionNotify) {
                 if (ev.xmotion.state & Button1Mask) {
                     bool isShift = (ev.xmotion.state & ShiftMask) != 0;
@@ -491,8 +509,9 @@ static LRESULT CALLBACK AcidusWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 int x = LOWORD(lParam);
                 int y = HIWORD(lParam);
                 bool isShift = (wParam & MK_SHIFT) != 0;
+                bool isCtrl = (wParam & MK_CONTROL) != 0;
                 SetCapture(hwnd);
-                gui->handleMouseDown(x, y, isShift);
+                gui->handleMouseDown(x, y, isShift, isCtrl);
             }
             return 0;
         }

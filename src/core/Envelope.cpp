@@ -106,7 +106,9 @@ void Envelope::processNextSample() {
         const double rS = accentR46Sec_ + res * accentPotSec_;           // R46 + upper pot section
         const double rBot = (1.0 - res) * accentPotSec_;                 // lower pot section to C13
         const double rMix = accentMixSec_;
-        const double vMeg = (isAccent_ && gate_) ? accentKnob_ * vcfEnv_ : 0.0;
+        // D24 only conducts while the (Accent-pot-scaled) MEG exceeds the
+        // network by its forward drop, so the charging source is MEG - drop.
+        const double vMeg = (isAccent_ && gate_) ? accentKnob_ * vcfEnv_ - accentDiodeDrop_ : 0.0;
         const double vc = accentCap_;
         const double vOff = vc * rMix / (rMix + rBot);                   // wiper with D24 off
         double a, b;                                                     // dVc/dt = a - b*Vc

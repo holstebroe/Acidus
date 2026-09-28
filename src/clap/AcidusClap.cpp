@@ -178,6 +178,7 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_ACCENT_CHARGE_POT_SEC] = kCalibrationDefaults.accentChargePotSec;
     paramValues_[PARAM_ACCENT_MIX_SEC] = kCalibrationDefaults.accentMixSec;
     paramValues_[PARAM_ENV_MOD_TAPER_EXP] = kCalibrationDefaults.envModTaperExp;
+    paramValues_[PARAM_ACCENT_DIODE_DROP] = kCalibrationDefaults.accentDiodeDrop;
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
@@ -274,6 +275,7 @@ void AcidusClap::syncParamsToEngine() {
     params.accentChargePotSec = static_cast<float>(paramValues_[PARAM_ACCENT_CHARGE_POT_SEC]);
     params.accentMixSec = static_cast<float>(paramValues_[PARAM_ACCENT_MIX_SEC]);
     params.envModTaperExp = static_cast<float>(paramValues_[PARAM_ENV_MOD_TAPER_EXP]);
+    params.accentDiodeDrop = static_cast<float>(paramValues_[PARAM_ACCENT_DIODE_DROP]);
 #endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
@@ -757,6 +759,13 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->max_value = 4.0;
             paramInfo->default_value = kCalibrationDefaults.envModTaperExp;
             break;
+        case PARAM_ACCENT_DIODE_DROP:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Accent Sweep Diode Drop");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 0.5;
+            paramInfo->default_value = kCalibrationDefaults.accentDiodeDrop;
+            break;
 
         case PARAM_DRIVE:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Drive");
@@ -817,6 +826,24 @@ void AcidusClap::onEndEditFromGui(clap_id paramId) {
         outEventQueue_.push_back({ CLAP_EVENT_PARAM_GESTURE_END, paramId, 0.0, CLAP_EVENT_IS_LIVE });
     }
     requestHostFlush();
+}
+
+void AcidusClap::resetCalibrationParamsFromGui() {
+#ifdef ACIDUS_CALIBRATION_BUILD
+    {
+        std::lock_guard<std::mutex> lock(outEventQueueMutex_);
+        for (uint32_t id = PARAM_FRONT_PANEL_COUNT; id < PARAM_EXPERIMENTAL_COUNT; ++id) {
+            clap_param_info_t info{};
+            if (!paramsInfo(id, &info)) continue;
+            paramValues_[id] = info.default_value;
+            outEventQueue_.push_back({ CLAP_EVENT_PARAM_GESTURE_BEGIN, id, 0.0, CLAP_EVENT_IS_LIVE });
+            outEventQueue_.push_back({ CLAP_EVENT_PARAM_VALUE, id, info.default_value, CLAP_EVENT_IS_LIVE });
+            outEventQueue_.push_back({ CLAP_EVENT_PARAM_GESTURE_END, id, 0.0, CLAP_EVENT_IS_LIVE });
+        }
+    }
+    syncParamsToEngine();
+    requestHostFlush();
+#endif
 }
 
 void AcidusClap::setParamValueFromGui(clap_id paramId, double value) {

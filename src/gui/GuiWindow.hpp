@@ -45,6 +45,10 @@ public:
     void destroy();
 
     uint32_t getWidth() const { return width_; }
+    // Logo plate rectangle as last drawn (x, y, w, h); for tests.
+    void getLogoPlateRect(int& x, int& y, int& w, int& h) const {
+        x = logoPlateX_; y = logoPlateY_; w = logoPlateW_; h = logoPlateH_;
+    }
     uint32_t getHeight() const { return height_; }
 
     const std::vector<uint32_t>& getPixelBuffer() const { return pixelBuffer_; }
@@ -59,7 +63,9 @@ public:
     }
 
     void renderFrame();
-    void handleMouseDown(int x, int y, bool isShift = false);
+    // isCtrl: in a calibration build, Ctrl-click on the logo plate resets
+    // every calibration parameter (not the front-panel knobs) to default.
+    void handleMouseDown(int x, int y, bool isShift = false, bool isCtrl = false);
     void handleMouseDrag(int x, int y, bool isShift = false);
     void handleMouseUp();
 
@@ -77,6 +83,7 @@ private:
     std::unique_ptr<IControlRenderer> controlRenderer_;
 
     int activeControlIndex_{-1};
+    int logoPlateX_{0}, logoPlateY_{0}, logoPlateW_{0}, logoPlateH_{0}; // set by drawAcidusTitle
     int dragStartY_{0};
     double dragStartVal_{0.0};
 

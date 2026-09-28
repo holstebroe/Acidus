@@ -112,8 +112,9 @@ enum ParamId : clap_id {
     PARAM_ACCENT_MIX_SEC = 47,             // accent sweep: mixing resistor x C13
 
     PARAM_ENV_MOD_TAPER_EXP = 48,              // Env Mod pot taper, knob^exp (1 = linear)
+    PARAM_ACCENT_DIODE_DROP = 49,              // D24 forward drop, fraction of the MEG swing (0 = ideal)
 
-    PARAM_EXPERIMENTAL_COUNT = 49,
+    PARAM_EXPERIMENTAL_COUNT = 50,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT
@@ -162,6 +163,9 @@ public:
     void onBeginEditFromGui(clap_id paramId);
     void onParamValueFromGui(clap_id paramId, double value);
     void onEndEditFromGui(clap_id paramId);
+    // Calibration build: set every experimental parameter back to its
+    // compiled-in default (front-panel controls untouched), telling the host.
+    void resetCalibrationParamsFromGui();
     bool paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity);
     bool paramsTextToValue(clap_id paramId, const char* paramValueText, double* outValue);
     void paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out);

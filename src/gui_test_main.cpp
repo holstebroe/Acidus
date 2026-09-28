@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
+#include <cstdlib>
 
 int main() {
     acidus::AcidusClap plugin(nullptr);
@@ -141,6 +142,49 @@ int main() {
     assert(rawPtr->knobDrawn);
     assert(rawPtr->switchDrawn);
     std::cout << "Custom Font and IControlRenderer interface tests passed successfully!" << std::endl;
+
+#ifdef ACIDUS_CALIBRATION_BUILD
+    {
+        // Ctrl-click on the logo plate resets the calibration parameters,
+        // not the front-panel knobs, and tells the host about each one.
+        // Explicit checks: assert() is compiled out in Release builds.
+        auto check = [](bool ok, const char* what) {
+            if (!ok) { std::cerr << "FAILED: " << what << std::endl; std::exit(1); }
+        };
+        acidus::AcidusClap calPlugin(nullptr);
+        acidus::GuiWindow calGui(&calPlugin);
+        calGui.renderFrame();
+        clap_param_info_t info{};
+        calPlugin.paramsInfo(acidus::PARAM_CUTOFF_BASE_HZ, &info);
+        calPlugin.onParamValueFromGui(acidus::PARAM_CUTOFF_BASE_HZ, info.default_value + 100.0);
+        calPlugin.onParamValueFromGui(acidus::PARAM_CUTOFF, 0.123);
+        TestOutEvents drain;
+        clap_output_events_t drainList{&drain, TestOutEvents::tryPush};
+        calPlugin.paramsFlush(nullptr, &drainList);
+
+        int lx, ly, lw, lh;
+        calGui.getLogoPlateRect(lx, ly, lw, lh);
+        check(lw > 0 && lh > 0, "lw > 0 && lh > 0");
+        calGui.handleMouseDown(lx + lw / 2, ly + lh / 2, false, false); // plain click: no reset
+        double v = 0.0;
+        calPlugin.paramsValue(acidus::PARAM_CUTOFF_BASE_HZ, &v);
+        check(std::abs(v - (info.default_value + 100.0)) < 1e-9, "std::abs(v - (info.default_value + 100.0)) < 1e-9");
+
+        calGui.handleMouseDown(lx + lw / 2, ly + lh / 2, false, true);  // Ctrl-click: reset
+        calPlugin.paramsValue(acidus::PARAM_CUTOFF_BASE_HZ, &v);
+        check(std::abs(v - info.default_value) < 1e-9, "std::abs(v - info.default_value) < 1e-9");
+        calPlugin.paramsValue(acidus::PARAM_CUTOFF, &v);
+        check(std::abs(v - 0.123) < 1e-9, "std::abs(v - 0.123) < 1e-9");
+
+        TestOutEvents resetEvents;
+        clap_output_events_t resetList{&resetEvents, TestOutEvents::tryPush};
+        calPlugin.paramsFlush(nullptr, &resetList);
+        size_t expected = 3 * (acidus::PARAM_EXPERIMENTAL_COUNT - acidus::PARAM_FRONT_PANEL_COUNT);
+        check(resetEvents.types.size() == expected, "resetEvents.types.size() == expected");
+        for (clap_id id : resetEvents.paramIds) check(id >= acidus::PARAM_FRONT_PANEL_COUNT, "id >= acidus::PARAM_FRONT_PANEL_COUNT");
+        std::cout << "Calibration reset (Ctrl-click on logo) test passed: " << expected << " events" << std::endl;
+    }
+#endif
 
     std::cout << "All Acidus GUI tests passed successfully!" << std::endl;
 

@@ -36,6 +36,8 @@ public:
     }
     // Accent knob (VR7) level of MEG_acc feeding the sweep network.
     void setAccentKnob(float k) { accentKnob_ = k; }
+    // D24 forward drop, as a fraction of the full MEG swing (0 = ideal diode).
+    void setAccentDiodeDrop(float d) { accentDiodeDrop_ = d; }
 
     void noteOn(bool isAccent, bool isSlide, float accentKnob = 1.0f);
     void noteOff();
@@ -81,6 +83,7 @@ private:
     float accentR46Sec_{0.047f};
     float accentPotSec_{0.050f};
     float accentMixSec_{0.100f};
+    float accentDiodeDrop_{0.0f};
     float accentVcaCoeff_{0.0f};
 
     float vcfEnv_{0.0f};

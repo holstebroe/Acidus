@@ -70,6 +70,7 @@ struct SynthParameters {
     float accentVcaDepth{1.39055f};          // SynthEngine.cpp - accent term in the VCA control sum (x accented MEG, x Accent knob) (fitted 2026-09-28 to the x0x set)
     float accentChargeBaseSec{0.0386564f};   // Envelope.cpp - R46 47k x C13 1uF (§16.2) (fitted 2026-09-28 to the x0x set)
     float accentChargePotSec{0.0403299f};    // Envelope.cpp - VR4b 50k x C13 1uF (Resonance gang B) (fitted 2026-09-28 to the x0x set)
+    float accentDiodeDrop{0.0f};         // Envelope.cpp - D24 forward drop as a fraction of the MEG swing; 0 = ideal diode
     float accentMixSec{0.115121f};          // Envelope.cpp - mixing resistor (Whittle 100k, likely R72) x C13 1uF; C13 discharges through it + the lower pot section (fitted 2026-09-28 to the x0x set)
     float oscSawLpfHz{40000.0f};         // Oscillator.cpp - saw-core bandwidth limit; unsourced (TB303_REFERENCE.md §7.2), bypassed above 0.45*fs
     float oscSawShape{0.0f};            // Oscillator.cpp - saw x - s*x^2 bend; unsourced (§7.2: "drop them"), 0 = clean ramp

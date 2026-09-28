@@ -151,6 +151,7 @@ MODEL_PARAMS = {
     "accentChargeBaseSec":      (0.004, 0.10, True, "cv"),
     "accentChargePotSec":       (0.004, 0.10, True, "cv"),
     "accentMixSec":             (0.02, 0.30, True, "cv"),
+    "accentDiodeDrop":          (0.0, 0.5, False, "cv"),      # D24 forward drop, fraction of the MEG swing
     # Envelopes / VCA
     "vcfAttackMs":              (0.02, 1.0, True, "env"),
     "vcaAttackMs":              (0.3, 8.0, True, "env"),     # VCA onset: few ms, R134/C41 2.2 ms (§15.2)
