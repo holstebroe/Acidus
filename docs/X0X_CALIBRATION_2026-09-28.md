@@ -155,3 +155,83 @@ Before this calibration: 25 pass / 9 fail. After: **22 pass / 12 fail**.
 3. The **4.5 ms unaccented onset delay** is not modelled.
 4. The x0x set only has C2, so nothing here constrains key tracking (e.g. the
    square duty's frequency law or cutoff tracking across the keyboard).
+
+## Resonant-peak sweep analysis (2026-09-28, later the same day)
+
+The spectral scores above can't tell *where* the resonant peak is at each
+moment, and several audible differences only showed up there.
+`tools/sweep_track.py` tracks the peak (Hann frames, the saw's -6 dB/oct
+tilt removed, smoothed over one harmonic spacing). `calibrate_reference.py
+--w-sweep` scores the same track in semitones on Resonance >= 50 % notes.
+Hand-derived values are in `calibrations/x0x-envmod-test.json`, which is
+not yet the default.
+
+### Findings
+
+- **The Env Mod pot is audio-taper-like.** Sweep depth above the settled
+  cutoff is 0.96 / 1.50 / 3.60 / 5.06 oct at Env Mod 25/50/75/100 % (SET-E3,
+  Cutoff 100 %). D3 (Cutoff 75 %) gives 0.91 / 1.47 / 3.60 / 5.04, so depth
+  does not depend on Cutoff. The linear law gave 2.0 / 3.1 / 4.2 / >= 4.9.
+  Now modelled as `envModTaperExp` (depth = C + S * EnvMod^exp); the test
+  profile uses 0.69 + 4.37 * EnvMod^2.
+- **The bias shift is 0.35 x depth.** Raising Env Mod lowers the settled
+  cutoff by exactly 0.35 x the increase in depth in both sets (-1.44 oct
+  from 25 to 100 %), i.e. `envModOffset` 0.35, with no Cutoff dependence.
+- **Env Mod 0 is not 0.** In SET-A4 (Env Mod 0, Resonance 0) the Decay knob
+  still changes how fast the note darkens, so a residual MEG sweep remains.
+  Its size (~4-5 dB of brightness) agrees with the model's residual depth
+  (~0.6-0.8 oct).
+- **The cutoff trim moves up again.** With the right Env Mod law the settled
+  cutoffs need a trim of ~240 Hz (x0x fit: 159 Hz). The earlier fit had
+  lowered the cutoff range to compensate for the too-deep linear sweep.
+- **The accent sweep peaks early.** Accented Resonance-100 % notes peak
+  15-20 ms after note-on and fall half-way in ~90-100 ms (E3 p1/p2). The
+  schematic network (R46 47 k + VR4b 50 k into C13 1 uF, tau ~97 ms at
+  Resonance 100 %, with the accented MEG decaying at 68 ms) cannot peak
+  before ~60 ms. Matching all 8 accented E3/D3 saws needs a total charge
+  constant of ~30 ms at Resonance 100 % (fitted R46 7.8 ms, VR4b 21.8 ms,
+  mix 122 ms, sweep depth 2.66 oct), with the accented MEG decay kept at
+  69 ms. Making the MEG decay faster instead (37 ms) fits the low-Env-Mod
+  notes but breaks the high-Env-Mod ones.
+
+### Candidate explanations for the early accent peak (unconfirmed)
+
+1. **C13 below nominal** (most likely). A 1 uF electrolytic is +-20 %, and
+   40-year-old electrolytics lose capacitance as they dry out. The fit
+   behaves like ~0.3 uF. This would also explain why the two hardware units
+   differ.
+2. **D24's forward drop.** The model uses an ideal diode. A real ~0.6 V drop
+   ends C13's charging earlier while the MEG falls, which moves the peak
+   earlier and lower. It is a real effect and cheap to model, but probably
+   too small on its own to explain 60 -> 15 ms.
+3. **Sum of the two paths.** The Env Mod term peaks at note-on and the C13
+   bump later, so their sum peaks before C13 does. The model already sums
+   both, so this explains part of the shape but not the gap.
+
+antto's measurement in TB303_REFERENCE.md §16.2 (an accented note rising
+~1 oct above a normal one before falling) agrees with a real rise. This
+unit's rise is fast, 3.65 -> 4.47 kHz in ~15 ms at E3 p1.
+
+### Open items (sweep-derived)
+
+1. **Decay pot law too fast in mid-travel** (SET-E4). The fitted MEG tau is
+   ~0.26 s at Decay 50 % and ~0.74 s at 75 %; the model's
+   `(81^x - 1) / 80` A-taper gives 0.17 s and 0.39 s. The end points agree
+   (68 ms, 1.07 s). Needs a Decay taper parameter (the 81 is hard-coded in
+   `Envelope.cpp`).
+2. **Cutoff 75 % sits ~0.3 oct low** (all D rows; unaccented starts up to
+   0.6 oct low). Earlier full fits also put the chart's "75 %" at ~0.78 of
+   the knob, so the cutoff law's shape between 50 % and 100 %, or the knob
+   positions, are off.
+3. **Env Mod 75 % depth ~0.4-0.6 oct short.** The EnvMod^2 taper doesn't
+   bend sharply enough between 50 and 75 %; a steeper curve or an
+   audio-taper formula like the Decay pot's may fit better.
+4. **The 15 kHz cutoff clamp** flattens the first ~80 ms of Env Mod 100 %
+   notes (the hardware starts at 15.4-16 kHz), see conformance check E7.
+5. **E1 position 1 accented** (Cutoff 25 %, all else 100 %) falls a little
+   slower than the hardware in the first 30 ms.
+6. The tracker picks a spurious ~15 kHz peak late in quiet notes (e.g.
+   E1-p1-square-acc after 500 ms); a minimum peak height or a continuity
+   rule would clean up the sweep score.
+7. Once these are addressed, run the full optimizer with `--w-sweep`
+   starting from `x0x-envmod-test`, then make the result the default.
