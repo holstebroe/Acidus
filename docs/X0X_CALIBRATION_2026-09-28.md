@@ -220,7 +220,13 @@ unit's rise is fast, 3.65 -> 4.47 kHz in ~15 ms at E3 p1.
 
 ### Open items (sweep-derived)
 
-1. **Decay pot law too fast in mid-travel** (SET-E4). The fitted MEG tau is
+1. ~~**Decay pot law too fast in mid-travel**~~ (SET-E4): `vcfDecayTaper`
+   now calibratable. Measured MEG tau (E4/D4/C4 unaccented, in octaves
+   above the settled cutoff) is 0.08-0.14 / 0.24-0.30 / 0.54-0.74 /
+   0.90-1.00 s at Decay 25/50/75/100 %; taper 18 with max 0.97 s gives
+   0.13 / 0.26 / 0.52 / 0.97 s (in `x0x-sweep`). Decay 75 % is still a bit
+   fast in E4 (0.74 s there vs 0.55 s in D4/C4).
+   Original note: **Decay pot law too fast in mid-travel** (SET-E4). The fitted MEG tau is
    ~0.26 s at Decay 50 % and ~0.74 s at 75 %; the model's
    `(81^x - 1) / 80` A-taper gives 0.17 s and 0.39 s. The end points agree
    (68 ms, 1.07 s). Needs a Decay taper parameter (the 81 is hard-coded in
@@ -241,3 +247,15 @@ unit's rise is fast, 3.65 -> 4.47 kHz in ~15 ms at E3 p1.
    rule would clean up the sweep score.
 7. Once these are addressed, run the full optimizer with `--w-sweep`
    starting from `x0x-envmod-test`, then make the result the default.
+
+### Diode-drop result (D24)
+
+With D24's forward drop modelled (`accentDiodeDrop`), the accented E3/D3
+sweeps fit with the C13 time constants inside component tolerance: R46 35.8
+ms and VR4b 35.0 ms (~25 % below nominal, consistent with an aged 1 uF
+electrolytic), mix 116 ms, drop 0.30 of the MEG swing, depth 8.34 oct.
+Sweep error on the 8 accented saws is 1.49 semitones, against 1.64 for the
+ideal-diode fit, which needed C13 ~0.3 uF. So the early accent peak is
+best explained by the diode drop plus a moderately aged C13.
+`calibrations/README.md` lists the resulting "aged" / "new" flavours.
+

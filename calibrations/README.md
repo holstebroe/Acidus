@@ -10,8 +10,52 @@ on where it came from.
 |---|---|---|
 | `x0x` | dinsync.info reference recordings (`test/resources/x0x-reference`, 400 notes) | **Current default.** Full knob sweep, saw + square, C2 only. See `docs/X0X_CALIBRATION_2026-09-28.md`. |
 | `acidvoice` | Acidvoice single-note samples (`test/resources/303_saw-*.wav`, 13 notes) | The default until 2026-09-28. Saw only, knobs at min/half/max, notes A1-D3. |
-| `x0x-envmod-test` | `x0x` with an Env Mod law read off the E3/D3 sweep tracks | Listening test for the Env Mod sweep (taper 2, bias offset 0.35, cutoff trim 240 Hz, accent 5 oct); not a final calibration. |
+| `x0x-sweep` | The x0x unit as recorded, calibrated on its resonant-peak sweeps | **Recommended to try.** Env Mod taper and bias shift, Decay pot taper 18, accent sweep with D24 forward drop, C13 ~25 % below nominal (aged). 400 notes: weighted error 3.55 (x0x 3.43), harmonic 3.01 dB (3.21), sweep 5.44 st (6.39). |
+| `x0x-sweep-nominal` | `x0x-sweep` with a new, nominal C13 | "Fresh component" flavour; extrapolated, not recorded. |
+| `x0x-envmod-test` | `x0x` with a hand-derived Env Mod law and a very fast C13 (ideal diode) | Superseded by `x0x-sweep`; kept as the "badly worn C13" flavour (C13 behaving like ~0.3 uF). |
 | `x0x-acidvoice-trim` | `x0x` with the Acidvoice unit's cutoff range and accent depth | The x0x model with the higher filter trim, for a brighter, higher squelch. |
+
+## Flavours: aged vs. new components
+
+The recordings are of one ~40-year-old unit, so some fitted constants
+describe *that unit's* parts, not the schematic's. A profile can
+therefore model a specific unit as recorded, or the same circuit with new
+components. Both are valid sounds, and the choice is a matter of taste.
+
+Parts where age or tolerance shows up in the sound, and what the x0x
+recordings say about them:
+
+| Part | Schematic | x0x unit (fitted) | Effect | Profiles |
+|---|---|---|---|---|
+| C13 1 uF electrolytic (accent sweep) | R46 x C13 47 ms, VR4b x C13 50 ms | ~25 % faster (35.8 / 35.0 ms) with D24's drop modelled; ~70 % faster with an ideal diode | Accent squelch peaks earlier and higher | `x0x-sweep` (aged), `x0x-sweep-nominal` (new), `x0x-envmod-test` (badly worn) |
+| D24 (accent sweep diode) | ideal in the old model | forward drop 0.30 of the MEG swing | Ends C13's charging early: earlier, more pointed accent peak | all `x0x-sweep*` |
+| VR6 Decay pot (1 M audio taper) | a = 81 (10 % at mid-travel) | a ~ 18, max tau 0.97 s | Mid-travel Decay settings last longer | all `x0x-sweep*` |
+| Env Mod pot | linear law | ~ EnvMod^2 | Little sweep until mid-travel, then a lot | all `x0x-sweep*` |
+| TM3 cutoff trim | set by the service procedure | 240 Hz (x0x), ~250-310 Hz (Acidvoice) | Whole filter range up/down an octave | `x0x-acidvoice-trim` borrows Acidvoice's |
+| C62, C42, C41 (MEG/VEG timing electrolytics) | per schematic | not yet separated from pot laws | Envelope times | - |
+
+Typical ageing of a small 1980s electrolytic is 10-30 % capacitance loss
+(end-of-life criterion -20 %), with drying accelerated by heat.
+Leakage and ESR changes are too small to matter in these networks. In
+the current model, a worn C13 gives a *stronger* accent squelch: with the
+diode drop, a smaller capacitor charges further before D24 stops
+conducting. `x0x-sweep-nominal`'s accent peak at E3 p1 is ~3.7 kHz vs.
+~4.5 kHz for `x0x-sweep`. This is a model prediction; there is no recording
+of this unit with a fresh C13.
+
+### Future: selectable calibrations in the plugin
+
+Each profile is a flat set of `SynthParameters` constants, so the plugin
+could load them at run time instead of compiling one set in, e.g. a
+"Unit" or "Character" selector (x0x as recorded / x0x new parts /
+Acidvoice / ...), or per-part toggles (aged C13, trim high/low) that
+apply a subset of a profile. Things to decide first:
+
+- ship the profiles as embedded tables or as JSON next to the plugin;
+- whether a profile switch is a CLAP parameter (automatable, saved with the
+  project) or a preset;
+- keep profile field names in step with `SynthParameters` (the calibrator
+  and `calibration_profile.py` already fail on unknown fields).
 
 ## Switching
 
