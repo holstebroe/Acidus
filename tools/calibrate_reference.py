@@ -1279,6 +1279,9 @@ def main():
     ap.add_argument("--no-sensitivity", action="store_true",
                     help="skip the per-parameter sensitivity scan (2 evaluations per free parameter)")
     ap.add_argument("--build-dir", default=str(REPO / "build"))
+    ap.add_argument("--calibration", default=None,
+                    help="start from a calibration profile (calibrations/<name>.json) instead of the "
+                    "compiled-in SynthParameters defaults")
     ap.add_argument("--rebuild", action="store_true", help="rebuild the render library first")
     ap.add_argument("--out", default=None, help="output folder (default calibration_results/<timestamp>)")
     ap.add_argument("--max-minutes", type=float, default=20.0, help="time cap for the main fit")
@@ -1339,6 +1342,15 @@ def main():
         sys.exit(f"no usable reference samples in {args.manifest or args.refs}")
 
     renderer = Renderer(find_library(Path(args.build_dir), args.rebuild))
+    if args.calibration:
+        # Start from a per-source profile (tools/calibration_profile.py)
+        # instead of the compiled-in SynthParameters defaults.
+        prof = json.loads(Path(args.calibration).read_text(encoding="utf-8"))
+        unknown = [k for k in prof["parameters"] if k not in renderer.index]
+        if unknown:
+            sys.exit(f"{args.calibration}: unknown parameters {', '.join(unknown)} (rebuild the render library?)")
+        for k, v in prof["parameters"].items():
+            renderer.defaults[renderer.index[k]] = v
     t0 = time.time()
     problem = Problem(refs, renderer, args)
     print(f"{len(refs)} reference samples, {len(problem.params)} free parameters, {args.workers} workers")
