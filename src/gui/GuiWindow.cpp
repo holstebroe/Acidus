@@ -34,30 +34,29 @@ void GuiWindow::initControls() {
     controls_.clear();
 
     // Waveform selector leads the panel, rendered as a symbolic saw/square switch.
-    controls_.push_back({ PARAM_WAVEFORM, "WAVE", ControlType::ToggleSwitch, 48, 100, 17, 0.0, 1.0, 0.0, true });
+    controls_.push_back({ PARAM_WAVEFORM, "WAVEFORM", ControlType::ToggleSwitch, 56, 100, 17, 0.0, 1.0, 0.0, true });
 
-    // 5 Main Knobs. Positions are spaced to clear each other's 2x-scale label text
-    // (the widest, "ENV MOD", needs the most room on either side).
-    controls_.push_back({ PARAM_CUTOFF, "CUTOFF", ControlType::Knob, 140, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_RESONANCE, "RESO", ControlType::Knob, 232, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 332, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 440, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_ACCENT, "ACCENT", ControlType::Knob, 540, 100, 20, 0.0, 1.0, 0.5, false });
+    // 5 Main Knobs, labelled as on the TB-303 panel.
+    controls_.push_back({ PARAM_CUTOFF, "CUT OFF FREQ", ControlType::Knob, 150, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_RESONANCE, "RESONANCE", ControlType::Knob, 240, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 330, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 420, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_ACCENT, "ACCENT", ControlType::Knob, 510, 100, 20, 0.0, 1.0, 0.5, false });
 
     // Tuning trim, a real front-panel-equivalent control (TB303_RESEARCH_
     // COMPENDIUM.md documents a 50 kΩ "B" Tuning pot alongside Cutoff/Env
     // Mod/Decay/Accent) -- range matches the hardware's documented ±700
     // cent trim travel, for nudging the plugin into tune against a
     // reference recording that's itself slightly off-pitch.
-    controls_.push_back({ PARAM_TUNE, "TUNE", ControlType::Knob, 630, 100, 20, -700.0, 700.0, 0.0, false });
+    controls_.push_back({ PARAM_TUNE, "TUNING", ControlType::Knob, 610, 100, 20, -700.0, 700.0, 0.0, false });
 
     // MXR Distortion+ drive, set apart with a "hot" accent color. Fully
     // counter-clockwise (0.0) bypasses the pedal entirely.
-    controls_.push_back({ PARAM_DRIVE, "DRIVE", ControlType::Knob, 730, 100, 20, 0.0, 1.0, 0.0, false });
+    controls_.push_back({ PARAM_DRIVE, "DRIVE", ControlType::Knob, 710, 100, 20, 0.0, 1.0, 0.0, false });
     controls_.back().accentColor = 0xFF7A2418; // rust red, marks the distortion stage
 
     // Master Volume Knob, set apart with its own accent color.
-    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 830, 100, 18, 0.0, 1.0, 0.8, false });
+    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 810, 100, 20, 0.0, 1.0, 0.8, false });
     controls_.back().accentColor = 0xFF6B4A22; // warm amber, distinct from the graphite knobs
 
     updateKnobValuesFromPlugin();

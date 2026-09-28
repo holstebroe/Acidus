@@ -79,7 +79,7 @@ private:
     std::vector<Control> controls_;
     bool lastShiftState_{false};
 
-    Font font_{Font::defaultPanelFont()};
+    Font font_{Font::classic5x7()};
     std::unique_ptr<IControlRenderer> controlRenderer_;
 
     int activeControlIndex_{-1};
