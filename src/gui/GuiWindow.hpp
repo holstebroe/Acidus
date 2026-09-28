@@ -8,6 +8,8 @@
 #include <atomic>
 #include <thread>
 #include <memory>
+#include <chrono>
+#include <random>
 #include "Font.hpp"
 #include "IControlRenderer.hpp"
 
@@ -63,6 +65,10 @@ public:
     }
 
     void renderFrame();
+    // Advance the logo plate's bubble animation by dt seconds (renderFrame
+    // does this with the real frame time; tests call it directly).
+    void advanceAnimation(double dt);
+    size_t getBubbleCount() const { return bubbles_.size(); }
     // isCtrl: in a calibration build, Ctrl-click on the logo plate resets
     // every calibration parameter (not the front-panel knobs) to default.
     void handleMouseDown(int x, int y, bool isShift = false, bool isCtrl = false);
@@ -84,6 +90,17 @@ private:
 
     int activeControlIndex_{-1};
     int logoPlateX_{0}, logoPlateY_{0}, logoPlateW_{0}, logoPlateH_{0}; // set by drawAcidusTitle
+
+    // Acid bubbles rising in the logo plate; positions are plate-relative.
+    struct Bubble { double x, y, r, speed, phase; };
+    std::vector<Bubble> bubbles_;
+    std::mt19937 rng_{0xAC1D};
+    double bubbleSpawnAccum_{0.0};
+    double animTime_{0.0};
+    std::chrono::steady_clock::time_point lastFrameTime_{};
+    bool haveLastFrameTime_{false};
+    void drawBubbles(Graphics& g);
+    void drawSmiley(Graphics& g, int cx, int cy);
     int dragStartY_{0};
     double dragStartVal_{0.0};
 

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <algorithm>
+#include <random>
 
 #if defined(__linux__) && !defined(__APPLE__)
 #include <X11/Xlib.h>
@@ -132,7 +133,8 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY) {
     int plateX = startX - 16;
     int plateY = startY - 14;
     int plateW = logoW + 32;
-    int plateH = logoH + subtitleGap + subtitleH + 26;
+    const int smileyRow = 20;   // room for the acid smiley under the tagline
+    int plateH = logoH + subtitleGap + subtitleH + 26 + smileyRow;
     logoPlateX_ = plateX;
     logoPlateY_ = plateY;
     logoPlateW_ = plateW;
@@ -143,6 +145,9 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY) {
     g.drawRect(plateX - 2, plateY - 2, plateW + 4, plateH + 4, 0xFF4A4E52);
     g.drawRect(plateX, plateY, plateW, plateH, 0xFF040506);
     g.drawLine(plateX + 2, plateY + 2, plateX + plateW - 3, plateY + 2, 0xFF2C3030, 1);
+
+    // Bubbles rise behind the lettering.
+    drawBubbles(g);
 
     // Small corner screws for a hardware badge feel.
     for (int sx = 0; sx < 2; ++sx) {
@@ -183,10 +188,86 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY) {
     int subtitleX = startX + (logoW - subtitleW) / 2;
     int subtitleY = startY + logoH + subtitleGap;
     g.drawText(font_, subtitle, subtitleX, subtitleY, 0xFF1B8224, 1);
+
+    // 6. The acid smiley.
+    drawSmiley(g, startX + logoW / 2, subtitleY + subtitleH + 13);
+}
+
+void GuiWindow::advanceAnimation(double dt) {
+    if (dt <= 0.0) return;
+    dt = std::min(dt, 0.1);   // don't burst after a stall
+    animTime_ += dt;
+    if (logoPlateW_ <= 0 || logoPlateH_ <= 0) return;
+
+    // Bubble rate follows the Cutoff knob: a lazy trickle when closed, a
+    // fizz when wide open.
+    double cutoff = 0.5;
+    for (const auto& c : controls_) {
+        if (c.id == PARAM_CUTOFF) {
+            cutoff = std::min(std::max((c.currentVal - c.minVal) / (c.maxVal - c.minVal), 0.0), 1.0);
+        }
+    }
+    const double rate = 0.5 + 12.0 * std::pow(cutoff, 1.5);   // bubbles per second
+    bubbleSpawnAccum_ += rate * dt;
+
+    std::uniform_real_distribution<double> uni(0.0, 1.0);
+    while (bubbleSpawnAccum_ >= 1.0) {
+        bubbleSpawnAccum_ -= 1.0;
+        Bubble b;
+        b.r = 1.0 + 2.2 * uni(rng_);
+        b.x = 6.0 + (logoPlateW_ - 12.0) * uni(rng_);
+        b.y = logoPlateH_ - 4.0;
+        b.speed = 10.0 + 18.0 * uni(rng_) + 6.0 / b.r;     // small ones rise faster
+        b.phase = 6.283 * uni(rng_);
+        bubbles_.push_back(b);
+    }
+    for (auto& b : bubbles_) {
+        b.y -= b.speed * dt;
+    }
+    bubbles_.erase(std::remove_if(bubbles_.begin(), bubbles_.end(),
+                                  [](const Bubble& b) { return b.y < 4.0 + b.r; }),
+                   bubbles_.end());
+}
+
+void GuiWindow::drawBubbles(Graphics& g) {
+    for (const auto& b : bubbles_) {
+        double wobble = 1.6 * std::sin(animTime_ * 3.0 + b.phase + b.y * 0.08);
+        int cx = logoPlateX_ + static_cast<int>(std::lround(b.x + wobble));
+        int cy = logoPlateY_ + static_cast<int>(std::lround(b.y));
+        int r = std::max(1, static_cast<int>(std::lround(b.r)));
+        // Fade in near the bottom and out near the top of the plate.
+        double t = std::min(1.0, std::min((logoPlateH_ - b.y) / 12.0, (b.y - 4.0) / 14.0));
+        uint32_t a = static_cast<uint32_t>(std::max(0.0, t) * 0x90);
+        g.fillCircle(cx, cy, r, (a / 3) << 24 | 0x0039FF14);
+        g.drawCircle(cx, cy, r, a << 24 | 0x0039FF14, 1);
+        if (r >= 2) g.fillCircle(cx - 1, cy - 1, 1, (a << 24) | 0x00CFFFB0);
+    }
+}
+
+void GuiWindow::drawSmiley(Graphics& g, int cx, int cy) {
+    const int r = 7;
+    g.fillCircle(cx, cy, r + 2, 0x40FFD21E);   // soft glow on the dark plate
+    g.fillCircle(cx, cy, r, 0xFFFFD21E);
+    g.drawCircle(cx, cy, r, 0xFF5A4300, 1);
+    g.fillRect(cx - 3, cy - 3, 2, 3, 0xFF101010);   // eyes
+    g.fillRect(cx + 2, cy - 3, 2, 3, 0xFF101010);
+    for (int dx = -4; dx <= 4; ++dx) {               // smile
+        int dy = static_cast<int>(std::lround(1.0 + 0.16 * (16 - dx * dx) * 0.28));
+        g.fillRect(cx + dx, cy + 1 + dy, 1, 1, 0xFF101010);
+    }
+    g.fillRect(cx - 5, cy + 1, 1, 1, 0xFF101010);   // mouth corners
+    g.fillRect(cx + 5, cy + 1, 1, 1, 0xFF101010);
 }
 
 void GuiWindow::renderFrame() {
     updateKnobValuesFromPlugin();
+
+    auto now = std::chrono::steady_clock::now();
+    if (haveLastFrameTime_) {
+        advanceAnimation(std::chrono::duration<double>(now - lastFrameTime_).count());
+    }
+    lastFrameTime_ = now;
+    haveLastFrameTime_ = true;
 
     int hW = width_ * 2;
     int hH = height_ * 2;
@@ -223,7 +304,7 @@ void GuiWindow::renderFrame() {
     }
 
     // 3. Draw Title Logo "ACIDUS" in acid green with glow
-    drawAcidusTitle(g, dividerX + 26, 50);
+    drawAcidusTitle(g, dividerX + 26, 42);
 
     // 4. Downsample hiResBuffer_ (2x2 box filter) into pixelBuffer_
     pixelBuffer_.resize(width_ * height_);
@@ -428,6 +509,7 @@ void GuiWindow::initX11Window() {
 void GuiWindow::eventLoopX11() {
     if (!x11Display_) return;
     Display* display = static_cast<Display*>(x11Display_);
+    auto lastX11Repaint = std::chrono::steady_clock::now();
 
     while (isRunning_) {
         while (XPending(display) > 0) {
@@ -448,6 +530,12 @@ void GuiWindow::eventLoopX11() {
             } else if (ev.type == ButtonRelease) {
                 handleMouseUp();
             }
+        }
+        // Periodic repaint for the logo plate's bubble animation (~30 fps).
+        auto now = std::chrono::steady_clock::now();
+        if (now - lastX11Repaint >= std::chrono::milliseconds(33)) {
+            lastX11Repaint = now;
+            renderFrame();
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }

@@ -143,6 +143,25 @@ int main() {
     assert(rawPtr->switchDrawn);
     std::cout << "Custom Font and IControlRenderer interface tests passed successfully!" << std::endl;
 
+    {
+        // Logo plate bubbles: more Cutoff, more bubbles.
+        auto countAfter = [](double cutoff) {
+            acidus::AcidusClap p(nullptr);
+            acidus::GuiWindow w(&p);
+            p.onParamValueFromGui(acidus::PARAM_CUTOFF, cutoff);
+            w.renderFrame();                     // lays out the logo plate
+            size_t n = 0;
+            for (int i = 0; i < 300; ++i) {      // 10 s at 30 fps
+                w.advanceAnimation(1.0 / 30.0);
+                n += w.getBubbleCount();
+            }
+            return n;
+        };
+        size_t lo = countAfter(0.0), hi = countAfter(1.0);
+        std::cout << "Bubble frames: cutoff 0 -> " << lo << ", cutoff 1 -> " << hi << std::endl;
+        if (!(hi > 5 * lo && lo > 0)) { std::cerr << "FAILED: bubble rate does not follow cutoff" << std::endl; return 1; }
+    }
+
 #ifdef ACIDUS_CALIBRATION_BUILD
     {
         // Ctrl-click on the logo plate resets the calibration parameters,
