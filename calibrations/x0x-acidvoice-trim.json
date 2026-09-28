@@ -33,6 +33,7 @@
   "envModScaleC1Slope": 4.74116,
   "envModOffset": 0.279579,
   "envModOffsetCutSlope": -0.0782901,
+  "envModTaperExp": 1.0,
   "accentSweepDepthOct": 5.0787,
   "accentVcaDepth": 1.39055,
   "accentChargeBaseSec": 0.0386564,

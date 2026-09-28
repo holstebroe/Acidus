@@ -10,6 +10,7 @@ on where it came from.
 |---|---|---|
 | `x0x` | dinsync.info reference recordings (`test/resources/x0x-reference`, 400 notes) | **Current default.** Full knob sweep, saw + square, C2 only. See `docs/X0X_CALIBRATION_2026-09-28.md`. |
 | `acidvoice` | Acidvoice single-note samples (`test/resources/303_saw-*.wav`, 13 notes) | The default until 2026-09-28. Saw only, knobs at min/half/max, notes A1-D3. |
+| `x0x-envmod-test` | `x0x` with an Env Mod law read off the E3/D3 sweep tracks | Listening test for the Env Mod sweep (taper 2, bias offset 0.35, cutoff trim 240 Hz, accent 5 oct); not a final calibration. |
 | `x0x-acidvoice-trim` | `x0x` with the Acidvoice unit's cutoff range and accent depth | The x0x model with the higher filter trim, for a brighter, higher squelch. |
 
 ## Switching

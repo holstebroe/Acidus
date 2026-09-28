@@ -1,8 +1,8 @@
 {
- "source": "dinsync.info TB-303 reference recordings (test/resources/x0x-reference, 400 notes)",
+ "source": "x0x calibration with a hand-derived Env Mod law (listening test)",
  "fitted": "2026-09-28",
- "reference_set": "test/resources/x0x-reference/x0x_reference_manifest.json",
- "notes": "See docs/X0X_CALIBRATION_2026-09-28.md. C2 only, saw and square, full knob sweep, levels not normalised. Low cutoff range: Cutoff 0 / Reso 100 % shows almost no resonant peak.",
+ "reference_set": "SET-E3 / D3 / C3 resonant-peak sweep tracks (tools/sweep_track.py)",
+ "notes": "x0x.json with the Env Mod law read off the E3/D3 sweep tracks instead of fitted: depth 0.69 + 4.37 * EnvMod^2 octaves at both Cutoff ends (envModTaperExp 2), bias offset 0.35 (the settled cutoff drops 0.35 x the depth increase), cutoff trim 240 Hz, accent sweep depth 5 oct. On all 400 notes: sweep error 6.39 -> 5.63 semitones (E3 5.3 -> 3.7), weighted error 3.43 -> 3.65 because the rest of x0x was fitted around the old law. Candidate for the sweep-scored optimizer run, not a final calibration.",
  "parameters": {
   "oscCouplingHz": 47.2615,
   "resCouplingHz": 99.3497,
@@ -24,17 +24,16 @@
   "vcaGateOffAccentMs": 3.86675,
   "vcaResTapRatio": 1.43004,
   "vcaGainSaturationDrive": 0.0,
-  "cutoffBaseHz": 159.472,
+  "cutoffBaseHz": 240.0,
   "cutoffSpanOct": 2.69066,
   "cutoffTaperExp": 1.60906,
-  "envModScaleC0": 0.620662,
-  "envModScaleC0Slope": 3.86304,
-  "envModScaleC1": 0.821882,
-  "envModScaleC1Slope": 4.74116,
-  "envModOffset": 0.279579,
-  "envModOffsetCutSlope": -0.0782901,
-  "envModTaperExp": 1.0,
-  "accentSweepDepthOct": 4.05426,
+  "envModScaleC0": 0.69,
+  "envModScaleC0Slope": 4.37,
+  "envModScaleC1": 0.69,
+  "envModScaleC1Slope": 4.37,
+  "envModOffset": 0.35,
+  "envModOffsetCutSlope": 0.0,
+  "accentSweepDepthOct": 5.0,
   "accentVcaDepth": 1.39055,
   "accentChargeBaseSec": 0.0386564,
   "accentChargePotSec": 0.0403299,
@@ -49,6 +48,7 @@
   "vcfDecayMaxSec": 1.07576,
   "accentDecaySec": 0.0685938,
   "filterResonanceSkew": -0.562916,
-  "filterResonanceLimit": 0.98
+  "filterResonanceLimit": 0.98,
+  "envModTaperExp": 2.0
  }
 }
