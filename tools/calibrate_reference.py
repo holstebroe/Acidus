@@ -308,7 +308,7 @@ class Reference:
         return self
 
 
-def load_manifest(path, includes, excludes, analysis_ms=None, rotate=False):
+def load_manifest(path, includes, excludes, analysis_ms=None, rotate=None):
     """Reference notes from a manifest JSON (tools/x0x_reference_manifest.py).
     includes/excludes are substrings matched against the clip ids, e.g.
     "A1-" (a set), "-p2-" (a position), "square", "-acc".
