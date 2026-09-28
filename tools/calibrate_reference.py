@@ -141,6 +141,7 @@ MODEL_PARAMS = {
     "envModScaleC1Slope":       (2.0, 6.0, False, "cv"),
     "envModOffset":             (0.1, 0.5, False, "cv"),
     "envModOffsetCutSlope":     (-0.2, 0.3, False, "cv"),
+    "envModTaperExp":           (0.5, 4.0, False, "cv"),      # Env Mod pot taper, knob^exp (1 = linear)
     "accentSweepDepthOct":      (0.0, 9.0, False, "cv"),
     "accentVcaDepth":           (0.0, 6.0, False, "cv"),
     "accentChargeBaseSec":      (0.035, 0.065, True, "cv"),   # R46 x C13 +-30 %

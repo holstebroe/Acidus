@@ -177,6 +177,7 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_ACCENT_CHARGE_BASE_SEC] = kCalibrationDefaults.accentChargeBaseSec;
     paramValues_[PARAM_ACCENT_CHARGE_POT_SEC] = kCalibrationDefaults.accentChargePotSec;
     paramValues_[PARAM_ACCENT_MIX_SEC] = kCalibrationDefaults.accentMixSec;
+    paramValues_[PARAM_ENV_MOD_TAPER_EXP] = kCalibrationDefaults.envModTaperExp;
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
@@ -272,6 +273,7 @@ void AcidusClap::syncParamsToEngine() {
     params.accentChargeBaseSec = static_cast<float>(paramValues_[PARAM_ACCENT_CHARGE_BASE_SEC]);
     params.accentChargePotSec = static_cast<float>(paramValues_[PARAM_ACCENT_CHARGE_POT_SEC]);
     params.accentMixSec = static_cast<float>(paramValues_[PARAM_ACCENT_MIX_SEC]);
+    params.envModTaperExp = static_cast<float>(paramValues_[PARAM_ENV_MOD_TAPER_EXP]);
 #endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
@@ -747,6 +749,13 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->min_value = 0.02;
             paramInfo->max_value = 0.5;
             paramInfo->default_value = kCalibrationDefaults.accentMixSec;
+            break;
+        case PARAM_ENV_MOD_TAPER_EXP:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Env Mod Knob Taper");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Env Mod");
+            paramInfo->min_value = 0.5;
+            paramInfo->max_value = 4.0;
+            paramInfo->default_value = kCalibrationDefaults.envModTaperExp;
             break;
 
         case PARAM_DRIVE:

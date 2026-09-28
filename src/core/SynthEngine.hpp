@@ -64,6 +64,7 @@ struct SynthParameters {
     float envModScaleC1{0.821882f};         // SynthEngine.cpp - envScaler at Cutoff max, Env Mod 0
     float envModScaleC1Slope{4.74116f};    // SynthEngine.cpp - envScaler increase per unit Env Mod, Cutoff max
     float envModOffset{0.279579f};         // SynthEngine.cpp - MEG level at which the Env Mod bias shift is neutral
+    float envModTaperExp{1.0f};          // SynthEngine.cpp - Env Mod pot taper: the knob enters the law as envMod^exp; 1 = linear
     float envModOffsetCutSlope{-0.0782901f}; // SynthEngine.cpp - envOffset increase at Cutoff max
     float accentSweepDepthOct{4.05426f};     // SynthEngine.cpp - accent sweep into the cutoff, octaves per unit of VR4b wiper voltage (MEG units) (fitted 2026-09-28 to the x0x set)
     float accentVcaDepth{1.39055f};          // SynthEngine.cpp - accent term in the VCA control sum (x accented MEG, x Accent knob) (fitted 2026-09-28 to the x0x set)

@@ -111,7 +111,9 @@ enum ParamId : clap_id {
     PARAM_ACCENT_CHARGE_POT_SEC = 46,      // accent sweep: VR4b x C13, scaled by Resonance
     PARAM_ACCENT_MIX_SEC = 47,             // accent sweep: mixing resistor x C13
 
-    PARAM_EXPERIMENTAL_COUNT = 48,
+    PARAM_ENV_MOD_TAPER_EXP = 48,              // Env Mod pot taper, knob^exp (1 = linear)
+
+    PARAM_EXPERIMENTAL_COUNT = 49,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

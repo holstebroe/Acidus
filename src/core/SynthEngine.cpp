@@ -116,8 +116,13 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // there (visible in the hardware samples as the resonant peak
         // gliding down during a Env Mod = 0 note). Accent never overrides
         // this; its sweep is the separate cv_accent term below.
-        float envScaler = (1.0f - cNorm) * (params_.envModScaleC0 + params_.envModScaleC0Slope * envModNorm)
-                        + cNorm * (params_.envModScaleC1 + params_.envModScaleC1Slope * envModNorm);
+        // Env Mod pot taper: the x0x recordings sweep barely more at Env Mod
+        // 25 % than at 0 % and most of the depth arrives in the top half of
+        // the travel (1.0 / 1.5 / 3.6 / 5.1 oct at 25..100 %, SET-E3), the
+        // shape of an audio-taper pot. 1 = linear.
+        float envModTapered = std::pow(envModNorm, params_.envModTaperExp);
+        float envScaler = (1.0f - cNorm) * (params_.envModScaleC0 + params_.envModScaleC0Slope * envModTapered)
+                        + cNorm * (params_.envModScaleC1 + params_.envModScaleC1Slope * envModTapered);
         float envOffset = params_.envModOffset + params_.envModOffsetCutSlope * cNorm;
         float cv_envmod = envScaler * (vcfEnvVal - envOffset);
 

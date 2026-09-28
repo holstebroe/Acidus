@@ -71,6 +71,7 @@ const ParamEntry kParams[] = {
     ACIDUS_PARAM(envModScaleC1Slope),
     ACIDUS_PARAM(envModOffset),
     ACIDUS_PARAM(envModOffsetCutSlope),
+    ACIDUS_PARAM(envModTaperExp),
     ACIDUS_PARAM(accentSweepDepthOct),
     ACIDUS_PARAM(accentVcaDepth),
     ACIDUS_PARAM(accentChargeBaseSec),
