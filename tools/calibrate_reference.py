@@ -1062,7 +1062,7 @@ class CMAES:
 
 
 def optimize(problem, u0, seconds, patience, sigma0, seed, label="fit", popsize=None, log_every=15.0,
-             batch_eval=None):
+             batch_eval=None, on_improve=None):
     batch_eval = batch_eval or (lambda U: problem.evaluate_batch(U)[0])
     rng = np.random.default_rng(seed)
     best_u = np.array(u0, dtype=float)
@@ -1090,6 +1090,8 @@ def optimize(problem, u0, seconds, patience, sigma0, seed, label="fit", popsize=
         if F[i] < best_f:
             best_f, best_u = F[i], np.clip(X[i], 0, 1)
             history.append((time.time() - start, best_f))
+            if on_improve:
+                on_improve(best_u, best_f)
         if es.sigma < 1e-3 or es.condition() > 1e12:
             restarts += 1
             lam = min(es.lam * 2, 64)
@@ -1470,8 +1472,26 @@ def main():
                                    "restarts": 0, "seconds": 0.0, "history": []}
     else:
         print(f"Optimizing for up to {args.max_minutes:.1f} min (patience {args.patience_minutes:.1f} min) ...")
+        # Checkpoint: the best model constants so far, as a calibration
+        # profile, so a killed run can resume with --calibration <out>/checkpoint.json.
+        ckpt_dir = Path(args.out) if args.out else REPO / "calibration_results" / "checkpoint"
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        base_profile = (json.loads(Path(args.calibration).read_text(encoding="utf-8")) if args.calibration
+                        else {"source": "compiled-in defaults", "parameters": {}})
+
+        def checkpoint(u, f):
+            base, _, _ = problem.decode(u)
+            prof = dict(base_profile)
+            prof["parameters"] = dict(base_profile.get("parameters", {}))
+            prof["parameters"].update({p.target: float(base[problem.r.index[p.target]])
+                                       for p in problem.params if p.kind == "model"})
+            prof["checkpoint"] = {"objective": float(f), "time": datetime.datetime.now().isoformat(timespec="seconds")}
+            tmp = ckpt_dir / "checkpoint.json.tmp"
+            tmp.write_text(json.dumps(prof, indent=1) + "\n", encoding="utf-8")
+            tmp.replace(ckpt_dir / "checkpoint.json")
+
         u_best, _, run = optimize(problem, problem.u0, args.max_minutes * 60, args.patience_minutes * 60,
-                                  args.sigma, args.seed)
+                                  args.sigma, args.seed, on_improve=checkpoint)
         print(f"Stopped: {run['reason']} after {run['evaluations']} evaluations")
     after = summarize(problem, u_best)
     sens = {} if args.no_sensitivity else sensitivity(problem, u_best, after["aggregate"]["objective"])
