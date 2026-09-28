@@ -45,6 +45,7 @@ constants to the 13 Acidvoice samples. Lower is better; the full
 | `cutoffSpanOct` | 5.07 | |
 | **`cutoffBaseHz`** | **3.91** | **312 Hz** (x0x 159 Hz) |
 | cutoff law (base, span, taper) | 3.10 | 251 Hz, 3.01 oct, 1.13 |
+| cutoff law + feedback gain, resonance curve, post-HP | 2.78 | (no better than adding the accent depth) |
 | **cutoff law + `accentSweepDepthOct`** | **2.66** | **255 Hz, 2.98 oct, 1.29, 5.08 oct** -> `x0x-acidvoice-trim` |
 | all 16 CLAP-mapped constants | 2.81 | the 4 ladder pole scales rise to x1.6-3.1 (geometric mean ~2, one octave) to fake the missing cutoff trim |
 
