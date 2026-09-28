@@ -93,6 +93,11 @@ python3 tools/calibrate_reference.py --manifest --rotate --analysis-ms 800 --no-
 
 `--include`/`--exclude` then match note ids such as `C2-p3-square-acc`.
 
+Fitted constants are kept per source in `calibrations/` (`x0x`, `acidvoice`,
+`x0x-acidvoice-trim`); `tools/calibration_profile.py apply <name>` switches
+the defaults, and `calibrations/README.md` explains what differs between the
+two hardware units (mainly the cutoff trim).
+
 Results go to `calibration_results/<timestamp>/`:
 - `report.md` has before/after scores, a per-sample ranking and a list of
   suspicious samples. Samples are flagged when they fit much worse than the

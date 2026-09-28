@@ -68,12 +68,12 @@ enum ParamId : clap_id {
     PARAM_OSC_COUPLING_HZ = 9,                  // Oscillator.hpp - plausible range 30-60 Hz
     PARAM_RES_COUPLING_HZ = 10,                 // Filter.hpp - plausible range 100-250 Hz
     PARAM_FILTER_FEEDBACK_GAIN = 11,            // Filter.hpp - plausible range 12-17
-    PARAM_FILTER_POST_HP_HZ = 12,               // Filter.hpp - plausible range 15-35 Hz
+    PARAM_FILTER_POST_HP_HZ = 12,               // Filter.hpp - Open303 24 Hz; fitted 153 Hz (acidvoice) / 199 Hz (x0x)
     PARAM_FILTER_NOTCH_HZ = 13,                 // Filter.hpp - plausible range 4-15 Hz
     PARAM_FILTER_NOTCH_BANDWIDTH_HZ = 14,       // Filter.hpp - plausible range 2-10 Hz
     PARAM_FILTER_ALLPASS_HZ = 15,               // Filter.hpp - plausible range 8-25 Hz
-    PARAM_VEG_DECAY_SEC = 16,                   // Envelope.hpp - plausible range 2.5-5.0 s
-    PARAM_VCA_GATE_OFF_MS = 17,                 // Envelope.hpp - plausible range 1-5 ms
+    PARAM_VEG_DECAY_SEC = 16,                   // Envelope.hpp - R123 x C42 = 1.5 s; fitted 2.2-2.4 s
+    PARAM_VCA_GATE_OFF_MS = 17,                 // Envelope.hpp - Open303 1 ms; fitted 0.7-1.1 ms
     PARAM_VCA_GATE_OFF_ACCENT_MS = 18,          // Envelope.hpp - plausible range 1-80 ms (widened 2026-09-20)
     PARAM_VCA_GAIN_SATURATION_DRIVE = 19,       // SynthEngine.cpp - plausible range 1-8
     PARAM_FILTER_INPUT_COUPLING_HZ = 20,        // Filter.hpp - plausible range 10-30 Hz
@@ -88,8 +88,15 @@ enum ParamId : clap_id {
     PARAM_ACCENT_SWEEP_DEPTH = 29,              // SynthEngine.cpp - accent sweep depth into the cutoff, octaves
     PARAM_VCA_RES_TAP_RATIO = 30,               // SynthEngine.cpp - filter->VCA wiper tap vs fixed tap (Resonance level balance)
     PARAM_FILTER_LADDER_TOPOLOGY = 31,          // Filter.hpp - 0 = legacy mirrored ladder, 1 = circuit orientation
+    // Cutoff knob law (knob -> Hz before the envelope): base * 2^(span * knob^taper).
+    // The base is the unit's TM3 cutoff trim -- the main difference between
+    // calibrations/acidvoice.json (248 Hz) and calibrations/x0x.json (159 Hz).
+    PARAM_CUTOFF_BASE_HZ = 32,                  // SynthEngine.cpp - cutoff at knob minimum
+    PARAM_CUTOFF_SPAN_OCT = 33,                 // SynthEngine.cpp - octaves swept by the Cutoff knob
+    PARAM_CUTOFF_TAPER_EXP = 34,                // SynthEngine.cpp - knob taper, 1 = exponential knob-to-Hz
+    PARAM_FILTER_RES_SKEW = 35,                 // Filter.hpp - Resonance pot curve; < 0 builds late in the travel
 
-    PARAM_EXPERIMENTAL_COUNT = 32,
+    PARAM_EXPERIMENTAL_COUNT = 36,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

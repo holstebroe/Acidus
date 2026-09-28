@@ -161,6 +161,10 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_ACCENT_SWEEP_DEPTH] = kCalibrationDefaults.accentSweepDepthOct;
     paramValues_[PARAM_VCA_RES_TAP_RATIO] = kCalibrationDefaults.vcaResTapRatio;
     paramValues_[PARAM_FILTER_LADDER_TOPOLOGY] = kCalibrationDefaults.filterLadderTopology;
+    paramValues_[PARAM_CUTOFF_BASE_HZ] = kCalibrationDefaults.cutoffBaseHz;
+    paramValues_[PARAM_CUTOFF_SPAN_OCT] = kCalibrationDefaults.cutoffSpanOct;
+    paramValues_[PARAM_CUTOFF_TAPER_EXP] = kCalibrationDefaults.cutoffTaperExp;
+    paramValues_[PARAM_FILTER_RES_SKEW] = kCalibrationDefaults.filterResonanceSkew;
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
@@ -240,6 +244,10 @@ void AcidusClap::syncParamsToEngine() {
     params.accentSweepDepthOct = static_cast<float>(paramValues_[PARAM_ACCENT_SWEEP_DEPTH]);
     params.vcaResTapRatio = static_cast<float>(paramValues_[PARAM_VCA_RES_TAP_RATIO]);
     params.filterLadderTopology = static_cast<float>(paramValues_[PARAM_FILTER_LADDER_TOPOLOGY]);
+    params.cutoffBaseHz = static_cast<float>(paramValues_[PARAM_CUTOFF_BASE_HZ]);
+    params.cutoffSpanOct = static_cast<float>(paramValues_[PARAM_CUTOFF_SPAN_OCT]);
+    params.cutoffTaperExp = static_cast<float>(paramValues_[PARAM_CUTOFF_TAPER_EXP]);
+    params.filterResonanceSkew = static_cast<float>(paramValues_[PARAM_FILTER_RES_SKEW]);
 #endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
@@ -453,7 +461,7 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Post HP Freq");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
             paramInfo->min_value = 5.0;
-            paramInfo->max_value = 60.0;
+            paramInfo->max_value = 250.0;
             paramInfo->default_value = kCalibrationDefaults.filterPostHpHz;
             break;
         case PARAM_FILTER_NOTCH_HZ:
@@ -487,21 +495,21 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
         case PARAM_VEG_DECAY_SEC:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Decay Time");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
-            paramInfo->min_value = 2.5;
+            paramInfo->min_value = 1.0;
             paramInfo->max_value = 5.0;
             paramInfo->default_value = kCalibrationDefaults.vegDecaySec;
             break;
         case PARAM_VCA_GATE_OFF_MS:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gate-Off Tail");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
-            paramInfo->min_value = 1.0;
+            paramInfo->min_value = 0.3;
             paramInfo->max_value = 5.0;
             paramInfo->default_value = kCalibrationDefaults.vcaGateOffMs;
             break;
         case PARAM_VCA_GATE_OFF_ACCENT_MS:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Gate-Off Tail (Accent)");
             snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
-            paramInfo->min_value = 1.0;
+            paramInfo->min_value = 0.3;
             paramInfo->max_value = 80.0;
             paramInfo->default_value = kCalibrationDefaults.vcaGateOffAccentMs;
             break;
@@ -602,6 +610,35 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->min_value = 0.0;
             paramInfo->max_value = 1.0;
             paramInfo->default_value = kCalibrationDefaults.filterLadderTopology;
+            break;
+        case PARAM_CUTOFF_BASE_HZ:
+            // The unit's cutoff trim (TM3): shifts the whole Cutoff range.
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Cutoff Trim (Base Freq)");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 80.0;
+            paramInfo->max_value = 500.0;
+            paramInfo->default_value = kCalibrationDefaults.cutoffBaseHz;
+            break;
+        case PARAM_CUTOFF_SPAN_OCT:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Cutoff Knob Span");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 1.5;
+            paramInfo->max_value = 5.0;
+            paramInfo->default_value = kCalibrationDefaults.cutoffSpanOct;
+            break;
+        case PARAM_CUTOFF_TAPER_EXP:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Cutoff Knob Taper");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 0.5;
+            paramInfo->max_value = 3.0;
+            paramInfo->default_value = kCalibrationDefaults.cutoffTaperExp;
+            break;
+        case PARAM_FILTER_RES_SKEW:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Resonance Knob Curve");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = -6.0;
+            paramInfo->max_value = 8.0;
+            paramInfo->default_value = kCalibrationDefaults.filterResonanceSkew;
             break;
 
         case PARAM_DRIVE:
@@ -710,8 +747,10 @@ bool AcidusClap::paramsValueToText(clap_id paramId, double value, char* outBuffe
     if (paramId >= PARAM_COUNT || !outBuffer || outBufferCapacity == 0) return false;
 
     if (paramId == PARAM_CUTOFF) {
+        // The engine's knob law before the envelope (SynthEngine.cpp).
+        const auto& p = engine_.getParams();
         double norm = std::min(std::max(value, 0.0), 1.0);
-        double hz = 200.0 * std::pow(12.5, norm);
+        double hz = p.cutoffBaseHz * std::pow(2.0, p.cutoffSpanOct * std::pow(norm, p.cutoffTaperExp));
         snprintf(outBuffer, outBufferCapacity, "%.1f Hz", hz);
     } else if (paramId == PARAM_WAVEFORM) {
         snprintf(outBuffer, outBufferCapacity, "%s", (value >= 0.5) ? "Square" : "Saw");
@@ -720,9 +759,10 @@ bool AcidusClap::paramsValueToText(clap_id paramId, double value, char* outBuffe
     } else if (paramId == PARAM_OSC_COUPLING_HZ || paramId == PARAM_RES_COUPLING_HZ
                || paramId == PARAM_FILTER_POST_HP_HZ || paramId == PARAM_FILTER_NOTCH_HZ
                || paramId == PARAM_FILTER_NOTCH_BANDWIDTH_HZ || paramId == PARAM_FILTER_ALLPASS_HZ
-               || paramId == PARAM_FILTER_INPUT_COUPLING_HZ || paramId == PARAM_FILTER_OUTPUT_COUPLING_HZ) {
+               || paramId == PARAM_FILTER_INPUT_COUPLING_HZ || paramId == PARAM_FILTER_OUTPUT_COUPLING_HZ
+               || paramId == PARAM_CUTOFF_BASE_HZ) {
         snprintf(outBuffer, outBufferCapacity, "%.2f Hz", value);
-    } else if (paramId == PARAM_ACCENT_SWEEP_DEPTH) {
+    } else if (paramId == PARAM_ACCENT_SWEEP_DEPTH || paramId == PARAM_CUTOFF_SPAN_OCT) {
         snprintf(outBuffer, outBufferCapacity, "%.2f oct", value);
     } else if (paramId == PARAM_FILTER_RES_LIMIT) {
         snprintf(outBuffer, outBufferCapacity, "%.3f x critical", value);
@@ -747,10 +787,11 @@ bool AcidusClap::paramsTextToValue(clap_id paramId, const char* paramValueText, 
         return true;
     }
     if (paramId == PARAM_CUTOFF) {
+        const auto& p = engine_.getParams();
         double hz = std::atof(paramValueText);
-        if (hz <= 200.0) *outValue = 0.0;
-        else if (hz >= 2500.0) *outValue = 1.0;
-        else *outValue = std::log(hz / 200.0) / std::log(12.5);
+        double oct = (hz > 0.0) ? std::log2(hz / p.cutoffBaseHz) / p.cutoffSpanOct : 0.0;
+        oct = std::min(std::max(oct, 0.0), 1.0);
+        *outValue = std::pow(oct, 1.0 / p.cutoffTaperExp);
         return true;
     }
     *outValue = std::atof(paramValueText);
