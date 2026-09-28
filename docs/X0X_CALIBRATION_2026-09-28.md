@@ -196,17 +196,23 @@ not yet the default.
 
 ### Candidate explanations for the early accent peak (unconfirmed)
 
-1. **C13 below nominal** (most likely). A 1 uF electrolytic is +-20 %, and
-   40-year-old electrolytics lose capacitance as they dry out. The fit
-   behaves like ~0.3 uF. This would also explain why the two hardware units
-   differ.
-2. **D24's forward drop.** The model uses an ideal diode. A real ~0.6 V drop
-   ends C13's charging earlier while the MEG falls, which moves the peak
-   earlier and lower. It is a real effect and cheap to model, but probably
-   too small on its own to explain 60 -> 15 ms.
-3. **Sum of the two paths.** The Env Mod term peaks at note-on and the C13
-   bump later, so their sum peaks before C13 does. The model already sums
-   both, so this explains part of the shape but not the gap.
+1. **C13 below nominal.** A 1 uF electrolytic of that era was typically
+   specified -20/+50 % (or -20/+80 %), and 40-year-old small electrolytics
+   lose capacitance as they dry out. Typical measured losses in vintage gear
+   are 10-30 %; the -20 % end-of-life criterion is often exceeded by badly
+   dried parts. The fit behaves like ~0.3 uF, a 70 % loss. That is possible
+   for a failed part but far beyond normal ageing. A realistic 0.7-0.9 uF
+   moves the peak from ~60 ms to only ~50 ms, so ageing alone does not
+   explain 15-20 ms. Leakage (acts as a shunt across C13, usually in the
+   megohm range and reversible) is too small to matter against 47-97 kOhm.
+2. **D24's forward drop** (the most promising to test). The model uses an
+   ideal diode. A real ~0.6 V drop ends C13's charging as soon as the MEG
+   falls to within 0.6 V of it, which moves the peak earlier and lower. How
+   much depends on the accent MEG's swing at that node (unverified).
+3. **Path weighting.** The Env Mod term peaks at note-on and the C13 bump
+   later, so their sum peaks before C13 does. How strongly each path moves
+   the cutoff at the summing node, and the accented MEG's shape, are
+   schematic interpretations, not measurements.
 
 antto's measurement in TB303_REFERENCE.md §16.2 (an accented note rising
 ~1 oct above a normal one before falling) agrees with a real rise. This
