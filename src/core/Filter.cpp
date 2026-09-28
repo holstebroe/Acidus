@@ -140,7 +140,9 @@ void Filter::reset() {
 float Filter::processSample(float input, float cutoffHz, float resonance) {
     constexpr int kOS = 8;
     float dt = 1.0f / static_cast<float>(oversampledRate_);
-    float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
+    // Safety clamp only: the engine limits the cutoff CV (cutoffMaxHz); the
+    // 8x oversampled solver stays accurate to ~10 % of its own rate.
+    float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 0.1f * static_cast<float>(oversampledRate_));
     float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz * kCutoffToOmegaScale_;
 
     float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);

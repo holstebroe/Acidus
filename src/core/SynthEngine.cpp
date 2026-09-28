@@ -79,6 +79,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     env_.setAccentSweepTimes(params_.accentChargeBaseSec, params_.accentChargePotSec, params_.accentMixSec);
     env_.setAccentKnob(std::min(std::max(params_.accent, 0.0f), 1.0f));
     env_.setAccentDiodeDrop(params_.accentDiodeDrop);
+    env_.setVcaNormalDelaySec(params_.vcaNormalDelayMs * 0.001f);
     osc_.setSawShaping(params_.oscSawLpfHz, params_.oscSawShape);
     osc_.setSquareShaping(params_.oscSquareDutyDepth, params_.oscSquareLevel);
     filter_.setResonanceSkew(params_.filterResonanceSkew);
@@ -122,7 +123,20 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // 25 % than at 0 % and most of the depth arrives in the top half of
         // the travel (1.0 / 1.5 / 3.6 / 5.1 oct at 25..100 %, SET-E3), the
         // shape of an audio-taper pot. 1 = linear.
-        float envModTapered = std::pow(envModNorm, params_.envModTaperExp);
+        // envModTaperWidth > 0 selects a normalised logistic (S-shaped) law
+        // instead: little change up to ~50 %, the steepest rise around the
+        // mid-point, flattening toward 100 % -- the x0x unit measures
+        // 0.86 / 1.48 / 3.58 / 5.05 oct at 25..100 % in both E3 and D3.
+        float envModTapered;
+        if (params_.envModTaperWidth > 0.0f) {
+            auto logistic = [&](float x) {
+                return 1.0f / (1.0f + std::exp(-(x - params_.envModTaperMid) / params_.envModTaperWidth));
+            };
+            float l0 = logistic(0.0f), l1 = logistic(1.0f);
+            envModTapered = (logistic(envModNorm) - l0) / std::max(l1 - l0, 1e-6f);
+        } else {
+            envModTapered = std::pow(envModNorm, params_.envModTaperExp);
+        }
         float envScaler = (1.0f - cNorm) * (params_.envModScaleC0 + params_.envModScaleC0Slope * envModTapered)
                         + cNorm * (params_.envModScaleC1 + params_.envModScaleC1Slope * envModTapered);
         float envOffset = params_.envModOffset + params_.envModOffsetCutSlope * cNorm;
@@ -138,7 +152,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float cv_total = cv_base + cv_envmod + cv_accent;
 
         float effectiveCutoff = params_.cutoffBaseHz * std::pow(2.0f, cv_total);
-        float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), 15000.0f);
+        float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), params_.cutoffMaxHz);
         lastCutoffHz_ = totalCutoff;
 
         float filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);

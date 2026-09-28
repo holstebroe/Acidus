@@ -114,8 +114,12 @@ enum ParamId : clap_id {
     PARAM_ENV_MOD_TAPER_EXP = 48,              // Env Mod pot taper, knob^exp (1 = linear)
     PARAM_ACCENT_DIODE_DROP = 49,              // D24 forward drop, fraction of the MEG swing (0 = ideal)
     PARAM_VCF_DECAY_TAPER = 50,                // Decay pot taper a, R = Rtot*(a^x-1)/(a-1) (81 = 10 % at mid-travel)
+    PARAM_ENV_MOD_TAPER_MID = 51,              // logistic Env Mod taper mid-point
+    PARAM_ENV_MOD_TAPER_WIDTH = 52,            // logistic Env Mod taper width (0 = power law)
+    PARAM_CUTOFF_MAX_HZ = 53,                  // ceiling of the cutoff CV
+    PARAM_VCA_NORMAL_DELAY_MS = 54,            // VCA onset delay on unaccented notes
 
-    PARAM_EXPERIMENTAL_COUNT = 51,
+    PARAM_EXPERIMENTAL_COUNT = 55,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

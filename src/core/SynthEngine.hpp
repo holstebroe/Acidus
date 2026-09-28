@@ -55,6 +55,7 @@ struct SynthParameters {
     // CLAP parameters -- update these defaults with the calibrator's output.
     float cutoffBaseHz{159.472f};          // SynthEngine.cpp - cutoff at knob minimum, no env; this unit's TM3 trim (fitted 2026-09-28 to the x0x set)
     float cutoffSpanOct{2.69066f};       // SynthEngine.cpp - octaves swept by the Cutoff knob (fitted 2026-09-28 to the x0x set)
+    float cutoffMaxHz{15000.0f};         // SynthEngine.cpp - ceiling of the cutoff CV; the x0x unit starts Env Mod 100 % notes at 15-16 kHz (ref: 25-28 kHz, conformance E7)
     float cutoffTaperExp{1.60906f};          // SynthEngine.cpp - knob taper, cv = span * knob^exp; 1 = exponential knob-to-Hz law (TB303_REFERENCE.md §13.2)
     // Env Mod law, octaves per unit MEG: envScaler = (1-c)*(C0 + C0Slope*e) + c*(C1 + C1Slope*e),
     // cutoff shift = envScaler * (MEG - (Offset + OffsetCutSlope*c)). Defaults are Open303's fit of
@@ -65,6 +66,8 @@ struct SynthParameters {
     float envModScaleC1Slope{4.74116f};    // SynthEngine.cpp - envScaler increase per unit Env Mod, Cutoff max
     float envModOffset{0.279579f};         // SynthEngine.cpp - MEG level at which the Env Mod bias shift is neutral
     float envModTaperExp{1.0f};          // SynthEngine.cpp - Env Mod pot taper: the knob enters the law as envMod^exp; 1 = linear
+    float envModTaperMid{0.7f};          // SynthEngine.cpp - logistic Env Mod taper mid-point (used when envModTaperWidth > 0)
+    float envModTaperWidth{0.0f};        // SynthEngine.cpp - logistic Env Mod taper width; 0 = use envModTaperExp
     float envModOffsetCutSlope{-0.0782901f}; // SynthEngine.cpp - envOffset increase at Cutoff max
     float accentSweepDepthOct{4.05426f};     // SynthEngine.cpp - accent sweep into the cutoff, octaves per unit of VR4b wiper voltage (MEG units) (fitted 2026-09-28 to the x0x set)
     float accentVcaDepth{1.39055f};          // SynthEngine.cpp - accent term in the VCA control sum (x accented MEG, x Accent knob) (fitted 2026-09-28 to the x0x set)
@@ -77,6 +80,7 @@ struct SynthParameters {
     float oscSquareDutyDepth{0.12f};    // Oscillator.cpp - square duty = 0.45 + depth * exp(-f / 180 Hz); antto fit 0.25. 0.12 = duty 0.533 at C2 reproduces the x0x set's square harmonics (15th nulled) within ~1-2 dB, measured directly
     float oscSquareLevel{0.663843f};        // Oscillator.cpp - square level relative to the saw's +-1 (§9: saw p-p ~2x the square's)
     float vcfAttackMs{0.1f};             // Envelope.cpp - MEG charge time constant (D37 + R152 100R into C62: ~0.1 ms, §14.1)
+    float vcaNormalDelayMs{0.0f};        // Envelope.cpp - VCA opens this much later on unaccented notes (x0x recordings: ~4.5 ms)
     float vcaAttackMs{1.23555f};             // Envelope.cpp - VEG onset time constant; ref 'a few ms' (§15.2), this unit opens faster (fitted 2026-09-28 to the x0x set)
     float vcfDecayMinSec{0.0677679f};        // Envelope.cpp - MEG decay tau at Decay min: R136 68k x C62 1uF (§14.1)
     float vcfDecayMaxSec{1.07576f};        // Envelope.cpp - MEG decay tau at Decay max: (68k + VR6 1M) x 1uF; A-taper law in between

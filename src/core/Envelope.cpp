@@ -57,6 +57,10 @@ void Envelope::noteOn(bool isAccent, bool isSlide, float accentKnob) {
         // Start attack phase from current voltage level (do not hard-reset to 0.0, catch existing tail)
         vcfTarget_ = 1.0f;
         vcaTarget_ = 1.0f;
+        // The x0x recordings: an unaccented note starts sounding ~4.5 ms
+        // after an accented one (only a faint click at the gate), so its VCA
+        // attack is held back.
+        vcaDelaySamples_ = isAccent ? 0 : static_cast<int>(vcaNormalDelaySec_ * sampleRate_ + 0.5);
     } else {
         // Re-Trigger Logic (Slide == True):
         // Do not trigger attack phase of either envelope.
@@ -86,7 +90,9 @@ void Envelope::processNextSample() {
     }
 
     // 2. VCA Amplitude Envelope Processing
-    if (gate_) {
+    if (gate_ && vcaDelaySamples_ > 0) {
+        --vcaDelaySamples_;
+    } else if (gate_) {
         if (vcaTarget_ > vcaEnv_) {
             vcaEnv_ += vcaAttackCoeff_ * (vcaTarget_ - vcaEnv_);
             if (vcaEnv_ >= 0.99f) {

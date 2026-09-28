@@ -118,6 +118,7 @@ MODEL_PARAMS = {
     # already rejected by Problem._job's isfinite/amplitude check, so the
     # bound itself doesn't need to pre-guess where that line is.
     "filterFeedbackGain":       (6.0, 30.0, False, "filter"),
+    "filterResonanceLimit":     (0.90, 1.10, False, "filter"),  # max feedback vs the loop's critical gain (binds at high cutoff)
     "filterResonanceSkew":      (-6.0, 8.0, False, "filter"),   # < 0: resonance builds late in the travel (x0x fit hit 0.05)
     "resCouplingHz":            (60.0, 160.0, True, "filter"),  # in-loop HP; antto 70-140, Open303 150 (§11.3)
     "filterCapScale1":          (0.2, 4.0, True, "filter"),
@@ -127,7 +128,7 @@ MODEL_PARAMS = {
     "filterLadderInputScale":   (0.01, 0.4, True, "filter"),
     "filterInputCouplingHz":    (3.0, 60.0, True, "filter"),
     "filterOutputCouplingHz":   (6000.0, 40000.0, True, "filter"),
-    "filterPostHpHz":           (5.0, 200.0, True, "filter"),  # also stands in for the VCA-input coupling (10 nF into BA662, tens-hundreds of Hz, §15.4)
+    "filterPostHpHz":           (5.0, 400.0, True, "filter"),  # also stands in for the VCA-input coupling (10 nF into BA662, tens-hundreds of Hz, §15.4)
     "filterNotchHz":            (2.0, 25.0, True, "filter"),
     "filterNotchBandwidthHz":   (1.0, 15.0, True, "filter"),
     "filterAllpassHz":          (4.0, 50.0, True, "filter"),
@@ -135,6 +136,7 @@ MODEL_PARAMS = {
     "cutoffBaseHz":             (50.0, 800.0, True, "cv"),
     "cutoffSpanOct":            (1.5, 7.0, False, "cv"),
     "cutoffTaperExp":           (0.5, 3.5, False, "cv"),
+    "cutoffMaxHz":              (12000.0, 30000.0, True, "cv"),   # cutoff CV ceiling
     "envModScaleC0":            (0.3, 1.5, False, "cv"),
     "envModScaleC0Slope":       (2.0, 6.0, False, "cv"),
     "envModScaleC1":            (0.3, 1.5, False, "cv"),
@@ -142,6 +144,8 @@ MODEL_PARAMS = {
     "envModOffset":             (0.1, 0.5, False, "cv"),
     "envModOffsetCutSlope":     (-0.2, 0.3, False, "cv"),
     "envModTaperExp":           (0.5, 4.0, False, "cv"),      # Env Mod pot taper, knob^exp (1 = linear)
+    "envModTaperMid":           (0.4, 0.9, False, "cv"),      # logistic Env Mod taper (when width > 0)
+    "envModTaperWidth":         (0.05, 0.3, False, "cv"),
     "accentSweepDepthOct":      (0.0, 9.0, False, "cv"),
     "accentVcaDepth":           (0.0, 6.0, False, "cv"),
     # Accent sweep network time constants. Nominal R46 x C13 = 47 ms, VR4b x
@@ -155,6 +159,7 @@ MODEL_PARAMS = {
     # Envelopes / VCA
     "vcfAttackMs":              (0.02, 1.0, True, "env"),
     "vcaAttackMs":              (0.3, 8.0, True, "env"),     # VCA onset: few ms, R134/C41 2.2 ms (§15.2)
+    "vcaNormalDelayMs":         (0.0, 8.0, False, "env"),    # unaccented notes open later (x0x: ~4.5 ms)
     "vcfDecayMinSec":           (0.055, 0.10, True, "env"),   # tau, R136 x C62 (+-20 % caps)
     "vcfDecayMaxSec":           (0.85, 1.35, True, "env"),    # tau, (R136 + VR6) x C62
     "vcfDecayTaper":            (1.5, 200.0, True, "env"),    # Decay pot taper a (81 = 10 % at mid-travel)
@@ -284,7 +289,7 @@ class Reference:
         self.n = len(self.x)
 
     @classmethod
-    def from_clip(cls, clip, x, sr, analysis_ms=None):
+    def from_clip(cls, clip, x, sr, analysis_ms=None, per_row_knobs=()):
         """A note from a reference manifest (see tools/x0x_reference_manifest.py):
         the clip window of a longer recording, with knobs, accent, tuning and
         timing given by the manifest."""
@@ -298,6 +303,14 @@ class Reference:
         self.label_tune_cents = self.fixed_tune_cents
         pct = clip["knobs_pct"]
         self.labels = {k: f"x{int(pct[k])}" for k in KNOBS.values()}
+        # Knobs held fixed through a whole chart row (e.g. Cutoff at 75 % in
+        # D2-D5) were set once per row and can sit away from where the same
+        # percentage landed while that knob was being swept (D1). End stops
+        # (0 / 100 %) are exact and stay shared.
+        swept = {"1": "cutoff", "2": "resonance", "3": "envMod", "4": "decay", "5": "accent"}.get(clip["set"][1:])
+        for k in per_row_knobs:
+            if k != swept and 0 < int(pct[k]) < 100:
+                self.labels[k] = f"x{int(pct[k])}@{clip['set'][0]}"
         self.nominal = {k: float(clip["knobs"][k]) for k in KNOBS.values()}
         self.accent_step = bool(clip["accent"])
         self.group = clip.get("set")
@@ -315,7 +328,7 @@ class Reference:
         return self
 
 
-def load_manifest(path, includes, excludes, analysis_ms=None, rotate=None):
+def load_manifest(path, includes, excludes, analysis_ms=None, rotate=None, per_row_knobs=()):
     """Reference notes from a manifest JSON (tools/x0x_reference_manifest.py).
     includes/excludes are substrings matched against the clip ids, e.g.
     "A1-" (a set), "-p2-" (a position), "square", "-acc".
@@ -339,7 +352,7 @@ def load_manifest(path, includes, excludes, analysis_ms=None, rotate=None):
         if c["file"] not in audio:
             audio[c["file"]] = read_wav(path.parent / c["file"])
         x, sr = audio[c["file"]]
-        refs.append(Reference.from_clip(c, x, sr, analysis_ms))
+        refs.append(Reference.from_clip(c, x, sr, analysis_ms, per_row_knobs))
     return refs
 
 
@@ -478,6 +491,24 @@ def sweep_track(x, spec):
     return np.log2(spec.sw_freqs[i]), Xs[np.arange(len(i)), i] - base
 
 
+def sweep_valid(freq_log2, hop_sec, settle_sec=0.040, ceiling_oct=np.log2(1.4)):
+    """Frames whose peak is plausible: after the attack the resonance only
+    falls (the MEG decays, the accent sweep peaks early), so a frame more than
+    1.4x above the lowest peak so far is a noise pick (the tilt correction
+    lifts the noise ~47 dB at 15 kHz late in quiet notes)."""
+    valid = np.ones(len(freq_log2), dtype=bool)
+    lowest = np.inf
+    start = int(round(settle_sec / hop_sec))
+    for k, f in enumerate(freq_log2):
+        if k < start:
+            continue
+        if f > lowest + ceiling_oct:
+            valid[k] = False
+        else:
+            lowest = min(lowest, f)
+    return valid
+
+
 SWEEP_MIN_HEIGHT_DB = 6.0   # frames where the reference's peak is at least this clear
 
 
@@ -489,7 +520,9 @@ def sweep_error(rf, sf):
         return 0.0
     (rfr, rh), (sfr, _) = rf["sweep"], sf["sweep"]
     n = min(len(rfr), len(sfr))
-    m = rh[:n] >= SWEEP_MIN_HEIGHT_DB
+    if "sweep_valid" not in rf:
+        rf["sweep_valid"] = sweep_valid(rfr, 0.010)
+    m = (rh[:n] >= SWEEP_MIN_HEIGHT_DB) & rf["sweep_valid"][:n]
     if not np.any(m):
         return 0.0
     e = np.clip(12.0 * (sfr[:n] - rfr[:n]), -24.0, 24.0)[m]
@@ -1334,6 +1367,10 @@ def main():
                     help="manifest only: one note per set/position, rotating through the four note kinds "
                     "(a quarter of the notes; fast search subset). An optional offset 0-3 picks one of "
                     "the four disjoint quarters")
+    ap.add_argument("--per-row-knobs", default="",
+                    help="manifest only: comma list of knobs (e.g. cutoff) whose position is fitted per chart row "
+                    "where the row holds that knob fixed (the hand-set knob can sit elsewhere than where the same "
+                    "percentage landed in the set that sweeps it)")
     ap.add_argument("--max-renders", type=int, default=40,
                     help="write audio/plots for this many samples (the worst-fitting ones)")
     ap.add_argument("--no-sensitivity", action="store_true",
@@ -1390,7 +1427,8 @@ def main():
         args.refit_seconds = 0.0 if args.manifest else 30.0
     refs = []
     if args.manifest:
-        refs = load_manifest(args.manifest, includes, excludes, args.analysis_ms, args.rotate)
+        refs = load_manifest(args.manifest, includes, excludes, args.analysis_ms, args.rotate,
+                             [k for k in args.per_row_knobs.split(",") if k])
     else:
         ref_paths = sorted(Path(args.refs).glob("*.wav"))
         ref_paths = [p for p in ref_paths if not any(e in p.name for e in excludes)]

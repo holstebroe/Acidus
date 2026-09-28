@@ -180,6 +180,10 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_ENV_MOD_TAPER_EXP] = kCalibrationDefaults.envModTaperExp;
     paramValues_[PARAM_ACCENT_DIODE_DROP] = kCalibrationDefaults.accentDiodeDrop;
     paramValues_[PARAM_VCF_DECAY_TAPER] = kCalibrationDefaults.vcfDecayTaper;
+    paramValues_[PARAM_ENV_MOD_TAPER_MID] = kCalibrationDefaults.envModTaperMid;
+    paramValues_[PARAM_ENV_MOD_TAPER_WIDTH] = kCalibrationDefaults.envModTaperWidth;
+    paramValues_[PARAM_CUTOFF_MAX_HZ] = kCalibrationDefaults.cutoffMaxHz;
+    paramValues_[PARAM_VCA_NORMAL_DELAY_MS] = kCalibrationDefaults.vcaNormalDelayMs;
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
@@ -278,6 +282,10 @@ void AcidusClap::syncParamsToEngine() {
     params.envModTaperExp = static_cast<float>(paramValues_[PARAM_ENV_MOD_TAPER_EXP]);
     params.accentDiodeDrop = static_cast<float>(paramValues_[PARAM_ACCENT_DIODE_DROP]);
     params.vcfDecayTaper = static_cast<float>(paramValues_[PARAM_VCF_DECAY_TAPER]);
+    params.envModTaperMid = static_cast<float>(paramValues_[PARAM_ENV_MOD_TAPER_MID]);
+    params.envModTaperWidth = static_cast<float>(paramValues_[PARAM_ENV_MOD_TAPER_WIDTH]);
+    params.cutoffMaxHz = static_cast<float>(paramValues_[PARAM_CUTOFF_MAX_HZ]);
+    params.vcaNormalDelayMs = static_cast<float>(paramValues_[PARAM_VCA_NORMAL_DELAY_MS]);
 #endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
@@ -775,6 +783,34 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->max_value = 200.0;
             paramInfo->default_value = kCalibrationDefaults.vcfDecayTaper;
             break;
+        case PARAM_ENV_MOD_TAPER_MID:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Env Mod Taper Mid (logistic)");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Env Mod");
+            paramInfo->min_value = 0.2;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = kCalibrationDefaults.envModTaperMid;
+            break;
+        case PARAM_ENV_MOD_TAPER_WIDTH:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Env Mod Taper Width (0 = power law)");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Env Mod");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 0.5;
+            paramInfo->default_value = kCalibrationDefaults.envModTaperWidth;
+            break;
+        case PARAM_CUTOFF_MAX_HZ:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Cutoff Ceiling");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 8000.0;
+            paramInfo->max_value = 30000.0;
+            paramInfo->default_value = kCalibrationDefaults.cutoffMaxHz;
+            break;
+        case PARAM_VCA_NORMAL_DELAY_MS:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Onset Delay (Unaccented)");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 10.0;
+            paramInfo->default_value = kCalibrationDefaults.vcaNormalDelayMs;
+            break;
 
         case PARAM_DRIVE:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Drive");
@@ -913,7 +949,7 @@ bool AcidusClap::paramsValueToText(clap_id paramId, double value, char* outBuffe
                || paramId == PARAM_FILTER_POST_HP_HZ || paramId == PARAM_FILTER_NOTCH_HZ
                || paramId == PARAM_FILTER_NOTCH_BANDWIDTH_HZ || paramId == PARAM_FILTER_ALLPASS_HZ
                || paramId == PARAM_FILTER_INPUT_COUPLING_HZ || paramId == PARAM_FILTER_OUTPUT_COUPLING_HZ
-               || paramId == PARAM_CUTOFF_BASE_HZ) {
+               || paramId == PARAM_CUTOFF_BASE_HZ || paramId == PARAM_CUTOFF_MAX_HZ) {
         snprintf(outBuffer, outBufferCapacity, "%.2f Hz", value);
     } else if (paramId == PARAM_ACCENT_SWEEP_DEPTH || paramId == PARAM_CUTOFF_SPAN_OCT) {
         snprintf(outBuffer, outBufferCapacity, "%.2f oct", value);
@@ -925,7 +961,8 @@ bool AcidusClap::paramsValueToText(clap_id paramId, double value, char* outBuffe
         snprintf(outBuffer, outBufferCapacity, "%.3f oct", value);
     } else if (paramId == PARAM_VEG_DECAY_SEC) {
         snprintf(outBuffer, outBufferCapacity, "%.2f s", value);
-    } else if (paramId == PARAM_VCA_GATE_OFF_MS || paramId == PARAM_VCA_GATE_OFF_ACCENT_MS) {
+    } else if (paramId == PARAM_VCA_GATE_OFF_MS || paramId == PARAM_VCA_GATE_OFF_ACCENT_MS
+               || paramId == PARAM_VCA_NORMAL_DELAY_MS) {
         snprintf(outBuffer, outBufferCapacity, "%.1f ms", value);
     } else {
         snprintf(outBuffer, outBufferCapacity, "%.2f", value);

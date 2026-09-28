@@ -40,6 +40,8 @@ public:
     void setAccentKnob(float k) { accentKnob_ = k; }
     // D24 forward drop, as a fraction of the full MEG swing (0 = ideal diode).
     void setAccentDiodeDrop(float d) { accentDiodeDrop_ = d; }
+    // Delay before the VCA opens on an unaccented (non-slid) note, seconds.
+    void setVcaNormalDelaySec(float s) { vcaNormalDelaySec_ = s; }
 
     void noteOn(bool isAccent, bool isSlide, float accentKnob = 1.0f);
     void noteOff();
@@ -87,6 +89,8 @@ private:
     float accentPotSec_{0.050f};
     float accentMixSec_{0.100f};
     float accentDiodeDrop_{0.0f};
+    float vcaNormalDelaySec_{0.0f};
+    int vcaDelaySamples_{0};
     float accentVcaCoeff_{0.0f};
 
     float vcfEnv_{0.0f};

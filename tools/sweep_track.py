@@ -36,8 +36,10 @@ from calibrate_reference import (DEFAULT_MANIFEST, REPO, Renderer, find_library,
 TIMES_MS = [0, 10, 20, 30, 50, 80, 120, 200, 300, 500, 800, 1200]
 
 
-def track(x, sr, on, f0, win_ms=30.0, hop_ms=5.0, t_end=1.3, fmin=150.0):
-    """-> array of (ms after note-on, peak Hz, peak height dB)."""
+def track(x, sr, on, f0, win_ms=30.0, hop_ms=5.0, t_end=1.3, fmin=150.0, clean=True):
+    """-> array of (ms after note-on, peak Hz, peak height dB). With clean,
+    implausible late jumps upward (noise picks, see calibrate_reference.
+    sweep_valid) are replaced by the previous valid frame's values."""
     w, hop, nfft = int(win_ms * sr / 1000), int(hop_ms * sr / 1000), 1 << 14
     win = np.hanning(w)
     f = np.fft.rfftfreq(nfft, 1 / sr)
@@ -54,7 +56,14 @@ def track(x, sr, on, f0, win_ms=30.0, hop_ms=5.0, t_end=1.3, fmin=150.0):
         X = np.convolve(20 * np.log10(np.abs(np.fft.rfft(seg * win, nfft)) + 1e-9) + tilt, ker, "same")
         i = lo + int(np.argmax(X[lo:hi]))
         out.append(((a - on + w / 2) * 1000 / sr, f[i], X[i] - np.median(X[b0:b1])))
-    return np.array(out)
+    out = np.array(out)
+    if clean and len(out):
+        from calibrate_reference import sweep_valid
+        ok = sweep_valid(np.log2(out[:, 1]), hop_ms / 1000.0)
+        for k in range(1, len(out)):
+            if not ok[k]:
+                out[k, 1:] = out[k - 1, 1:]
+    return out
 
 
 def main():
