@@ -144,15 +144,19 @@ MODEL_PARAMS = {
     "envModTaperExp":           (0.5, 4.0, False, "cv"),      # Env Mod pot taper, knob^exp (1 = linear)
     "accentSweepDepthOct":      (0.0, 9.0, False, "cv"),
     "accentVcaDepth":           (0.0, 6.0, False, "cv"),
-    "accentChargeBaseSec":      (0.035, 0.065, True, "cv"),   # R46 x C13 +-30 %
-    "accentChargePotSec":       (0.030, 0.070, True, "cv"),   # VR4b x C13
-    "accentMixSec":             (0.07, 0.15, True, "cv"),     # R_mix x C13 (100k +-30 %)
+    # Accent sweep network time constants. Nominal R46 x C13 = 47 ms, VR4b x
+    # C13 = 50 ms, R_mix x C13 = 100 ms; the ranges are wider than component
+    # tolerance because the x0x set's accented Resonance-100 % notes peak
+    # ~15 ms after note-on, which the nominal network (peak ~60 ms) can't do.
+    "accentChargeBaseSec":      (0.004, 0.10, True, "cv"),
+    "accentChargePotSec":       (0.004, 0.10, True, "cv"),
+    "accentMixSec":             (0.02, 0.30, True, "cv"),
     # Envelopes / VCA
     "vcfAttackMs":              (0.02, 1.0, True, "env"),
     "vcaAttackMs":              (0.3, 8.0, True, "env"),     # VCA onset: few ms, R134/C41 2.2 ms (§15.2)
     "vcfDecayMinSec":           (0.055, 0.10, True, "env"),   # tau, R136 x C62 (+-20 % caps)
     "vcfDecayMaxSec":           (0.85, 1.35, True, "env"),    # tau, (R136 + VR6) x C62
-    "accentDecaySec":           (0.055, 0.10, True, "env"),
+    "accentDecaySec":           (0.03, 0.15, True, "env"),
     "vegDecaySec":              (1.0, 6.0, True, "env"),      # R123 x C42 = 1.5 s (§15.1); hardware samples look flatter
     "vcaGateOffMs":             (0.3, 20.0, True, "env"),
     "vcaGateOffAccentMs":       (0.3, 80.0, True, "env"),
