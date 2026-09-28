@@ -437,10 +437,56 @@ class FeatureSpec:
         fb = ref.sr / self.st_frame
         self.st_edges = np.unique(np.maximum(1, np.round(edges / fb).astype(int)))
         self.st_window = np.hanning(self.st_frame)
+        # Resonant-peak sweep track (enabled per reference, see Problem):
+        # 30 ms frames every 10 ms; the saw's -6 dB/oct tilt is removed and
+        # the spectrum smoothed over one harmonic spacing, so the peak is the
+        # resonance, not a harmonic.
+        self.sweep = False
+        self.sw_frame = int(round(0.030 * ref.sr))
+        self.sw_hop = int(round(0.010 * ref.sr))
+        self.sw_nfft = 8192
+        fr = np.fft.rfftfreq(self.sw_nfft, 1.0 / ref.sr)
+        self.sw_tilt = 20 * np.log10(np.maximum(fr, 1.0) / f0)
+        self.sw_kernel = np.ones(max(3, int(round(f0 / (ref.sr / self.sw_nfft))))) / max(3, int(round(f0 / (ref.sr / self.sw_nfft))))
+        self.sw_lo = int(np.searchsorted(fr, 150.0))
+        self.sw_hi = int(np.searchsorted(fr, min(fmax, 0.45 * ref.sr)))
+        self.sw_base = (int(np.searchsorted(fr, 80.0)), int(np.searchsorted(fr, 400.0)))
+        self.sw_freqs = fr
+        self.sw_window = np.hanning(self.sw_frame)
 
 
 def db(p):
     return 10.0 * np.log10(np.maximum(p, 1e-20))
+
+
+def sweep_track(x, spec):
+    """Resonant-peak frequency (log2 Hz) and height (dB above the 80-400 Hz
+    level) for every sweep frame of x."""
+    frames = np.lib.stride_tricks.sliding_window_view(x, spec.sw_frame)[::spec.sw_hop]
+    X = 20 * np.log10(np.abs(np.fft.rfft(frames * spec.sw_window, spec.sw_nfft, axis=1)) + 1e-9) + spec.sw_tilt
+    k = spec.sw_kernel
+    Xs = np.apply_along_axis(lambda r: np.convolve(r, k, "same"), 1, X[:, : spec.sw_hi + len(k)])
+    i = spec.sw_lo + np.argmax(Xs[:, spec.sw_lo:spec.sw_hi], axis=1)
+    base = np.median(Xs[:, spec.sw_base[0]:spec.sw_base[1]], axis=1)
+    return np.log2(spec.sw_freqs[i]), Xs[np.arange(len(i)), i] - base
+
+
+SWEEP_MIN_HEIGHT_DB = 6.0   # frames where the reference's peak is at least this clear
+
+
+def sweep_error(rf, sf):
+    """RMS difference (semitones, clipped at 2 octaves) between the
+    reference's and the render's resonant-peak tracks, over the frames where
+    the reference shows a clear peak."""
+    if "sweep" not in rf or "sweep" not in sf:
+        return 0.0
+    (rfr, rh), (sfr, _) = rf["sweep"], sf["sweep"]
+    n = min(len(rfr), len(sfr))
+    m = rh[:n] >= SWEEP_MIN_HEIGHT_DB
+    if not np.any(m):
+        return 0.0
+    e = np.clip(12.0 * (sfr[:n] - rfr[:n]), -24.0, 24.0)[m]
+    return float(np.sqrt(np.mean(e * e)))
 
 
 def compute_features(x, spec):
@@ -458,13 +504,16 @@ def compute_features(x, spec):
     S = np.abs(np.fft.rfft(frames * spec.st_window, axis=1)) ** 2
     Sc = np.concatenate([np.zeros((S.shape[0], 1)), np.cumsum(S, axis=1)], axis=1)
     bands = Sc[:, spec.st_edges[1:]] - Sc[:, spec.st_edges[:-1]]
-    return {
+    out = {
         "y": x,
         "harm": db(harm * norm),
         "inter": db(inter * norm),
         "env": db(env),
         "stft": db(bands / spec.st_frame ** 2),
     }
+    if spec.sweep:
+        out["sweep"] = sweep_track(x, spec)
+    return out
 
 
 FLOORS = {"harm": 80.0, "inter": 80.0, "env": 50.0, "stft": 70.0}
@@ -685,7 +734,7 @@ class Problem:
         self.r = renderer
         self.args = args
         self.w = {"harm": args.w_harm, "inter": args.w_inter, "env": args.w_env, "stft": args.w_stft,
-                  "peak": args.w_peak, "wave": args.w_wave}
+                  "peak": args.w_peak, "wave": args.w_wave, "sweep": args.w_sweep}
         self.pool = ThreadPoolExecutor(max_workers=args.workers)
 
         # Per-reference analysis
@@ -700,6 +749,7 @@ class Problem:
                 ref.tune_cents = 1200 * math.log2(ref.f0 / midi_to_hz(ref.midi))
                 ref.drift_cents = pitch_drift_cents(ref.x, ref.sr, ref.f0)
             ref.spec = FeatureSpec(ref, ref.f0, args.fmax, 1 << int(math.ceil(math.log2(ref.n * 4))))
+            ref.spec.sweep = args.w_sweep > 0 and ref.nominal["resonance"] >= 0.5
             ref.feat = compute_features(ref.x, ref.spec)
             ref.onset_ms, ref.gate_ms = ref.timing_hint or detect_timing(ref)
             # Waveform window: sustained part, 15 ms after onset to 5 ms
@@ -841,6 +891,7 @@ class Problem:
             "stft": weighted_rms(e["stft"]),
             "peak": weighted_rms(sim_rel - ref.peak_ref_rel, ref.peak_weight),
             "wave": wave_error(ref, sf["y"]) if self.w["wave"] > 0 else 0.0,
+            "sweep": sweep_error(ref.feat, sf),
         }
         cost = sum(self.w[k] * comp[k] for k in comp) / sum(self.w.values())
         return cost, comp
@@ -1079,8 +1130,10 @@ def summarize(problem, u, gain=None):
     agg = {k: float(np.mean([p[k] for p in per if not p.get("failed")]))
            for k in ("cost", "harm_within_1db", "harm_within_3db", "harm_within_6db", "harm_mean_abs_db")}
     agg["level_rms_db"] = float(np.sqrt(np.mean([p["level_db"] ** 2 for p in per if not p.get("failed")])))
-    for comp in ("harm", "inter", "env", "stft", "wave"):
+    for comp in ("harm", "inter", "env", "stft", "wave", "sweep"):
         agg[comp] = float(np.mean([p["components"][comp] for p in per if not p.get("failed")]))
+    sw = [p["components"]["sweep"] for p, ref in zip(per, problem.refs) if ref.spec.sweep and not p.get("failed")]
+    agg["sweep"] = float(np.mean(sw)) if sw else 0.0
     peak_costs = [p["components"]["peak"] for p, ref in zip(per, problem.refs) if ref.has_peak and not p.get("failed")]
     agg["peak"] = float(np.mean(peak_costs)) if peak_costs else 0.0
     agg["objective"] = costs[0]
@@ -1317,6 +1370,9 @@ def main():
                     "trade the peak away (see 2026-09 peak-vs-broadband tradeoff)")
     ap.add_argument("--w-wave", type=float, default=0.0,
                     help="weight on the phase-aligned, per-frame-normalised waveform comparison (0 = off)")
+    ap.add_argument("--w-sweep", type=float, default=0.0,
+                    help="weight on the resonant-peak sweep track (peak frequency over time, 30 ms frames, "
+                    "semitones) at Resonance >= 50 %% (0 = off)")
     ap.add_argument("--evaluate-only", action="store_true", help="score the current code, no fitting")
     ap.add_argument("--apply", action="store_true", help="write fitted defaults into src/core/SynthEngine.hpp")
     args = ap.parse_args()
@@ -1491,6 +1547,7 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
                      ("inter", "inter-harmonic error (dB)"),
                      ("env", "envelope error (dB)"), ("stft", "spectrogram error (dB)"),
                      ("wave", "aligned waveform error (10*sqrt(residual/ref))"),
+                     ("sweep", "resonant-peak sweep track error (semitones)"),
                      ("harm_mean_abs_db", "mean |harmonic error| (dB)"),
                      ("level_rms_db", "note level error, RMS over notes (dB)"),
                      ("harm_within_1db", "harmonics within 1 dB (%)"),

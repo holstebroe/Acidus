@@ -95,8 +95,23 @@ enum ParamId : clap_id {
     PARAM_CUTOFF_SPAN_OCT = 33,                 // SynthEngine.cpp - octaves swept by the Cutoff knob
     PARAM_CUTOFF_TAPER_EXP = 34,                // SynthEngine.cpp - knob taper, 1 = exponential knob-to-Hz
     PARAM_FILTER_RES_SKEW = 35,                 // Filter.hpp - Resonance pot curve; < 0 builds late in the travel
+    // Env Mod law (SynthEngine.cpp): depth = (1-c)*(C0 + C0Slope*e) + c*(C1 + C1Slope*e)
+    // octaves per unit MEG, cutoff shift = depth * (MEG - (Offset + OffsetCutSlope*c)),
+    // and the MEG / accent-sweep time constants (Envelope.cpp).
+    PARAM_ENV_MOD_SCALE_C0 = 36,           // sweep depth (oct per unit MEG) at Env Mod 0, Cutoff min
+    PARAM_ENV_MOD_SCALE_C0_SLOPE = 37,     // added depth per unit Env Mod, Cutoff min
+    PARAM_ENV_MOD_SCALE_C1 = 38,           // sweep depth at Env Mod 0, Cutoff max
+    PARAM_ENV_MOD_SCALE_C1_SLOPE = 39,     // added depth per unit Env Mod, Cutoff max
+    PARAM_ENV_MOD_OFFSET = 40,             // MEG level where the Env Mod bias shift is neutral (floor drop = depth x offset)
+    PARAM_ENV_MOD_OFFSET_CUT_SLOPE = 41,   // offset change at Cutoff max
+    PARAM_VCF_DECAY_MIN_SEC = 42,          // MEG decay tau at Decay min
+    PARAM_VCF_DECAY_MAX_SEC = 43,          // MEG decay tau at Decay max
+    PARAM_ACCENT_DECAY_SEC = 44,           // MEG decay tau on accented notes
+    PARAM_ACCENT_CHARGE_BASE_SEC = 45,     // accent sweep: R46 x C13
+    PARAM_ACCENT_CHARGE_POT_SEC = 46,      // accent sweep: VR4b x C13, scaled by Resonance
+    PARAM_ACCENT_MIX_SEC = 47,             // accent sweep: mixing resistor x C13
 
-    PARAM_EXPERIMENTAL_COUNT = 36,
+    PARAM_EXPERIMENTAL_COUNT = 48,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

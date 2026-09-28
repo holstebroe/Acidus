@@ -165,6 +165,18 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_CUTOFF_SPAN_OCT] = kCalibrationDefaults.cutoffSpanOct;
     paramValues_[PARAM_CUTOFF_TAPER_EXP] = kCalibrationDefaults.cutoffTaperExp;
     paramValues_[PARAM_FILTER_RES_SKEW] = kCalibrationDefaults.filterResonanceSkew;
+    paramValues_[PARAM_ENV_MOD_SCALE_C0] = kCalibrationDefaults.envModScaleC0;
+    paramValues_[PARAM_ENV_MOD_SCALE_C0_SLOPE] = kCalibrationDefaults.envModScaleC0Slope;
+    paramValues_[PARAM_ENV_MOD_SCALE_C1] = kCalibrationDefaults.envModScaleC1;
+    paramValues_[PARAM_ENV_MOD_SCALE_C1_SLOPE] = kCalibrationDefaults.envModScaleC1Slope;
+    paramValues_[PARAM_ENV_MOD_OFFSET] = kCalibrationDefaults.envModOffset;
+    paramValues_[PARAM_ENV_MOD_OFFSET_CUT_SLOPE] = kCalibrationDefaults.envModOffsetCutSlope;
+    paramValues_[PARAM_VCF_DECAY_MIN_SEC] = kCalibrationDefaults.vcfDecayMinSec;
+    paramValues_[PARAM_VCF_DECAY_MAX_SEC] = kCalibrationDefaults.vcfDecayMaxSec;
+    paramValues_[PARAM_ACCENT_DECAY_SEC] = kCalibrationDefaults.accentDecaySec;
+    paramValues_[PARAM_ACCENT_CHARGE_BASE_SEC] = kCalibrationDefaults.accentChargeBaseSec;
+    paramValues_[PARAM_ACCENT_CHARGE_POT_SEC] = kCalibrationDefaults.accentChargePotSec;
+    paramValues_[PARAM_ACCENT_MIX_SEC] = kCalibrationDefaults.accentMixSec;
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
@@ -248,6 +260,18 @@ void AcidusClap::syncParamsToEngine() {
     params.cutoffSpanOct = static_cast<float>(paramValues_[PARAM_CUTOFF_SPAN_OCT]);
     params.cutoffTaperExp = static_cast<float>(paramValues_[PARAM_CUTOFF_TAPER_EXP]);
     params.filterResonanceSkew = static_cast<float>(paramValues_[PARAM_FILTER_RES_SKEW]);
+    params.envModScaleC0 = static_cast<float>(paramValues_[PARAM_ENV_MOD_SCALE_C0]);
+    params.envModScaleC0Slope = static_cast<float>(paramValues_[PARAM_ENV_MOD_SCALE_C0_SLOPE]);
+    params.envModScaleC1 = static_cast<float>(paramValues_[PARAM_ENV_MOD_SCALE_C1]);
+    params.envModScaleC1Slope = static_cast<float>(paramValues_[PARAM_ENV_MOD_SCALE_C1_SLOPE]);
+    params.envModOffset = static_cast<float>(paramValues_[PARAM_ENV_MOD_OFFSET]);
+    params.envModOffsetCutSlope = static_cast<float>(paramValues_[PARAM_ENV_MOD_OFFSET_CUT_SLOPE]);
+    params.vcfDecayMinSec = static_cast<float>(paramValues_[PARAM_VCF_DECAY_MIN_SEC]);
+    params.vcfDecayMaxSec = static_cast<float>(paramValues_[PARAM_VCF_DECAY_MAX_SEC]);
+    params.accentDecaySec = static_cast<float>(paramValues_[PARAM_ACCENT_DECAY_SEC]);
+    params.accentChargeBaseSec = static_cast<float>(paramValues_[PARAM_ACCENT_CHARGE_BASE_SEC]);
+    params.accentChargePotSec = static_cast<float>(paramValues_[PARAM_ACCENT_CHARGE_POT_SEC]);
+    params.accentMixSec = static_cast<float>(paramValues_[PARAM_ACCENT_MIX_SEC]);
 #endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
@@ -640,6 +664,90 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->max_value = 8.0;
             paramInfo->default_value = kCalibrationDefaults.filterResonanceSkew;
             break;
+        case PARAM_ENV_MOD_SCALE_C0:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Env Mod Depth @Cut Min");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Env Mod");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 2.0;
+            paramInfo->default_value = kCalibrationDefaults.envModScaleC0;
+            break;
+        case PARAM_ENV_MOD_SCALE_C0_SLOPE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Env Mod Depth Slope @Cut Min");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Env Mod");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 8.0;
+            paramInfo->default_value = kCalibrationDefaults.envModScaleC0Slope;
+            break;
+        case PARAM_ENV_MOD_SCALE_C1:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Env Mod Depth @Cut Max");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Env Mod");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 2.0;
+            paramInfo->default_value = kCalibrationDefaults.envModScaleC1;
+            break;
+        case PARAM_ENV_MOD_SCALE_C1_SLOPE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Env Mod Depth Slope @Cut Max");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Env Mod");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 8.0;
+            paramInfo->default_value = kCalibrationDefaults.envModScaleC1Slope;
+            break;
+        case PARAM_ENV_MOD_OFFSET:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Env Mod Bias Offset");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Env Mod");
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 0.8;
+            paramInfo->default_value = kCalibrationDefaults.envModOffset;
+            break;
+        case PARAM_ENV_MOD_OFFSET_CUT_SLOPE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Env Mod Bias Offset Cut Slope");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Env Mod");
+            paramInfo->min_value = -0.5;
+            paramInfo->max_value = 0.5;
+            paramInfo->default_value = kCalibrationDefaults.envModOffsetCutSlope;
+            break;
+        case PARAM_VCF_DECAY_MIN_SEC:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "MEG Decay @Decay Min");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 0.02;
+            paramInfo->max_value = 0.3;
+            paramInfo->default_value = kCalibrationDefaults.vcfDecayMinSec;
+            break;
+        case PARAM_VCF_DECAY_MAX_SEC:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "MEG Decay @Decay Max");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 0.3;
+            paramInfo->max_value = 3.0;
+            paramInfo->default_value = kCalibrationDefaults.vcfDecayMaxSec;
+            break;
+        case PARAM_ACCENT_DECAY_SEC:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "MEG Decay (Accent)");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 0.02;
+            paramInfo->max_value = 0.3;
+            paramInfo->default_value = kCalibrationDefaults.accentDecaySec;
+            break;
+        case PARAM_ACCENT_CHARGE_BASE_SEC:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Accent Sweep Charge (R46 C13)");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 0.005;
+            paramInfo->max_value = 0.2;
+            paramInfo->default_value = kCalibrationDefaults.accentChargeBaseSec;
+            break;
+        case PARAM_ACCENT_CHARGE_POT_SEC:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Accent Sweep Charge (VR4b C13)");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 0.005;
+            paramInfo->max_value = 0.2;
+            paramInfo->default_value = kCalibrationDefaults.accentChargePotSec;
+            break;
+        case PARAM_ACCENT_MIX_SEC:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Accent Sweep Discharge (Rmix C13)");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 0.02;
+            paramInfo->max_value = 0.5;
+            paramInfo->default_value = kCalibrationDefaults.accentMixSec;
+            break;
 
         case PARAM_DRIVE:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Drive");
@@ -766,6 +874,10 @@ bool AcidusClap::paramsValueToText(clap_id paramId, double value, char* outBuffe
         snprintf(outBuffer, outBufferCapacity, "%.2f oct", value);
     } else if (paramId == PARAM_FILTER_RES_LIMIT) {
         snprintf(outBuffer, outBufferCapacity, "%.3f x critical", value);
+    } else if (paramId == PARAM_VCF_DECAY_MIN_SEC || paramId == PARAM_VCF_DECAY_MAX_SEC || paramId == PARAM_ACCENT_DECAY_SEC || paramId == PARAM_ACCENT_CHARGE_BASE_SEC || paramId == PARAM_ACCENT_CHARGE_POT_SEC || paramId == PARAM_ACCENT_MIX_SEC) {
+        snprintf(outBuffer, outBufferCapacity, "%.0f ms", value * 1000.0);
+    } else if (paramId == PARAM_ENV_MOD_SCALE_C0 || paramId == PARAM_ENV_MOD_SCALE_C0_SLOPE || paramId == PARAM_ENV_MOD_SCALE_C1 || paramId == PARAM_ENV_MOD_SCALE_C1_SLOPE) {
+        snprintf(outBuffer, outBufferCapacity, "%.3f oct", value);
     } else if (paramId == PARAM_VEG_DECAY_SEC) {
         snprintf(outBuffer, outBufferCapacity, "%.2f s", value);
     } else if (paramId == PARAM_VCA_GATE_OFF_MS || paramId == PARAM_VCA_GATE_OFF_ACCENT_MS) {
