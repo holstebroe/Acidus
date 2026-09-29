@@ -77,6 +77,8 @@ public:
     // Tests: stop renderFrame from advancing the animation with real time.
     void setAnimationFrozen(bool frozen) { animationFrozen_ = frozen; }
     bool isVisible() const { return visible_; }
+    // Tests: the smiley is reacting to an accented note.
+    bool isAccentFlashActive() const { return eyeFlash_ > 0.0; }
     // A click on the calibration label (logo plate) loads the next
     // calibration preset.
     void handleMouseDown(int x, int y, bool isShift = false);
@@ -94,10 +96,16 @@ private:
     // value changes, and the logo plate's lettering as a transparent overlay.
     std::vector<uint32_t> staticBuffer_;
     std::vector<uint32_t> logoOverlay_;
+    std::vector<uint32_t> logoGlow_;
     std::vector<double> staticKey_;
     bool overlayValid_{false};
     std::atomic<bool> visible_{true};
     bool animationFrozen_{false};
+    // Accent reaction and logo glow pulse.
+    static constexpr double kEyeFlashSec = 0.18;
+    uint32_t lastAccentCount_{0};
+    double eyeFlash_{0.0};
+    double glowPulse() const;   // halo strength, 0.7..1
     int dirtyX_{0}, dirtyY_{0}, dirtyW_{0}, dirtyH_{0};   // region the last renderFrame repainted
     std::vector<Control> controls_;
     bool lastShiftState_{false};
@@ -153,6 +161,7 @@ private:
     // Parts of the logo plate, drawn in this order around the bubbles.
     static constexpr unsigned kTitlePlate = 1;       // box and shadow (static layer)
     static constexpr unsigned kTitleForeground = 2;  // screws, lettering, tagline (overlay)
+    static constexpr unsigned kTitleGlow = 8;        // the lettering's halo (pulsing overlay)
     static constexpr unsigned kTitleDynamic = 4;     // smiley and preset label (every frame)
     void drawAcidusTitle(Graphics& g, int x, int y, unsigned parts);
 };

@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <algorithm>
 #include <cmath>
+#include <chrono>
 
 namespace acidus {
 
@@ -281,7 +282,7 @@ void AcidusClap::handleEvent(const clap_event_header_t* header) {
 
     if (header->type == CLAP_EVENT_NOTE_ON) {
         const auto* noteEv = reinterpret_cast<const clap_event_note_t*>(header);
-        engine_.noteOn(noteEv->key, static_cast<float>(noteEv->velocity));
+        noteOnFromHost(noteEv->key, static_cast<float>(noteEv->velocity));
     } else if (header->type == CLAP_EVENT_NOTE_OFF) {
         const auto* noteEv = reinterpret_cast<const clap_event_note_t*>(header);
         engine_.noteOff(noteEv->key);
@@ -292,7 +293,7 @@ void AcidusClap::handleEvent(const clap_event_header_t* header) {
         uint8_t data2 = midiEv->data[2];
 
         if (status == 0x90 && data2 > 0) {
-            engine_.noteOn(data1, static_cast<float>(data2) / 127.0f);
+            noteOnFromHost(data1, static_cast<float>(data2) / 127.0f);
         } else if (status == 0x80 || (status == 0x90 && data2 == 0)) {
             engine_.noteOff(data1);
         } else if (status == 0xB0) {
@@ -333,7 +334,43 @@ void AcidusClap::handleEvent(const clap_event_header_t* header) {
     }
 }
 
+void AcidusClap::noteOnFromHost(int key, float velocity) {
+    engine_.noteOn(key, velocity);
+    if (velocity >= SynthEngine::kAccentVelocity) {
+        accentCount_.fetch_add(1, std::memory_order_relaxed);
+    }
+}
+
+bool AcidusClap::transportBarPhase(double& phase) const {
+    if (!transportPlaying_.load()) return false;
+    const int64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    const double elapsed = 1e-9 * static_cast<double>(now - transportStampNs_.load());
+    if (elapsed < 0.0 || elapsed > 0.5) return false;   // no blocks lately: not playing
+    const double p = transportBarPos_.load() + elapsed * transportBarsPerSec_.load();
+    phase = p - std::floor(p);
+    return true;
+}
+
 clap_process_status AcidusClap::process(const clap_process_t* process) {
+    // Host transport, for the GUI's bar-synced logo pulse.
+    const clap_event_transport_t* tr = process->transport;
+    constexpr uint32_t kNeeded = CLAP_TRANSPORT_HAS_TEMPO | CLAP_TRANSPORT_HAS_BEATS_TIMELINE
+                               | CLAP_TRANSPORT_IS_PLAYING;
+    if (tr && (tr->flags & kNeeded) == kNeeded && tr->tempo > 0.0) {
+        const double beatsPerBar = tr->tsig_num > 0 ? static_cast<double>(tr->tsig_num) : 4.0;
+        const double inBar = static_cast<double>(tr->song_pos_beats - tr->bar_start)
+                             / static_cast<double>(CLAP_BEATTIME_FACTOR);
+        const double pos = inBar / beatsPerBar;
+        transportBarPos_.store(pos - std::floor(pos));
+        transportBarsPerSec_.store(tr->tempo / 60.0 / beatsPerBar);
+        transportStampNs_.store(std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count());
+        transportPlaying_.store(true);
+    } else {
+        transportPlaying_.store(false);
+    }
+
     const uint32_t numFrames = process->frames_count;
     const uint32_t numEvents = process->in_events ? process->in_events->size(process->in_events) : 0;
     uint32_t eventIndex = 0;

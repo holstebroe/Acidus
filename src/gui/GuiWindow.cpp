@@ -169,7 +169,9 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY, unsigned pa
                 g.drawLine(scx - 2, scy, scx + 2, scy, 0xFF1A1C1E, 1);
             }
         }
+    }
 
+    if (parts & kTitleGlow) {
         // 1. Outer halo (pass offsets -2 to +2)
         for (int dx = -2; dx <= 2; ++dx) {
             for (int dy = -2; dy <= 2; ++dy) {
@@ -185,7 +187,9 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY, unsigned pa
                 renderLetters(g, startX + dx, startY + dy, medGlow);
             }
         }
+    }
 
+    if (parts & kTitleForeground) {
         // 3. Core Acid Green
         renderLetters(g, startX, startY, acidGreen);
 
@@ -226,6 +230,7 @@ void GuiWindow::advanceAnimation(double dt) {
     if (dt <= 0.0) return;
     dt = std::min(dt, 0.1);   // don't burst after a stall
     animTime_ += dt;
+    eyeFlash_ = std::max(0.0, eyeFlash_ - dt);
     if (logoPlateW_ <= 0 || logoPlateH_ <= 0) return;
 
     // Bubble rate follows the Cutoff knob: a lazy trickle when closed, a
@@ -278,8 +283,13 @@ void GuiWindow::drawSmiley(Graphics& g, int cx, int cy) {
     g.fillCircle(cx, cy, r + 2, 0x40FFD21E);   // soft glow on the dark plate
     g.fillCircle(cx, cy, r, 0xFFFFD21E);
     g.drawCircle(cx, cy, r, 0xFF5A4300, 1);
-    g.fillRect(cx - 3, cy - 3, 2, 3, 0xFF101010);   // eyes
-    g.fillRect(cx + 2, cy - 3, 2, 3, 0xFF101010);
+    if (eyeFlash_ > 0.0) {                          // eyes, wide on an accent
+        g.fillRect(cx - 4, cy - 4, 3, 4, 0xFF101010);
+        g.fillRect(cx + 2, cy - 4, 3, 4, 0xFF101010);
+    } else {
+        g.fillRect(cx - 3, cy - 3, 2, 3, 0xFF101010);
+        g.fillRect(cx + 2, cy - 3, 2, 3, 0xFF101010);
+    }
     for (int dx = -4; dx <= 4; ++dx) {               // smile
         int dy = static_cast<int>(std::lround(1.0 + 0.16 * (16 - dx * dx) * 0.28));
         g.fillRect(cx + dx, cy + 1 + dy, 1, 1, 0xFF101010);
@@ -288,8 +298,28 @@ void GuiWindow::drawSmiley(Graphics& g, int cx, int cy) {
     g.fillRect(cx + 5, cy + 1, 1, 1, 0xFF101010);
 }
 
+double GuiWindow::glowPulse() const {
+    // One slow breath per bar: brightest on the downbeat. Synced to the
+    // host's bar while its transport plays, else a free-running 2 s cycle.
+    double phase = 0.0;
+    if (!plugin_ || !plugin_->transportBarPhase(phase)) {
+        phase = std::fmod(animTime_ / 2.0, 1.0);
+    }
+    const double breath = 0.5 + 0.5 * std::cos(2.0 * 3.14159265358979323846 * phase);
+    return 0.7 + 0.3 * breath;
+}
+
 void GuiWindow::renderFrame() {
     updateKnobValuesFromPlugin();
+
+    // An accented note makes the smiley's eyes pop for a moment.
+    if (plugin_) {
+        const uint32_t accents = plugin_->accentCount();
+        if (accents != lastAccentCount_) {
+            lastAccentCount_ = accents;
+            eyeFlash_ = kEyeFlashSec;
+        }
+    }
 
     auto now = std::chrono::steady_clock::now();
     if (haveLastFrameTime_ && !animationFrozen_) {
@@ -307,6 +337,7 @@ void GuiWindow::renderFrame() {
         hiResBuffer_.assign(hiResSize, 0);
         staticBuffer_.assign(hiResSize, 0);
         logoOverlay_.assign(hiResSize, 0);
+        logoGlow_.assign(hiResSize, 0);
         staticKey_.clear();
         overlayValid_ = false;
     }
@@ -354,6 +385,9 @@ void GuiWindow::renderFrame() {
         std::fill(logoOverlay_.begin(), logoOverlay_.end(), 0u);
         Graphics og(logoOverlay_.data(), width_, height_, 2);
         drawAcidusTitle(og, titleX, titleY, kTitleForeground);
+        std::fill(logoGlow_.begin(), logoGlow_.end(), 0u);
+        Graphics gg(logoGlow_.data(), width_, height_, 2);
+        drawAcidusTitle(gg, titleX, titleY, kTitleGlow);
         overlayValid_ = true;
     }
 
@@ -378,9 +412,15 @@ void GuiWindow::renderFrame() {
     drawBubbles(g);
     const int ox0 = std::max(0, 2 * (logoPlateX_ - 4)), oy0 = std::max(0, 2 * (logoPlateY_ - 4));
     const int ox1 = std::min(hW, 2 * (logoPlateX_ + logoPlateW_ + 6)), oy1 = std::min(hH, 2 * (logoPlateY_ + logoPlateH_ + 6));
+    // The lettering's halo breathes once per bar (see glowPulse), under the
+    // lettering itself.
+    const uint32_t glowAlpha = static_cast<uint32_t>(std::lround(255.0 * glowPulse()));
     for (int y = oy0; y < oy1; ++y) {
         for (int x = ox0; x < ox1; ++x) {
-            const uint32_t o = logoOverlay_[static_cast<size_t>(y) * hW + x];
+            const size_t i = static_cast<size_t>(y) * hW + x;
+            const uint32_t gl = logoGlow_[i];
+            if (gl >> 24) g.blendPixel(x, y, (glowAlpha << 24) | (gl & 0x00FFFFFFu));
+            const uint32_t o = logoOverlay_[i];
             if (o >> 24) g.blendPixel(x, y, o);
         }
     }

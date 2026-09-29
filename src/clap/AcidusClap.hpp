@@ -193,6 +193,13 @@ public:
 
     SynthEngine& getEngine() { return engine_; }
 
+    // For the GUI: number of accented note-ons so far (wraps), and the
+    // position in the host's current bar (0..1), extrapolated from the last
+    // processed block. transportBarPhase() returns false when the host is
+    // stopped or sends no tempo/beat timeline.
+    uint32_t accentCount() const { return accentCount_.load(std::memory_order_relaxed); }
+    bool transportBarPhase(double& phase) const;
+
     const clap_host_t* getHost() const { return host_; }
 
     class GuiWindow* getGuiWindow() { return guiWindow_.get(); }
@@ -208,6 +215,13 @@ private:
     double paramValues_[PARAM_COUNT]{};
     std::atomic<int> calibrationPreset_{0};
     std::atomic<bool> stateDirty_{false};
+    std::atomic<uint32_t> accentCount_{0};
+    // Host transport at the start of the last block (see transportBarPhase).
+    std::atomic<bool> transportPlaying_{false};
+    std::atomic<double> transportBarPos_{0.0};      // fraction of the bar
+    std::atomic<double> transportBarsPerSec_{0.0};
+    std::atomic<int64_t> transportStampNs_{0};      // steady_clock time of that block
+    void noteOnFromHost(int key, float velocity);
 
     std::mutex outEventQueueMutex_;
     std::vector<GuiParamEvent> outEventQueue_;

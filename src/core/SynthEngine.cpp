@@ -26,7 +26,7 @@ void SynthEngine::reset() {
 
 void SynthEngine::noteOn(int noteNumber, float velocity) {
     bool isSlide = isNoteActive_;
-    bool isAccent = (velocity >= 0.8f);
+    bool isAccent = (velocity >= kAccentVelocity);
     accentLevel_ = isAccent ? 1.0f : 0.0f;
 
     currentNote_ = noteNumber;

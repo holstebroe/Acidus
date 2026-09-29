@@ -275,6 +275,68 @@ int main() {
                   << acidus::AcidusClap::calibrationPresetCount() << " presets)" << std::endl;
     }
 
+    {
+        // The smiley reacts to accented notes; the logo glow follows the
+        // host's bar while the transport plays.
+        auto check = [](bool ok, const char* what) {
+            if (!ok) { std::cerr << "FAILED: " << what << std::endl; std::exit(1); }
+        };
+        struct InEvents {
+            std::vector<clap_event_note_t> notes;
+            static uint32_t size(const clap_input_events_t* l) {
+                return static_cast<uint32_t>(static_cast<InEvents*>(l->ctx)->notes.size());
+            }
+            static const clap_event_header_t* get(const clap_input_events_t* l, uint32_t i) {
+                return &static_cast<InEvents*>(l->ctx)->notes[i].header;
+            }
+        };
+        auto sendNote = [](acidus::AcidusClap& p, double velocity) {
+            InEvents ev;
+            clap_event_note_t n{};
+            n.header.size = sizeof(n);
+            n.header.space_id = CLAP_CORE_EVENT_SPACE_ID;
+            n.header.type = CLAP_EVENT_NOTE_ON;
+            n.key = 36;
+            n.velocity = velocity;
+            ev.notes.push_back(n);
+            clap_input_events_t in{&ev, InEvents::size, InEvents::get};
+            p.paramsFlush(&in, nullptr);
+        };
+        acidus::AcidusClap p(nullptr);
+        acidus::GuiWindow w(&p);
+        w.setAnimationFrozen(true);
+        w.renderFrame();
+        sendNote(p, 0.5);
+        w.renderFrame();
+        check(!w.isAccentFlashActive(), "a normal note does not make the smiley react");
+        auto before = w.getPixelBuffer();
+        sendNote(p, 1.0);
+        w.renderFrame();
+        check(w.isAccentFlashActive(), "an accented note makes the smiley react");
+        check(w.getPixelBuffer() != before, "the eyes change on an accent");
+        for (int i = 0; i < 3; ++i) w.advanceAnimation(0.1);   // steps are capped at 0.1 s
+        check(!w.isAccentFlashActive(), "the reaction is brief");
+
+        double phase = -1.0;
+        check(!p.transportBarPhase(phase), "no transport: free-running pulse");
+        clap_event_transport_t tr{};
+        tr.flags = CLAP_TRANSPORT_HAS_TEMPO | CLAP_TRANSPORT_HAS_BEATS_TIMELINE | CLAP_TRANSPORT_IS_PLAYING;
+        tr.tempo = 120.0;
+        tr.song_pos_beats = static_cast<clap_beattime>(6.5 * CLAP_BEATTIME_FACTOR);
+        tr.bar_start = static_cast<clap_beattime>(4.0 * CLAP_BEATTIME_FACTOR);
+        tr.tsig_num = 4;
+        tr.tsig_denom = 4;
+        clap_process_t proc{};
+        proc.transport = &tr;
+        p.process(&proc);
+        check(p.transportBarPhase(phase), "playing transport: synced pulse");
+        check(std::abs(phase - 0.625) < 0.01, "bar phase from the host's beat position");
+        tr.flags = CLAP_TRANSPORT_HAS_TEMPO;   // stopped
+        p.process(&proc);
+        check(!p.transportBarPhase(phase), "stopped transport: free-running pulse");
+        std::cout << "Accent smiley and bar-synced glow tests passed" << std::endl;
+    }
+
     std::cout << "All Acidus GUI tests passed successfully!" << std::endl;
 
     return 0;

@@ -95,6 +95,9 @@ public:
     SynthEngine();
     ~SynthEngine() = default;
 
+    // Note-on velocity at or above this is an accented note.
+    static constexpr float kAccentVelocity = 0.8f;
+
     void setSampleRate(double sampleRate);
     void reset();
 
