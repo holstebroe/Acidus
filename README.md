@@ -52,40 +52,64 @@ Two sources of truth drive the model:
   fit generalises. Where a value can be read off the data directly (the
   square's duty cycle from its nulled 15th harmonic, the Decay pot's
   taper from the sweep decay times), it is measured rather than searched.
-- **Per-unit profiles.** Units differ (the two measured here have cutoff
-  trims about an octave apart), so fitted constants are kept per source in
-  `calibrations/`, including "aged" and "new component" flavours of the
-  same unit.
+- **Per-unit profiles.** Units differ (the two measured here differ in
+  cutoff range, accent level and envelope times), so fitted constants are kept per source in
+  `calibrations/`, next to extrapolated "factory new" and Devil Fish
+  profiles (see below).
 
 ### Key results so far
 
 All figures are on the same 400 hardware notes; lower is better except
-the percentage.
+the percentages.
 
-| | Previous fit (13 Acidvoice samples) | `x0x` (current default) | `x0x-sweep` |
+| | Previous fit (13 Acidvoice samples) | First x0x fit | `x0x` (current default) |
 |---|---|---|---|
-| Harmonic level error (RMS) | 8.0 dB | 3.2 dB | 3.0 dB |
-| Harmonics within 3 dB of the hardware | 56 % | 71 % | 71 % |
-| Note loudness error (RMS over notes) | 2.8 dB | 1.7 dB | 1.6 dB |
-| Resonant-peak sweep error (RMS) | 7.7 semitones | 6.4 semitones | 5.4 semitones |
+| Weighted error (all features) | 5.53 | 3.25 | **2.61** |
+| Harmonic level error (RMS) | 8.0 dB | 3.2 dB | **2.3 dB** |
+| Harmonics within 3 dB / 6 dB of the hardware | 56 % / 69 % | 71 % / 86 % | **76 % / 92 %** |
+| Note loudness error (RMS over notes) | 2.8 dB | 1.7 dB | **1.3 dB** |
+| Resonant-peak sweep error (RMS) | 7.5 semitones | 4.8 semitones | **3.3 semitones** |
+| 1/3-octave spectrogram error | 9.1 dB | 6.5 dB | **5.6 dB** |
+
+Every one of the 25 knob sets improved; the hardest remaining are E1, E3
+and D3 (high resonance with high Env Mod), at 4.7-6.1 against 0.9-2.7 for
+the rest.
 
 The recordings also revealed circuit behaviour that is now in the model:
-- the Env Mod pot's non-linear taper and its bias shift;
-- the Decay pot's taper;
+- the Env Mod pot's S-shaped depth curve (steepest around 68 % of travel)
+  and its bias shift;
+- the Decay pot's taper (much longer mid-travel decays than an ideal
+  audio taper);
 - the square's 53 % duty cycle at C2;
 - the accent diode's forward drop, which, with a moderately aged C13,
-  explains why this unit's accent squelch peaks 15-20 ms after note-on.
+  explains why this unit's accent squelch peaks 15-20 ms after note-on;
+- a ~4.5 ms delay before the VCA opens on unaccented notes;
+- a filter cutoff that reaches beyond 15 kHz at full Env Mod.
 
 For one heavy acid setting (all knobs at 100 % except Env Mod at 25 %),
 the resonant peak now follows the hardware within a few percent from
 note-on until it settles, with and without accent.
 
+### Calibration profiles
+
+Units differ, so Acidus keeps fitted constants per source in
+`calibrations/` and can be switched between them before building
+(`python3 tools/calibration_profile.py apply <name>`):
+
+| Profile | What it is |
+|---|---|
+| `x0x` (default) | The dinsync.info unit as recorded: 40 years old, low cutoff trim, aged C13. |
+| `acidvoice` | The Acidvoice unit: the same circuit model refitted to its 13 samples; higher cutoff range, louder accent. |
+| `factory` | Best guess at a new TB-303: nominal component values and the service-manual cutoff trim. Passes 30 of 34 schematic conformance checks. |
+| `devilfish` | Best guess at a Devil Fish modded 303 (wider decay and accent ranges, more filter drive). No samples, so unverified. |
+
 This is ongoing work toward a very low reference error. Known gaps include:
-- Cutoff around 75 % sits about 0.3 octaves low;
-- Env Mod depth at 75 % is short;
 - resonance is too weak at note start on some high-resonance settings;
-- the 15 kHz cutoff clamp;
-- and several reference-conformance checks conflict with these particular units.
+- the x0x unit's weak C2 fundamental is modelled by a 200 Hz high-pass
+  rather than by an identified circuit element;
+- the x0x set is all C2, so nothing yet constrains key tracking;
+- several reference-conformance checks conflict with this particular unit
+  (cutoff trim, VEG decay), and the `factory` profile passes them.
 
 They are tracked in `docs/X0X_CALIBRATION_2026-09-28.md`, together with the
 full procedure, per-set results and every parameter change.
@@ -171,9 +195,9 @@ python3 tools/calibrate_reference.py --manifest --rotate --analysis-ms 800 --no-
 `--include`/`--exclude` then match note ids such as `C2-p3-square-acc`.
 
 Fitted constants are kept per source in `calibrations/` (`x0x`, `acidvoice`,
-`x0x-acidvoice-trim`); `tools/calibration_profile.py apply <name>` switches
-the defaults, and `calibrations/README.md` explains what differs between the
-two hardware units (mainly the cutoff trim).
+`factory`, `devilfish`); `tools/calibration_profile.py apply <name>` switches
+the defaults, and `calibrations/README.md` explains what differs between
+them.
 
 Results go to `calibration_results/<timestamp>/`:
 - `report.md` has before/after scores, a per-sample ranking and a list of

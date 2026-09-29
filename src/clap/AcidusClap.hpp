@@ -118,8 +118,9 @@ enum ParamId : clap_id {
     PARAM_ENV_MOD_TAPER_WIDTH = 52,            // logistic Env Mod taper width (0 = power law)
     PARAM_CUTOFF_MAX_HZ = 53,                  // ceiling of the cutoff CV
     PARAM_VCA_NORMAL_DELAY_MS = 54,            // VCA onset delay on unaccented notes
+    PARAM_VCA_ATTACK_MS = 55,                  // VEG onset time constant (Devil Fish: Soft Attack)
 
-    PARAM_EXPERIMENTAL_COUNT = 55,
+    PARAM_EXPERIMENTAL_COUNT = 56,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

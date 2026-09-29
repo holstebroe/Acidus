@@ -152,7 +152,8 @@ Before this calibration: 25 pass / 9 fail. After: **22 pass / 12 fail**.
    weaken the C2 fundamental (the hardware saw's 2nd harmonic is ~1.6 dB
    above the 1/k law). A physical explanation, such as the VCA-input coupling
    or output stage, would be better than a 200 Hz high-pass.
-3. The **4.5 ms unaccented onset delay** is not modelled.
+3. ~~The **4.5 ms unaccented onset delay** is not modelled.~~ Modelled
+   (`vcaNormalDelayMs`), see the 2026-09-29 fit.
 4. The x0x set only has C2, so nothing here constrains key tracking (e.g. the
    square duty's frequency law or cutoff tracking across the keyboard).
 
@@ -245,8 +246,9 @@ unit's rise is fast, 3.65 -> 4.47 kHz in ~15 ms at E3 p1.
 6. The tracker picks a spurious ~15 kHz peak late in quiet notes (e.g.
    E1-p1-square-acc after 500 ms); a minimum peak height or a continuity
    rule would clean up the sweep score.
-7. Once these are addressed, run the full optimizer with `--w-sweep`
-   starting from `x0x-envmod-test`, then make the result the default.
+7. ~~Once these are addressed, run the full optimizer with `--w-sweep`
+   starting from `x0x-envmod-test`, then make the result the default.~~
+   Done, see "Sweep-scored full fit" below; items 2-6 were addressed there.
 
 ### Diode-drop result (D24)
 
@@ -259,3 +261,62 @@ ideal-diode fit, which needed C13 ~0.3 uF. So the early accent peak is
 best explained by the diode drop plus a moderately aged C13.
 `calibrations/README.md` lists the resulting "aged" / "new" flavours.
 
+
+## Sweep-scored full fit (2026-09-29) -- now the `x0x` default
+
+All open sweep items above were addressed before the final run:
+
+- the tracker now rejects late upward noise picks (`sweep_valid`);
+- the Env Mod depth is a logistic S-curve (`envModTaperMid` 0.69,
+  `envModTaperWidth` 0.12), which fixes the 75 % depth;
+- the Cutoff knob positions are fitted per chart row (`--per-row-knobs
+  cutoff`, the D row's "75 %" sits at 0.79 of travel);
+- the cutoff ceiling is a parameter (`cutoffMaxHz`, fitted ~24 kHz, so no
+  longer binding), and the Filter safety clamp scales with the oversampled
+  rate;
+- the unaccented VCA onset delay is modelled (`vcaNormalDelayMs`, 4.5 ms);
+- the Decay pot taper is fitted (`vcfDecayTaper` ~18, max tau 0.98 s);
+- the square duty was set from the nulled 15th harmonic (`oscSquareDutyDepth`
+  0.12).
+
+The fit ran in two stages: stage A on all parameters, then stage B with 71
+free parameters, 100 notes (every set, rotating quarters held out), 90
+minutes and checkpointing. The result was then evaluated on all 400 notes at
+full length under one global gain:
+
+| Metric | Old Acidvoice-only model | First x0x fit | `x0x-sweep` (hand fit) | **Final (`x0x`)** |
+|---|---|---|---|---|
+| weighted error | 5.53 | 3.25 | 3.31 | **2.61** |
+| harmonic level (dB) | 7.97 | 3.21 | 3.01 | **2.31** |
+| resonant-peak shape (dB) | 6.17 | 3.91 | 5.12 | **3.54** |
+| sweep track (semitones) | 7.52 | 4.84 | 3.43 | **3.34** |
+| RMS envelope (dB) | 3.85 | 3.38 | 3.61 | **2.93** |
+| 1/3-octave spectrogram (dB) | 9.07 | 6.50 | 6.56 | **5.57** |
+| note level, RMS (dB) | 2.78 | 1.69 | 1.56 | **1.29** |
+| harmonics within 3 / 6 dB | 56 / 69 % | 71 / 86 % | 71 / 86 % | **76 / 92 %** |
+
+Per set (weighted error, first x0x fit -> final):
+
+| | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| A | 1.26 -> 1.07 | 2.09 -> 1.69 | 1.13 -> 0.95 | 0.99 -> 0.91 | 0.96 -> 0.91 |
+| B | 1.66 -> 1.36 | 3.00 -> 2.31 | 1.88 -> 1.51 | 1.45 -> 1.21 | 1.31 -> 1.30 |
+| C | 4.17 -> 2.38 | 3.91 -> 2.01 | 2.60 -> 2.07 | 3.64 -> 2.35 | 2.96 -> 2.08 |
+| D | 3.40 -> 2.69 | 4.63 -> 4.56 | 5.66 -> 5.02 | 4.62 -> 3.36 | 4.82 -> 3.51 |
+| E | 7.00 -> 6.11 | 2.91 -> 2.62 | 6.13 -> 4.69 | 4.74 -> 4.47 | 4.21 -> 4.10 |
+
+Every set improved. The hardest remaining are E1, D3, E3 and D2: high
+resonance with high Env Mod, where the resonance is still too weak in the
+attack (known gap 1).
+
+Conformance (`acidus_reference_test --fast`): 24 pass / 10 fail with the
+`x0x` profile (was 22 / 12). Six failures come from this unit: the low
+cutoff trim (E1-E3, and with it E7, the peak at full Env Mod) and the slow
+VEG (D6, E8). The `factory` profile resets the aged parts and the trim, and
+passes 30 / 34.
+Its four remaining failures (B4, B6, C5, E9) are model items. E1 service
+check: the x0x unit rings at ~350 Hz with Cutoff centred, against the
+manual's 400-670 Hz, so its TM3 trim is low. `factory` trims it to ~525 Hz.
+
+The profiles derived from this fit (`x0x`, `acidvoice`, `factory`,
+`devilfish`) are described in `calibrations/README.md`.

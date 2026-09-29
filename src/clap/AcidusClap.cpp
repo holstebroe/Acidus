@@ -184,6 +184,7 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_ENV_MOD_TAPER_WIDTH] = kCalibrationDefaults.envModTaperWidth;
     paramValues_[PARAM_CUTOFF_MAX_HZ] = kCalibrationDefaults.cutoffMaxHz;
     paramValues_[PARAM_VCA_NORMAL_DELAY_MS] = kCalibrationDefaults.vcaNormalDelayMs;
+    paramValues_[PARAM_VCA_ATTACK_MS] = kCalibrationDefaults.vcaAttackMs;
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
@@ -286,6 +287,7 @@ void AcidusClap::syncParamsToEngine() {
     params.envModTaperWidth = static_cast<float>(paramValues_[PARAM_ENV_MOD_TAPER_WIDTH]);
     params.cutoffMaxHz = static_cast<float>(paramValues_[PARAM_CUTOFF_MAX_HZ]);
     params.vcaNormalDelayMs = static_cast<float>(paramValues_[PARAM_VCA_NORMAL_DELAY_MS]);
+    params.vcaAttackMs = static_cast<float>(paramValues_[PARAM_VCA_ATTACK_MS]);
 #endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
@@ -811,6 +813,13 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->max_value = 10.0;
             paramInfo->default_value = kCalibrationDefaults.vcaNormalDelayMs;
             break;
+        case PARAM_VCA_ATTACK_MS:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCA Attack (VEG Onset)");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = 0.3;
+            paramInfo->max_value = 30.0;
+            paramInfo->default_value = kCalibrationDefaults.vcaAttackMs;
+            break;
 
         case PARAM_DRIVE:
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Drive");
@@ -962,7 +971,7 @@ bool AcidusClap::paramsValueToText(clap_id paramId, double value, char* outBuffe
     } else if (paramId == PARAM_VEG_DECAY_SEC) {
         snprintf(outBuffer, outBufferCapacity, "%.2f s", value);
     } else if (paramId == PARAM_VCA_GATE_OFF_MS || paramId == PARAM_VCA_GATE_OFF_ACCENT_MS
-               || paramId == PARAM_VCA_NORMAL_DELAY_MS) {
+               || paramId == PARAM_VCA_NORMAL_DELAY_MS || paramId == PARAM_VCA_ATTACK_MS) {
         snprintf(outBuffer, outBufferCapacity, "%.1f ms", value);
     } else {
         snprintf(outBuffer, outBufferCapacity, "%.2f", value);
