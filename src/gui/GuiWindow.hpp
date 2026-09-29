@@ -52,6 +52,10 @@ public:
         x = logoPlateX_; y = logoPlateY_; w = logoPlateW_; h = logoPlateH_;
     }
     uint32_t getHeight() const { return height_; }
+    // Calibration preset label rectangle as last drawn; for tests.
+    void getPresetLabelRect(int& x, int& y, int& w, int& h) const {
+        x = presetLabelX_; y = presetLabelY_; w = presetLabelW_; h = presetLabelH_;
+    }
 
     const std::vector<uint32_t>& getPixelBuffer() const { return pixelBuffer_; }
 
@@ -69,9 +73,9 @@ public:
     // does this with the real frame time; tests call it directly).
     void advanceAnimation(double dt);
     size_t getBubbleCount() const { return bubbles_.size(); }
-    // isCtrl: in a calibration build, Ctrl-click on the logo plate resets
-    // every calibration parameter (not the front-panel knobs) to default.
-    void handleMouseDown(int x, int y, bool isShift = false, bool isCtrl = false);
+    // A click on the calibration label (logo plate) loads the next
+    // calibration preset.
+    void handleMouseDown(int x, int y, bool isShift = false);
     void handleMouseDrag(int x, int y, bool isShift = false);
     void handleMouseUp();
 
@@ -90,6 +94,7 @@ private:
 
     int activeControlIndex_{-1};
     int logoPlateX_{0}, logoPlateY_{0}, logoPlateW_{0}, logoPlateH_{0}; // set by drawAcidusTitle
+    int presetLabelX_{0}, presetLabelY_{0}, presetLabelW_{0}, presetLabelH_{0}; // set by drawAcidusTitle
 
     // Acid bubbles rising in the logo plate; positions are plate-relative.
     struct Bubble { double x, y, r, speed, phase; };

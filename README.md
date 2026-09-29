@@ -93,8 +93,11 @@ note-on until it settles, with and without accent.
 ### Calibration profiles
 
 Units differ, so Acidus keeps fitted constants per source in
-`calibrations/` and can be switched between them before building
-(`python3 tools/calibration_profile.py apply <name>`):
+`calibrations/` and builds them in as calibration presets. The current
+preset is shown on the logo plate; **click it to switch**. The knobs keep
+their positions, and the preset is saved with the project. In the
+calibration build, a star after the name means a calibration parameter was
+changed after the preset was loaded.
 
 | Profile | What it is |
 |---|---|
@@ -195,9 +198,9 @@ python3 tools/calibrate_reference.py --manifest --rotate --analysis-ms 800 --no-
 `--include`/`--exclude` then match note ids such as `C2-p3-square-acc`.
 
 Fitted constants are kept per source in `calibrations/` (`x0x`, `acidvoice`,
-`factory`, `devilfish`); `tools/calibration_profile.py apply <name>` switches
-the defaults, and `calibrations/README.md` explains what differs between
-them.
+`factory`, `devilfish`) and compiled into the plugin's presets with
+`tools/calibration_profile.py presets`; `calibrations/README.md` explains
+what differs between them.
 
 Results go to `calibration_results/<timestamp>/`:
 - `report.md` has before/after scores, a per-sample ranking and a list of

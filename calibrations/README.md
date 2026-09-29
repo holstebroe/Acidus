@@ -127,13 +127,44 @@ here). Its conformance failures (MEG and accent decay times, VEG onset,
 cutoff minimum) are the mod's intended departures from the stock
 schematic.
 
-## Switching
+## Presets in the plugin
+
+The four profiles are built into the plugin as calibration presets. The
+logo plate shows the current one in a small display under the smiley.
+**Click it to load the next preset** (X0X -> ACIDVOICE -> FACTORY -> DEVIL
+FISH -> X0X). Loading a preset replaces every calibration constant. The
+front-panel knobs keep their positions. The preset is saved with the
+project, and projects saved before presets existed load as X0X.
+
+In the calibration build the constants are also CLAP parameters (below),
+and the host sees each one change when a preset loads. A star after the
+name (`FACTORY*`) means at least one calibration parameter has been
+changed since the preset was loaded, so the sound is only *based on* that
+preset. Loading a preset again clears the star. This replaces the old
+Ctrl-click reset. A Release build has no calibration parameters, so it
+never shows a star.
+
+The presets are compiled from the JSON files: after changing a profile, or
+the list in `PRESETS` in `tools/calibration_profile.py`, regenerate
+`src/core/CalibrationPresets.hpp` and rebuild:
+
+```bash
+python3 tools/calibration_profile.py presets          # regenerate the preset table
+python3 tools/calibration_profile.py presets --check  # fail if it is stale
+```
+
+## Switching the compiled-in defaults
+
+The `SynthParameters` defaults in `SynthEngine.hpp` are what the
+calibrator, the reference tests and the render library start from. The
+plugin starts on the first preset, not on the header. Keep the header on
+`x0x` unless you are experimenting:
 
 ```bash
 python3 tools/calibration_profile.py list                 # which profile SynthEngine.hpp matches
 python3 tools/calibration_profile.py diff x0x factory
 python3 tools/calibration_profile.py apply acidvoice      # rewrites the SynthParameters defaults
-cmake --build build                                       # rebuild the plugin
+cmake --build build                                       # rebuild
 python3 tools/calibration_profile.py capture NAME --source "..."   # snapshot the current defaults
 ```
 
@@ -167,21 +198,11 @@ without rebuilding:
 | 55 | VCA attack (Devil Fish Soft Attack) | `vcaAttackMs` |
 | 9-31 | Filter couplings and ladder, VEG/VCA, accent VCA depth, resonance limit | `oscCouplingHz`, `filterFeedbackGain`, `filterPostHpHz`, `vegDecaySec`, `filterLadderInputScale`, ... |
 
-Ctrl-click on the logo plate resets all calibration parameters to the
-compiled-in profile, leaving the five front-panel knobs alone.
+Clicking the preset display on the logo plate reloads a preset (see above).
 
-## Future: selectable calibrations in the plugin
+## Future work on presets
 
-Each profile is a flat set of `SynthParameters` constants, so the plugin
-could load them at run time instead of compiling one set in. That could be
-a "Unit" selector (x0x / Acidvoice / Factory / Devil Fish) or per-part
-toggles (aged C13, trim high/low) that apply a subset of a profile. Things
-to decide first:
-
-- ship the profiles as embedded tables or as JSON next to the plugin;
-- whether a profile switch is a CLAP parameter (automatable, saved with the
-  project) or a preset;
-- for the Devil Fish, whether its extra controls become real front-panel
-  knobs;
-- keep profile field names in step with `SynthParameters` (the calibrator
-  and `calibration_profile.py` already fail on unknown fields).
+- per-part toggles (aged C13, trim high/low) that apply a subset of a
+  profile;
+- the preset as an automatable CLAP parameter instead of only saved state;
+- for the Devil Fish, its extra controls as real front-panel knobs.

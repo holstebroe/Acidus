@@ -1,4 +1,5 @@
 #include "GuiWindow.hpp"
+#include <cstdio>
 #include "Graphics.hpp"
 #include "ControlRenderer.hpp"
 #include "clap/AcidusClap.hpp"
@@ -134,7 +135,8 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY) {
     int plateY = startY - 14;
     int plateW = logoW + 32;
     const int smileyRow = 20;   // room for the acid smiley under the tagline
-    int plateH = logoH + subtitleGap + subtitleH + 26 + smileyRow;
+    const int presetRow = 14;   // calibration preset label under the smiley
+    int plateH = logoH + subtitleGap + subtitleH + 26 + smileyRow + presetRow;
     logoPlateX_ = plateX;
     logoPlateY_ = plateY;
     logoPlateW_ = plateW;
@@ -191,6 +193,26 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY) {
 
     // 6. The acid smiley.
     drawSmiley(g, startX + logoW / 2, subtitleY + subtitleH + 13);
+
+    // 7. Calibration preset label: a small recessed LCD window. A star
+    // means a calibration parameter was changed after loading the preset.
+    // Click to load the next preset.
+    char label[48];
+    if (plugin_) {
+        std::snprintf(label, sizeof(label), "%s%s", plugin_->calibrationPresetName(),
+                      plugin_->isCalibrationModified() ? "*" : "");
+    } else {
+        std::snprintf(label, sizeof(label), "%s", "X0X");
+    }
+    const int labelTextW = font_.getTextWidth(label, 1);
+    presetLabelW_ = std::max(labelTextW, font_.getTextWidth("DEVIL FISH*", 1)) + 12;
+    presetLabelH_ = 11;
+    presetLabelX_ = startX + (logoW - presetLabelW_) / 2;
+    presetLabelY_ = subtitleY + subtitleH + 27;
+    g.fillRect(presetLabelX_, presetLabelY_, presetLabelW_, presetLabelH_, 0xFF070809);
+    g.drawRect(presetLabelX_, presetLabelY_, presetLabelW_, presetLabelH_, 0xFF2C3030);
+    g.drawLine(presetLabelX_ + 1, presetLabelY_ + 1, presetLabelX_ + presetLabelW_ - 2, presetLabelY_ + 1, 0xFF000000, 1);
+    g.drawText(font_, label, presetLabelX_ + (presetLabelW_ - labelTextW) / 2, presetLabelY_ + 2, 0xFF39FF14, 1);
 }
 
 void GuiWindow::advanceAnimation(double dt) {
@@ -332,21 +354,18 @@ void GuiWindow::renderFrame() {
 #endif
 }
 
-void GuiWindow::handleMouseDown(int x, int y, bool isShift, bool isCtrl) {
+void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
     lastShiftState_ = isShift;
 
-#ifdef ACIDUS_CALIBRATION_BUILD
-    if (isCtrl && x >= logoPlateX_ && x < logoPlateX_ + logoPlateW_
-        && y >= logoPlateY_ && y < logoPlateY_ + logoPlateH_) {
+    // Click on the calibration label: load the next calibration preset.
+    if (presetLabelW_ > 0 && x >= presetLabelX_ && x < presetLabelX_ + presetLabelW_
+        && y >= presetLabelY_ && y < presetLabelY_ + presetLabelH_) {
         if (plugin_) {
-            plugin_->resetCalibrationParamsFromGui();
+            plugin_->cycleCalibrationPresetFromGui();
         }
         renderFrame();
         return;
     }
-#else
-    (void)isCtrl;
-#endif
 
     for (size_t i = 0; i < controls_.size(); ++i) {
         auto& ctrl = controls_[i];
@@ -520,8 +539,7 @@ void GuiWindow::eventLoopX11() {
                 drawX11Frame();
             } else if (ev.type == ButtonPress) {
                 bool isShift = (ev.xbutton.state & ShiftMask) != 0;
-                bool isCtrl = (ev.xbutton.state & ControlMask) != 0;
-                handleMouseDown(ev.xbutton.x, ev.xbutton.y, isShift, isCtrl);
+                handleMouseDown(ev.xbutton.x, ev.xbutton.y, isShift);
             } else if (ev.type == MotionNotify) {
                 if (ev.xmotion.state & Button1Mask) {
                     bool isShift = (ev.xmotion.state & ShiftMask) != 0;
@@ -596,9 +614,8 @@ static LRESULT CALLBACK AcidusWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
                 int x = LOWORD(lParam);
                 int y = HIWORD(lParam);
                 bool isShift = (wParam & MK_SHIFT) != 0;
-                bool isCtrl = (wParam & MK_CONTROL) != 0;
                 SetCapture(hwnd);
-                gui->handleMouseDown(x, y, isShift, isCtrl);
+                gui->handleMouseDown(x, y, isShift);
             }
             return 0;
         }

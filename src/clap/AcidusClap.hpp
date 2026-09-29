@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 #include <mutex>
+#include <atomic>
 
 namespace acidus {
 
@@ -169,9 +170,17 @@ public:
     void onBeginEditFromGui(clap_id paramId);
     void onParamValueFromGui(clap_id paramId, double value);
     void onEndEditFromGui(clap_id paramId);
-    // Calibration build: set every experimental parameter back to its
-    // compiled-in default (front-panel controls untouched), telling the host.
-    void resetCalibrationParamsFromGui();
+    // Calibration presets (src/core/CalibrationPresets.hpp): selecting one
+    // loads its calibration constants; the front-panel knobs are untouched.
+    // In a calibration build the constants are CLAP parameters, the host is
+    // told about each one, and editing any of them afterwards makes
+    // isCalibrationModified() true.
+    static int calibrationPresetCount();
+    int calibrationPresetIndex() const { return calibrationPreset_.load(); }
+    const char* calibrationPresetName() const;
+    bool isCalibrationModified() const;
+    void selectCalibrationPreset(int index, bool notifyHost);
+    void cycleCalibrationPresetFromGui();
     bool paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity);
     bool paramsTextToValue(clap_id paramId, const char* paramValueText, double* outValue);
     void paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out);
@@ -197,6 +206,8 @@ private:
     std::unique_ptr<class GuiWindow> guiWindow_;
 
     double paramValues_[PARAM_COUNT]{};
+    std::atomic<int> calibrationPreset_{0};
+    std::atomic<bool> stateDirty_{false};
 
     std::mutex outEventQueueMutex_;
     std::vector<GuiParamEvent> outEventQueue_;

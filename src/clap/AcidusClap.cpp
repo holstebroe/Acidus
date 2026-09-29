@@ -1,15 +1,79 @@
 #include "AcidusClap.hpp"
 #include "gui/GuiWindow.hpp"
+#include "core/CalibrationPresets.hpp"
+#include <clap/ext/state.h>
 #include <cstring>
 #include <cstdio>
 #include <algorithm>
+#include <cmath>
 
 namespace acidus {
 
-// Single source of truth for the hidden calibration constants' defaults:
-// SynthParameters' in-class initializers (updated by
-// tools/calibrate_reference.py --apply).
-[[maybe_unused]] static const SynthParameters kCalibrationDefaults{};
+// The plugin's calibration constants come from the selected calibration
+// preset (src/core/CalibrationPresets.hpp, generated from calibrations/*.json).
+// The first preset is the startup calibration and the calibration
+// parameters' CLAP defaults.
+[[maybe_unused]] static const SynthParameters& kCalibrationDefaults = calibrationPresets()[0].params;
+
+#ifdef ACIDUS_CALIBRATION_BUILD
+// Which SynthParameters field each calibration CLAP parameter controls.
+struct CalibrationBinding {
+    clap_id id;
+    float SynthParameters::*field;
+};
+static const CalibrationBinding kCalibrationBindings[] = {
+    { PARAM_OSC_COUPLING_HZ, &SynthParameters::oscCouplingHz },
+    { PARAM_RES_COUPLING_HZ, &SynthParameters::resCouplingHz },
+    { PARAM_FILTER_FEEDBACK_GAIN, &SynthParameters::filterFeedbackGain },
+    { PARAM_FILTER_POST_HP_HZ, &SynthParameters::filterPostHpHz },
+    { PARAM_FILTER_NOTCH_HZ, &SynthParameters::filterNotchHz },
+    { PARAM_FILTER_NOTCH_BANDWIDTH_HZ, &SynthParameters::filterNotchBandwidthHz },
+    { PARAM_FILTER_ALLPASS_HZ, &SynthParameters::filterAllpassHz },
+    { PARAM_VEG_DECAY_SEC, &SynthParameters::vegDecaySec },
+    { PARAM_VCA_GATE_OFF_MS, &SynthParameters::vcaGateOffMs },
+    { PARAM_VCA_GATE_OFF_ACCENT_MS, &SynthParameters::vcaGateOffAccentMs },
+    { PARAM_VCA_GAIN_SATURATION_DRIVE, &SynthParameters::vcaGainSaturationDrive },
+    { PARAM_FILTER_INPUT_COUPLING_HZ, &SynthParameters::filterInputCouplingHz },
+    { PARAM_FILTER_OUTPUT_COUPLING_HZ, &SynthParameters::filterOutputCouplingHz },
+    { PARAM_FILTER_CAP_SCALE_1, &SynthParameters::filterCapScale1 },
+    { PARAM_FILTER_CAP_SCALE_2, &SynthParameters::filterCapScale2 },
+    { PARAM_FILTER_CAP_SCALE_3, &SynthParameters::filterCapScale3 },
+    { PARAM_FILTER_CAP_SCALE_4, &SynthParameters::filterCapScale4 },
+    { PARAM_FILTER_LADDER_INPUT_SCALE, &SynthParameters::filterLadderInputScale },
+    { PARAM_FILTER_RES_LIMIT, &SynthParameters::filterResonanceLimit },
+    { PARAM_ACCENT_VCA_DEPTH, &SynthParameters::accentVcaDepth },
+    { PARAM_ACCENT_SWEEP_DEPTH, &SynthParameters::accentSweepDepthOct },
+    { PARAM_VCA_RES_TAP_RATIO, &SynthParameters::vcaResTapRatio },
+    { PARAM_FILTER_LADDER_TOPOLOGY, &SynthParameters::filterLadderTopology },
+    { PARAM_CUTOFF_BASE_HZ, &SynthParameters::cutoffBaseHz },
+    { PARAM_CUTOFF_SPAN_OCT, &SynthParameters::cutoffSpanOct },
+    { PARAM_CUTOFF_TAPER_EXP, &SynthParameters::cutoffTaperExp },
+    { PARAM_FILTER_RES_SKEW, &SynthParameters::filterResonanceSkew },
+    { PARAM_ENV_MOD_SCALE_C0, &SynthParameters::envModScaleC0 },
+    { PARAM_ENV_MOD_SCALE_C0_SLOPE, &SynthParameters::envModScaleC0Slope },
+    { PARAM_ENV_MOD_SCALE_C1, &SynthParameters::envModScaleC1 },
+    { PARAM_ENV_MOD_SCALE_C1_SLOPE, &SynthParameters::envModScaleC1Slope },
+    { PARAM_ENV_MOD_OFFSET, &SynthParameters::envModOffset },
+    { PARAM_ENV_MOD_OFFSET_CUT_SLOPE, &SynthParameters::envModOffsetCutSlope },
+    { PARAM_VCF_DECAY_MIN_SEC, &SynthParameters::vcfDecayMinSec },
+    { PARAM_VCF_DECAY_MAX_SEC, &SynthParameters::vcfDecayMaxSec },
+    { PARAM_ACCENT_DECAY_SEC, &SynthParameters::accentDecaySec },
+    { PARAM_ACCENT_CHARGE_BASE_SEC, &SynthParameters::accentChargeBaseSec },
+    { PARAM_ACCENT_CHARGE_POT_SEC, &SynthParameters::accentChargePotSec },
+    { PARAM_ACCENT_MIX_SEC, &SynthParameters::accentMixSec },
+    { PARAM_ENV_MOD_TAPER_EXP, &SynthParameters::envModTaperExp },
+    { PARAM_ACCENT_DIODE_DROP, &SynthParameters::accentDiodeDrop },
+    { PARAM_VCF_DECAY_TAPER, &SynthParameters::vcfDecayTaper },
+    { PARAM_ENV_MOD_TAPER_MID, &SynthParameters::envModTaperMid },
+    { PARAM_ENV_MOD_TAPER_WIDTH, &SynthParameters::envModTaperWidth },
+    { PARAM_CUTOFF_MAX_HZ, &SynthParameters::cutoffMaxHz },
+    { PARAM_VCA_NORMAL_DELAY_MS, &SynthParameters::vcaNormalDelayMs },
+    { PARAM_VCA_ATTACK_MS, &SynthParameters::vcaAttackMs },
+};
+static_assert(sizeof(kCalibrationBindings) / sizeof(kCalibrationBindings[0])
+                  == PARAM_EXPERIMENTAL_COUNT - PARAM_FRONT_PANEL_COUNT,
+              "every calibration CLAP parameter needs a SynthParameters binding");
+#endif
 
 // Forward declarations of GUI extension functions
 extern const clap_plugin_gui_t g_acidusGuiExtension;
@@ -138,53 +202,9 @@ AcidusClap::AcidusClap(const clap_host_t* host) : host_(host) {
     paramValues_[PARAM_VOLUME] = 0.8;
 
 #ifdef ACIDUS_CALIBRATION_BUILD
-    paramValues_[PARAM_OSC_COUPLING_HZ] = kCalibrationDefaults.oscCouplingHz;
-    paramValues_[PARAM_RES_COUPLING_HZ] = kCalibrationDefaults.resCouplingHz;
-    paramValues_[PARAM_FILTER_FEEDBACK_GAIN] = kCalibrationDefaults.filterFeedbackGain;
-    paramValues_[PARAM_FILTER_POST_HP_HZ] = kCalibrationDefaults.filterPostHpHz;
-    paramValues_[PARAM_FILTER_NOTCH_HZ] = kCalibrationDefaults.filterNotchHz;
-    paramValues_[PARAM_FILTER_NOTCH_BANDWIDTH_HZ] = kCalibrationDefaults.filterNotchBandwidthHz;
-    paramValues_[PARAM_FILTER_ALLPASS_HZ] = kCalibrationDefaults.filterAllpassHz;
-    paramValues_[PARAM_VEG_DECAY_SEC] = kCalibrationDefaults.vegDecaySec;
-    paramValues_[PARAM_VCA_GATE_OFF_MS] = kCalibrationDefaults.vcaGateOffMs;
-    paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS] = kCalibrationDefaults.vcaGateOffAccentMs;
-    paramValues_[PARAM_VCA_GAIN_SATURATION_DRIVE] = kCalibrationDefaults.vcaGainSaturationDrive;
-    paramValues_[PARAM_FILTER_INPUT_COUPLING_HZ] = kCalibrationDefaults.filterInputCouplingHz;
-    paramValues_[PARAM_FILTER_OUTPUT_COUPLING_HZ] = kCalibrationDefaults.filterOutputCouplingHz;
-    paramValues_[PARAM_FILTER_CAP_SCALE_1] = kCalibrationDefaults.filterCapScale1;
-    paramValues_[PARAM_FILTER_CAP_SCALE_2] = kCalibrationDefaults.filterCapScale2;
-    paramValues_[PARAM_FILTER_CAP_SCALE_3] = kCalibrationDefaults.filterCapScale3;
-    paramValues_[PARAM_FILTER_CAP_SCALE_4] = kCalibrationDefaults.filterCapScale4;
-    paramValues_[PARAM_FILTER_LADDER_INPUT_SCALE] = kCalibrationDefaults.filterLadderInputScale;
-    paramValues_[PARAM_FILTER_RES_LIMIT] = kCalibrationDefaults.filterResonanceLimit;
-    paramValues_[PARAM_ACCENT_VCA_DEPTH] = kCalibrationDefaults.accentVcaDepth;
-    paramValues_[PARAM_ACCENT_SWEEP_DEPTH] = kCalibrationDefaults.accentSweepDepthOct;
-    paramValues_[PARAM_VCA_RES_TAP_RATIO] = kCalibrationDefaults.vcaResTapRatio;
-    paramValues_[PARAM_FILTER_LADDER_TOPOLOGY] = kCalibrationDefaults.filterLadderTopology;
-    paramValues_[PARAM_CUTOFF_BASE_HZ] = kCalibrationDefaults.cutoffBaseHz;
-    paramValues_[PARAM_CUTOFF_SPAN_OCT] = kCalibrationDefaults.cutoffSpanOct;
-    paramValues_[PARAM_CUTOFF_TAPER_EXP] = kCalibrationDefaults.cutoffTaperExp;
-    paramValues_[PARAM_FILTER_RES_SKEW] = kCalibrationDefaults.filterResonanceSkew;
-    paramValues_[PARAM_ENV_MOD_SCALE_C0] = kCalibrationDefaults.envModScaleC0;
-    paramValues_[PARAM_ENV_MOD_SCALE_C0_SLOPE] = kCalibrationDefaults.envModScaleC0Slope;
-    paramValues_[PARAM_ENV_MOD_SCALE_C1] = kCalibrationDefaults.envModScaleC1;
-    paramValues_[PARAM_ENV_MOD_SCALE_C1_SLOPE] = kCalibrationDefaults.envModScaleC1Slope;
-    paramValues_[PARAM_ENV_MOD_OFFSET] = kCalibrationDefaults.envModOffset;
-    paramValues_[PARAM_ENV_MOD_OFFSET_CUT_SLOPE] = kCalibrationDefaults.envModOffsetCutSlope;
-    paramValues_[PARAM_VCF_DECAY_MIN_SEC] = kCalibrationDefaults.vcfDecayMinSec;
-    paramValues_[PARAM_VCF_DECAY_MAX_SEC] = kCalibrationDefaults.vcfDecayMaxSec;
-    paramValues_[PARAM_ACCENT_DECAY_SEC] = kCalibrationDefaults.accentDecaySec;
-    paramValues_[PARAM_ACCENT_CHARGE_BASE_SEC] = kCalibrationDefaults.accentChargeBaseSec;
-    paramValues_[PARAM_ACCENT_CHARGE_POT_SEC] = kCalibrationDefaults.accentChargePotSec;
-    paramValues_[PARAM_ACCENT_MIX_SEC] = kCalibrationDefaults.accentMixSec;
-    paramValues_[PARAM_ENV_MOD_TAPER_EXP] = kCalibrationDefaults.envModTaperExp;
-    paramValues_[PARAM_ACCENT_DIODE_DROP] = kCalibrationDefaults.accentDiodeDrop;
-    paramValues_[PARAM_VCF_DECAY_TAPER] = kCalibrationDefaults.vcfDecayTaper;
-    paramValues_[PARAM_ENV_MOD_TAPER_MID] = kCalibrationDefaults.envModTaperMid;
-    paramValues_[PARAM_ENV_MOD_TAPER_WIDTH] = kCalibrationDefaults.envModTaperWidth;
-    paramValues_[PARAM_CUTOFF_MAX_HZ] = kCalibrationDefaults.cutoffMaxHz;
-    paramValues_[PARAM_VCA_NORMAL_DELAY_MS] = kCalibrationDefaults.vcaNormalDelayMs;
-    paramValues_[PARAM_VCA_ATTACK_MS] = kCalibrationDefaults.vcaAttackMs;
+    for (const auto& b : kCalibrationBindings) {
+        paramValues_[b.id] = kCalibrationDefaults.*(b.field);
+    }
 #endif
 
     paramValues_[PARAM_DRIVE] = 0.0; // pedal bypassed by default
@@ -231,7 +251,10 @@ void AcidusClap::reset() {
 }
 
 void AcidusClap::syncParamsToEngine() {
-    auto& params = engine_.getParams();
+    // Calibration constants from the selected preset; the front-panel fields
+    // it also carries are overwritten from paramValues_ below. Built in a
+    // copy so the engine never sees the preset's default knob values.
+    SynthParameters params = calibrationPresets()[calibrationPreset_.load()].params;
     params.cutoff = static_cast<float>(paramValues_[PARAM_CUTOFF]);
     params.resonance = static_cast<float>(paramValues_[PARAM_RESONANCE]);
     params.envMod = static_cast<float>(paramValues_[PARAM_ENV_MOD]);
@@ -241,57 +264,16 @@ void AcidusClap::syncParamsToEngine() {
     params.masterVolume = static_cast<float>(paramValues_[PARAM_VOLUME]);
 
 #ifdef ACIDUS_CALIBRATION_BUILD
-    params.oscCouplingHz = static_cast<float>(paramValues_[PARAM_OSC_COUPLING_HZ]);
-    params.resCouplingHz = static_cast<float>(paramValues_[PARAM_RES_COUPLING_HZ]);
-    params.filterFeedbackGain = static_cast<float>(paramValues_[PARAM_FILTER_FEEDBACK_GAIN]);
-    params.filterPostHpHz = static_cast<float>(paramValues_[PARAM_FILTER_POST_HP_HZ]);
-    params.filterNotchHz = static_cast<float>(paramValues_[PARAM_FILTER_NOTCH_HZ]);
-    params.filterNotchBandwidthHz = static_cast<float>(paramValues_[PARAM_FILTER_NOTCH_BANDWIDTH_HZ]);
-    params.filterAllpassHz = static_cast<float>(paramValues_[PARAM_FILTER_ALLPASS_HZ]);
-    params.vegDecaySec = static_cast<float>(paramValues_[PARAM_VEG_DECAY_SEC]);
-    params.vcaGateOffMs = static_cast<float>(paramValues_[PARAM_VCA_GATE_OFF_MS]);
-    params.vcaGateOffAccentMs = static_cast<float>(paramValues_[PARAM_VCA_GATE_OFF_ACCENT_MS]);
-    params.vcaGainSaturationDrive = static_cast<float>(paramValues_[PARAM_VCA_GAIN_SATURATION_DRIVE]);
-    params.filterInputCouplingHz = static_cast<float>(paramValues_[PARAM_FILTER_INPUT_COUPLING_HZ]);
-    params.filterOutputCouplingHz = static_cast<float>(paramValues_[PARAM_FILTER_OUTPUT_COUPLING_HZ]);
-    params.filterCapScale1 = static_cast<float>(paramValues_[PARAM_FILTER_CAP_SCALE_1]);
-    params.filterCapScale2 = static_cast<float>(paramValues_[PARAM_FILTER_CAP_SCALE_2]);
-    params.filterCapScale3 = static_cast<float>(paramValues_[PARAM_FILTER_CAP_SCALE_3]);
-    params.filterCapScale4 = static_cast<float>(paramValues_[PARAM_FILTER_CAP_SCALE_4]);
-    params.filterLadderInputScale = static_cast<float>(paramValues_[PARAM_FILTER_LADDER_INPUT_SCALE]);
-    params.filterResonanceLimit = static_cast<float>(paramValues_[PARAM_FILTER_RES_LIMIT]);
-    params.accentVcaDepth = static_cast<float>(paramValues_[PARAM_ACCENT_VCA_DEPTH]);
-    params.accentSweepDepthOct = static_cast<float>(paramValues_[PARAM_ACCENT_SWEEP_DEPTH]);
-    params.vcaResTapRatio = static_cast<float>(paramValues_[PARAM_VCA_RES_TAP_RATIO]);
-    params.filterLadderTopology = static_cast<float>(paramValues_[PARAM_FILTER_LADDER_TOPOLOGY]);
-    params.cutoffBaseHz = static_cast<float>(paramValues_[PARAM_CUTOFF_BASE_HZ]);
-    params.cutoffSpanOct = static_cast<float>(paramValues_[PARAM_CUTOFF_SPAN_OCT]);
-    params.cutoffTaperExp = static_cast<float>(paramValues_[PARAM_CUTOFF_TAPER_EXP]);
-    params.filterResonanceSkew = static_cast<float>(paramValues_[PARAM_FILTER_RES_SKEW]);
-    params.envModScaleC0 = static_cast<float>(paramValues_[PARAM_ENV_MOD_SCALE_C0]);
-    params.envModScaleC0Slope = static_cast<float>(paramValues_[PARAM_ENV_MOD_SCALE_C0_SLOPE]);
-    params.envModScaleC1 = static_cast<float>(paramValues_[PARAM_ENV_MOD_SCALE_C1]);
-    params.envModScaleC1Slope = static_cast<float>(paramValues_[PARAM_ENV_MOD_SCALE_C1_SLOPE]);
-    params.envModOffset = static_cast<float>(paramValues_[PARAM_ENV_MOD_OFFSET]);
-    params.envModOffsetCutSlope = static_cast<float>(paramValues_[PARAM_ENV_MOD_OFFSET_CUT_SLOPE]);
-    params.vcfDecayMinSec = static_cast<float>(paramValues_[PARAM_VCF_DECAY_MIN_SEC]);
-    params.vcfDecayMaxSec = static_cast<float>(paramValues_[PARAM_VCF_DECAY_MAX_SEC]);
-    params.accentDecaySec = static_cast<float>(paramValues_[PARAM_ACCENT_DECAY_SEC]);
-    params.accentChargeBaseSec = static_cast<float>(paramValues_[PARAM_ACCENT_CHARGE_BASE_SEC]);
-    params.accentChargePotSec = static_cast<float>(paramValues_[PARAM_ACCENT_CHARGE_POT_SEC]);
-    params.accentMixSec = static_cast<float>(paramValues_[PARAM_ACCENT_MIX_SEC]);
-    params.envModTaperExp = static_cast<float>(paramValues_[PARAM_ENV_MOD_TAPER_EXP]);
-    params.accentDiodeDrop = static_cast<float>(paramValues_[PARAM_ACCENT_DIODE_DROP]);
-    params.vcfDecayTaper = static_cast<float>(paramValues_[PARAM_VCF_DECAY_TAPER]);
-    params.envModTaperMid = static_cast<float>(paramValues_[PARAM_ENV_MOD_TAPER_MID]);
-    params.envModTaperWidth = static_cast<float>(paramValues_[PARAM_ENV_MOD_TAPER_WIDTH]);
-    params.cutoffMaxHz = static_cast<float>(paramValues_[PARAM_CUTOFF_MAX_HZ]);
-    params.vcaNormalDelayMs = static_cast<float>(paramValues_[PARAM_VCA_NORMAL_DELAY_MS]);
-    params.vcaAttackMs = static_cast<float>(paramValues_[PARAM_VCA_ATTACK_MS]);
+    // Calibration build: the host-visible calibration parameters override
+    // the preset (they start equal to it; a difference is a user edit).
+    for (const auto& b : kCalibrationBindings) {
+        params.*(b.field) = static_cast<float>(paramValues_[b.id]);
+    }
 #endif
 
     params.drive = static_cast<float>(paramValues_[PARAM_DRIVE]);
     params.tuningCents = static_cast<float>(paramValues_[PARAM_TUNE]);
+    engine_.getParams() = params;
 }
 
 void AcidusClap::handleEvent(const clap_event_header_t* header) {
@@ -402,7 +384,12 @@ const void* AcidusClap::getExtension(const char* id) {
     return nullptr;
 }
 
-void AcidusClap::onMainThread() {}
+void AcidusClap::onMainThread() {
+    if (stateDirty_.exchange(false) && host_) {
+        const auto* hostState = static_cast<const clap_host_state_t*>(host_->get_extension(host_, CLAP_EXT_STATE));
+        if (hostState && hostState->mark_dirty) hostState->mark_dirty(host_);
+    }
+}
 
 uint32_t AcidusClap::paramsCount() const {
     return PARAM_COUNT;
@@ -882,22 +869,59 @@ void AcidusClap::onEndEditFromGui(clap_id paramId) {
     requestHostFlush();
 }
 
-void AcidusClap::resetCalibrationParamsFromGui() {
+int AcidusClap::calibrationPresetCount() {
+    return kCalibrationPresetCount;
+}
+
+const char* AcidusClap::calibrationPresetName() const {
+    return calibrationPresets()[calibrationPreset_.load()].name;
+}
+
+bool AcidusClap::isCalibrationModified() const {
 #ifdef ACIDUS_CALIBRATION_BUILD
-    {
-        std::lock_guard<std::mutex> lock(outEventQueueMutex_);
-        for (uint32_t id = PARAM_FRONT_PANEL_COUNT; id < PARAM_EXPERIMENTAL_COUNT; ++id) {
-            clap_param_info_t info{};
-            if (!paramsInfo(id, &info)) continue;
-            paramValues_[id] = info.default_value;
-            outEventQueue_.push_back({ CLAP_EVENT_PARAM_GESTURE_BEGIN, id, 0.0, CLAP_EVENT_IS_LIVE });
-            outEventQueue_.push_back({ CLAP_EVENT_PARAM_VALUE, id, info.default_value, CLAP_EVENT_IS_LIVE });
-            outEventQueue_.push_back({ CLAP_EVENT_PARAM_GESTURE_END, id, 0.0, CLAP_EVENT_IS_LIVE });
+    const SynthParameters& preset = calibrationPresets()[calibrationPreset_.load()].params;
+    for (const auto& b : kCalibrationBindings) {
+        const double want = static_cast<double>(preset.*(b.field));
+        if (std::abs(paramValues_[b.id] - want) > 1e-6 * std::max(1.0, std::abs(want))) {
+            return true;
         }
     }
-    syncParamsToEngine();
-    requestHostFlush();
 #endif
+    return false;
+}
+
+void AcidusClap::selectCalibrationPreset(int index, bool notifyHost) {
+    if (index < 0 || index >= kCalibrationPresetCount) return;
+    calibrationPreset_.store(index);
+#ifdef ACIDUS_CALIBRATION_BUILD
+    // Load the preset into the host-visible calibration parameters; the
+    // front-panel knobs are left alone.
+    const SynthParameters& preset = calibrationPresets()[index].params;
+    {
+        std::lock_guard<std::mutex> lock(outEventQueueMutex_);
+        for (const auto& b : kCalibrationBindings) {
+            const double v = static_cast<double>(preset.*(b.field));
+            paramValues_[b.id] = v;
+            if (notifyHost) {
+                outEventQueue_.push_back({ CLAP_EVENT_PARAM_GESTURE_BEGIN, b.id, 0.0, CLAP_EVENT_IS_LIVE });
+                outEventQueue_.push_back({ CLAP_EVENT_PARAM_VALUE, b.id, v, CLAP_EVENT_IS_LIVE });
+                outEventQueue_.push_back({ CLAP_EVENT_PARAM_GESTURE_END, b.id, 0.0, CLAP_EVENT_IS_LIVE });
+            }
+        }
+    }
+#endif
+    syncParamsToEngine();
+    if (notifyHost) {
+        // The preset is part of the saved state (in a Release build it is
+        // not a parameter, so the host would not otherwise know).
+        stateDirty_.store(true);
+        if (host_ && host_->request_callback) host_->request_callback(host_);
+        requestHostFlush();
+    }
+}
+
+void AcidusClap::cycleCalibrationPresetFromGui() {
+    selectCalibrationPreset((calibrationPreset_.load() + 1) % kCalibrationPresetCount, true);
 }
 
 void AcidusClap::setParamValueFromGui(clap_id paramId, double value) {
@@ -1012,21 +1036,59 @@ void AcidusClap::paramsFlush(const clap_input_events_t* in, const clap_output_ev
     pushPendingOutputEvents(out);
 }
 
+// State: a small header, then the parameter values as doubles.
+//   uint32 magic 'ACS2', uint32 parameter count, int32 calibration preset,
+//   uint32 reserved, double values[parameter count]
+// The legacy format (before calibration presets) is the bare doubles; it
+// loads with the first preset. The count lets a Release build and a
+// calibration build (more parameters) read each other's state.
+static constexpr uint32_t kStateMagic = 0x32534341u; // "ACS2"
+
 bool AcidusClap::stateSave(const clap_ostream_t* stream) {
     if (!stream) return false;
-    int64_t written = stream->write(stream, paramValues_, sizeof(paramValues_));
-    return written == sizeof(paramValues_);
+    std::vector<uint8_t> data(16 + sizeof(paramValues_));
+    const uint32_t header[4] = { kStateMagic, static_cast<uint32_t>(PARAM_COUNT),
+                                 static_cast<uint32_t>(calibrationPreset_.load()), 0u };
+    std::memcpy(data.data(), header, sizeof(header));
+    std::memcpy(data.data() + 16, paramValues_, sizeof(paramValues_));
+    size_t done = 0;
+    while (done < data.size()) {
+        int64_t n = stream->write(stream, data.data() + done, data.size() - done);
+        if (n <= 0) return false;
+        done += static_cast<size_t>(n);
+    }
+    return true;
 }
 
 bool AcidusClap::stateLoad(const clap_istream_t* stream) {
     if (!stream) return false;
-    double buffer[PARAM_COUNT];
-    std::memcpy(buffer, paramValues_, sizeof(buffer));
-    int64_t readBytes = stream->read(stream, buffer, sizeof(buffer));
-    if (readBytes <= 0) return false;
-    uint32_t numDoublesRead = static_cast<uint32_t>(readBytes) / sizeof(double);
-    if (numDoublesRead > PARAM_COUNT) numDoublesRead = PARAM_COUNT;
-    std::memcpy(paramValues_, buffer, numDoublesRead * sizeof(double));
+    std::vector<uint8_t> data;
+    uint8_t chunk[1024];
+    while (data.size() < (1u << 20)) {
+        int64_t n = stream->read(stream, chunk, sizeof(chunk));
+        if (n < 0) return false;
+        if (n == 0) break;
+        data.insert(data.end(), chunk, chunk + n);
+    }
+    if (data.empty()) return false;
+
+    int preset = 0;
+    size_t offset = 0;
+    size_t count = data.size() / sizeof(double);
+    if (data.size() >= 16) {
+        uint32_t header[4];
+        std::memcpy(header, data.data(), sizeof(header));
+        if (header[0] == kStateMagic) {
+            preset = (header[2] < static_cast<uint32_t>(kCalibrationPresetCount)) ? static_cast<int>(header[2]) : 0;
+            offset = 16;
+            count = std::min<size_t>(header[1], (data.size() - 16) / sizeof(double));
+        }
+    }
+    // The preset first (sets the calibration parameters), then the saved
+    // values on top: user edits of calibration parameters survive.
+    selectCalibrationPreset(preset, false);
+    count = std::min<size_t>(count, PARAM_COUNT);
+    std::memcpy(paramValues_, data.data() + offset, count * sizeof(double));
     syncParamsToEngine();
     return true;
 }
