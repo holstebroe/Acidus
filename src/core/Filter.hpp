@@ -171,8 +171,11 @@ public:
     void setResonanceLimit(float r) { resonanceLimit_ = r; }
 
     // Critical feedback gain of the linearised loop at this cutoff (exposed
-    // for tests/diagnostics).
+    // for tests/diagnostics). Interpolated from a table over log cutoff that
+    // is rebuilt only when the poles, the feedback coupling or the rate
+    // change; criticalFeedbackGainExact() is the direct search.
     float criticalFeedbackGain(float cutoffHz);
+    double criticalFeedbackGainExact(double cutoffHz);
 
 private:
     double sampleRate_{44100.0};
@@ -218,10 +221,21 @@ private:
     double poles_[4]{0.152241, 1.234633, 2.765367, 3.847759};
     void updatePoles();
 
-    // k_crit cache, so the search only runs when cutoff/coupling change.
-    float kcCutoffHz_{-1.0f};
-    float kcCouplingHz_{-1.0f};
-    float kcValue_{17.0f};
+    // k_crit table over log(cutoff), 20 Hz .. the solver's 10 % clamp. The
+    // search behind it costs ~50 atan/exp calls per point, far too much to
+    // run per sample while the envelope sweeps the cutoff.
+    static constexpr int kKcTableSize = 1024;
+    float kcTable_[kKcTableSize]{};
+    float kcTableLogLo_{0.0f};
+    float kcTableInvStep_{0.0f};
+    float kcTableCouplingHz_{-1.0f};
+    double kcTableOsRate_{-1.0};
+    bool kcTableValid_{false};
+    void buildKcTable();
+
+    // Cached input/output coupling coefficients (see processSample).
+    float inCouplingAlpha_{0.0f}, outCouplingAlpha_{0.0f};
+    float couplingForInHz_{-1.0f}, couplingForOutHz_{-1.0f}, couplingForDt_{-1.0f};
 
     inline float skewResonance(float resNorm) const {
         if (std::abs(resonanceSkew_) < 1e-4f) return resNorm;

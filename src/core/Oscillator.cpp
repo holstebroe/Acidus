@@ -105,14 +105,14 @@ float Oscillator::processNextSample() {
         double x = lpfSawState_;
         raw = x - sawShape_ * x * x;
     } else {
-        double duty = 0.45 + 0.25 * std::exp(-currentFreq_ / 180.0);
+        double duty = 0.45 + squareDutyDepth_ * std::exp(-currentFreq_ / 180.0);
         duty = std::min(0.70, std::max(0.45, duty));
         // Two discontinuities: rising edge at phase 0/1 (-1 -> +1), falling
         // edge at phase == duty (+1 -> -1); PolyBLEP-correct both.
         double rawSquare = (phase_ < duty) ? 1.0 : -1.0;
         rawSquare += polyblep(phase_, phaseInc);
         rawSquare -= polyblep(std::fmod(phase_ + 1.0 - duty, 1.0), phaseInc);
-        raw = rawSquare * 0.75;
+        raw = rawSquare * squareLevel_;
     }
 
     double hpfOut = couplingAlpha_ * (couplingHpfY1_ + raw - couplingHpfX1_);

@@ -149,11 +149,16 @@ float Distortion::processSample(float input, float drive) {
         float v = diodeV_;
         for (int iter = 0; iter < kDiodeNewtonIters; ++iter) {
             float x = std::min(std::max(v / a, -60.0f), 60.0f);
-            float sh = std::sinh(x);
-            float ch = std::cosh(x);
+            // sinh and cosh from one expm1 (no cancellation near 0).
+            float em = std::expm1(x);
+            float e = em + 1.0f;
+            float sh = 0.5f * (em + em / e);
+            float ch = 0.5f * (e + 1.0f / e);
             float f = alphaNode * v + 2.0f * kDiodeIs * sh - K;
             float fp = alphaNode + (2.0f * kDiodeIs / a) * ch;
-            v -= f / fp;
+            const float dv = f / fp;
+            v -= dv;
+            if (std::abs(dv) <= 1e-7f * std::abs(v)) break;   // converged to float precision
         }
         if (std::isfinite(v)) {
             diodeV_ = v;

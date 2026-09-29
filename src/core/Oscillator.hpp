@@ -36,6 +36,13 @@ public:
         sawShape_ = shape;
     }
 
+    // Square pulse: duty = 0.45 + dutyDepth * exp(-f / 180 Hz) (the pulse
+    // narrows toward symmetric as the pitch rises), output level = level.
+    void setSquareShaping(float dutyDepth, float level) {
+        squareDutyDepth_ = dutyDepth;
+        squareLevel_ = level;
+    }
+
     // Front-panel Tuning control: shifts VCO pitch by up to the real
     // hardware's documented trim range (TB303_RESEARCH_COMPENDIUM.md:
     // "Tuning control range: approx. ±700 cents"). Re-targets the currently
@@ -78,6 +85,8 @@ private:
     float couplingHz_{44.5f};
     float sawLpfHz_{14000.0f};
     float sawShape_{0.05f};
+    float squareDutyDepth_{0.25f};
+    float squareLevel_{0.75f};
 
     void recomputeSawLpfCoeff() {
         // At or above ~0.45*fs the (unsourced) saw LPF is bypassed entirely.

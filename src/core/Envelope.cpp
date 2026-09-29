@@ -17,10 +17,11 @@ void Envelope::setDecay(float decayParam) {
     float norm = std::min(std::max(decayParam, 0.0f), 1.0f);
     decayNorm_ = norm;
     // tau = C62 * (R136 + VR6(theta)), VR6 a 1M audio-taper pot:
-    // R(theta) = Rtot * (81^theta - 1) / 80 (10 % at mid-rotation;
-    // TB303_REFERENCE.md §14.1).
-    const float kTaper = 81.0f;
-    float potFrac = (std::pow(kTaper, norm) - 1.0f) / (kTaper - 1.0f);
+    // R(theta) = Rtot * (a^theta - 1) / (a - 1); a = 81 is 10 % at
+    // mid-rotation (TB303_REFERENCE.md §14.1). a is calibratable: a real
+    // pot's taper, and a worn one, can differ.
+    const float a = decayTaper_;
+    float potFrac = (std::abs(a - 1.0f) < 1e-3f) ? norm : (std::pow(a, norm) - 1.0f) / (a - 1.0f);
     vcfDecayTimeSec_ = vcfDecayMinSec_ + (vcfDecayMaxSec_ - vcfDecayMinSec_) * potFrac;
     updateCoefficients();
 }
@@ -56,6 +57,10 @@ void Envelope::noteOn(bool isAccent, bool isSlide, float accentKnob) {
         // Start attack phase from current voltage level (do not hard-reset to 0.0, catch existing tail)
         vcfTarget_ = 1.0f;
         vcaTarget_ = 1.0f;
+        // The x0x recordings: an unaccented note starts sounding ~4.5 ms
+        // after an accented one (only a faint click at the gate), so its VCA
+        // attack is held back.
+        vcaDelaySamples_ = isAccent ? 0 : static_cast<int>(vcaNormalDelaySec_ * sampleRate_ + 0.5);
     } else {
         // Re-Trigger Logic (Slide == True):
         // Do not trigger attack phase of either envelope.
@@ -85,7 +90,9 @@ void Envelope::processNextSample() {
     }
 
     // 2. VCA Amplitude Envelope Processing
-    if (gate_) {
+    if (gate_ && vcaDelaySamples_ > 0) {
+        --vcaDelaySamples_;
+    } else if (gate_) {
         if (vcaTarget_ > vcaEnv_) {
             vcaEnv_ += vcaAttackCoeff_ * (vcaTarget_ - vcaEnv_);
             if (vcaEnv_ >= 0.99f) {
@@ -106,7 +113,9 @@ void Envelope::processNextSample() {
         const double rS = accentR46Sec_ + res * accentPotSec_;           // R46 + upper pot section
         const double rBot = (1.0 - res) * accentPotSec_;                 // lower pot section to C13
         const double rMix = accentMixSec_;
-        const double vMeg = (isAccent_ && gate_) ? accentKnob_ * vcfEnv_ : 0.0;
+        // D24 only conducts while the (Accent-pot-scaled) MEG exceeds the
+        // network by its forward drop, so the charging source is MEG - drop.
+        const double vMeg = (isAccent_ && gate_) ? accentKnob_ * vcfEnv_ - accentDiodeDrop_ : 0.0;
         const double vc = accentCap_;
         const double vOff = vc * rMix / (rMix + rBot);                   // wiper with D24 off
         double a, b;                                                     // dVc/dt = a - b*Vc

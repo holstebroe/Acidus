@@ -87,12 +87,11 @@ void Filter::updatePoles() {
         prevL = l;
         prevV = v;
     }
-    kcCutoffHz_ = -1.0f; // invalidate the k_crit cache
+    kcTableValid_ = false; // the k_crit table depends on the poles
 }
 
-float Filter::criticalFeedbackGain(float cutoffHz) {
+double Filter::criticalFeedbackGainExact(double cutoffHz) {
     updatePoles();
-    if (cutoffHz == kcCutoffHz_ && resCouplingHz_ == kcCouplingHz_) return kcValue_;
     const double wc = 2.0 * 3.14159265358979323846 * cutoffHz * kCutoffToOmegaScale_;
     const double h = 2.0 * 3.14159265358979323846 * resCouplingHz_ / wc;
     // Loop gain G(jx) = H_ladder(jx) * HP(jx), x = w / wc. Its phase falls
@@ -110,10 +109,33 @@ float Filter::criticalFeedbackGain(float cutoffHz) {
     const double x = std::exp(0.5 * (a + b));
     double mag = x / std::sqrt(x * x + h * h);
     for (double p : poles_) mag *= p / std::sqrt(x * x + p * p);
-    kcCutoffHz_ = cutoffHz;
-    kcCouplingHz_ = resCouplingHz_;
-    kcValue_ = static_cast<float>(1.0 / mag);
-    return kcValue_;
+    return 1.0 / mag;
+}
+
+void Filter::buildKcTable() {
+    const double lo = std::log(20.0);
+    const double hi = std::log(std::max(40.0, 0.1 * oversampledRate_));
+    const double step = (hi - lo) / (kKcTableSize - 1);
+    for (int i = 0; i < kKcTableSize; ++i) {
+        kcTable_[i] = static_cast<float>(criticalFeedbackGainExact(std::exp(lo + step * i)));
+    }
+    kcTableLogLo_ = static_cast<float>(lo);
+    kcTableInvStep_ = static_cast<float>(1.0 / step);
+    kcTableCouplingHz_ = resCouplingHz_;
+    kcTableOsRate_ = oversampledRate_;
+    kcTableValid_ = true;
+}
+
+float Filter::criticalFeedbackGain(float cutoffHz) {
+    updatePoles();
+    if (!kcTableValid_ || resCouplingHz_ != kcTableCouplingHz_ || oversampledRate_ != kcTableOsRate_) {
+        buildKcTable();
+    }
+    float u = (std::log(std::max(cutoffHz, 1.0f)) - kcTableLogLo_) * kcTableInvStep_;
+    u = std::min(std::max(u, 0.0f), static_cast<float>(kKcTableSize - 1));
+    const int i = std::min(static_cast<int>(u), kKcTableSize - 2);
+    const float f = u - static_cast<float>(i);
+    return kcTable_[i] + f * (kcTable_[i + 1] - kcTable_[i]);
 }
 
 Filter::Filter() {
@@ -140,7 +162,9 @@ void Filter::reset() {
 float Filter::processSample(float input, float cutoffHz, float resonance) {
     constexpr int kOS = 8;
     float dt = 1.0f / static_cast<float>(oversampledRate_);
-    float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 18000.0f);
+    // Safety clamp only: the engine limits the cutoff CV (cutoffMaxHz); the
+    // 8x oversampled solver stays accurate to ~10 % of its own rate.
+    float totalCutoffHz = std::min(std::max(cutoffHz, 20.0f), 0.1f * static_cast<float>(oversampledRate_));
     float wc = 2.0f * 3.14159265358979323846f * totalCutoffHz * kCutoffToOmegaScale_;
 
     float resNorm = std::min(std::max(resonance, 0.0f), 1.0f);
@@ -155,8 +179,16 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
     const float Vt = 0.052f;
     const float VtInv = 19.23f;
 
-    float inCouplingAlpha = 1.0f - std::exp(-2.0f * 3.14159265358979323846f * inputCouplingHz_ * dt);
-    float outCouplingAlpha = 1.0f - std::exp(-2.0f * 3.14159265358979323846f * outputCouplingHz_ * dt);
+    // Coupling coefficients: recomputed only when a corner or the rate changes.
+    if (inputCouplingHz_ != couplingForInHz_ || outputCouplingHz_ != couplingForOutHz_ || dt != couplingForDt_) {
+        inCouplingAlpha_ = 1.0f - std::exp(-2.0f * 3.14159265358979323846f * inputCouplingHz_ * dt);
+        outCouplingAlpha_ = 1.0f - std::exp(-2.0f * 3.14159265358979323846f * outputCouplingHz_ * dt);
+        couplingForInHz_ = inputCouplingHz_;
+        couplingForOutHz_ = outputCouplingHz_;
+        couplingForDt_ = dt;
+    }
+    const float inCouplingAlpha = inCouplingAlpha_;
+    const float outCouplingAlpha = outCouplingAlpha_;
 
     float out = 0.0f;
     float prevIn = prevInput_;

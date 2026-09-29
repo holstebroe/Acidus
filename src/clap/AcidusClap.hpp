@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 #include <mutex>
+#include <atomic>
 
 namespace acidus {
 
@@ -68,12 +69,12 @@ enum ParamId : clap_id {
     PARAM_OSC_COUPLING_HZ = 9,                  // Oscillator.hpp - plausible range 30-60 Hz
     PARAM_RES_COUPLING_HZ = 10,                 // Filter.hpp - plausible range 100-250 Hz
     PARAM_FILTER_FEEDBACK_GAIN = 11,            // Filter.hpp - plausible range 12-17
-    PARAM_FILTER_POST_HP_HZ = 12,               // Filter.hpp - plausible range 15-35 Hz
+    PARAM_FILTER_POST_HP_HZ = 12,               // Filter.hpp - Open303 24 Hz; fitted 153 Hz (acidvoice) / 199 Hz (x0x)
     PARAM_FILTER_NOTCH_HZ = 13,                 // Filter.hpp - plausible range 4-15 Hz
     PARAM_FILTER_NOTCH_BANDWIDTH_HZ = 14,       // Filter.hpp - plausible range 2-10 Hz
     PARAM_FILTER_ALLPASS_HZ = 15,               // Filter.hpp - plausible range 8-25 Hz
-    PARAM_VEG_DECAY_SEC = 16,                   // Envelope.hpp - plausible range 2.5-5.0 s
-    PARAM_VCA_GATE_OFF_MS = 17,                 // Envelope.hpp - plausible range 1-5 ms
+    PARAM_VEG_DECAY_SEC = 16,                   // Envelope.hpp - R123 x C42 = 1.5 s; fitted 2.2-2.4 s
+    PARAM_VCA_GATE_OFF_MS = 17,                 // Envelope.hpp - Open303 1 ms; fitted 0.7-1.1 ms
     PARAM_VCA_GATE_OFF_ACCENT_MS = 18,          // Envelope.hpp - plausible range 1-80 ms (widened 2026-09-20)
     PARAM_VCA_GAIN_SATURATION_DRIVE = 19,       // SynthEngine.cpp - plausible range 1-8
     PARAM_FILTER_INPUT_COUPLING_HZ = 20,        // Filter.hpp - plausible range 10-30 Hz
@@ -88,8 +89,39 @@ enum ParamId : clap_id {
     PARAM_ACCENT_SWEEP_DEPTH = 29,              // SynthEngine.cpp - accent sweep depth into the cutoff, octaves
     PARAM_VCA_RES_TAP_RATIO = 30,               // SynthEngine.cpp - filter->VCA wiper tap vs fixed tap (Resonance level balance)
     PARAM_FILTER_LADDER_TOPOLOGY = 31,          // Filter.hpp - 0 = legacy mirrored ladder, 1 = circuit orientation
+    // Cutoff knob law (knob -> Hz before the envelope): base * 2^(span * knob^taper).
+    // The base is the unit's TM3 cutoff trim -- the main difference between
+    // calibrations/acidvoice.json (248 Hz) and calibrations/x0x.json (159 Hz).
+    PARAM_CUTOFF_BASE_HZ = 32,                  // SynthEngine.cpp - cutoff at knob minimum
+    PARAM_CUTOFF_SPAN_OCT = 33,                 // SynthEngine.cpp - octaves swept by the Cutoff knob
+    PARAM_CUTOFF_TAPER_EXP = 34,                // SynthEngine.cpp - knob taper, 1 = exponential knob-to-Hz
+    PARAM_FILTER_RES_SKEW = 35,                 // Filter.hpp - Resonance pot curve; < 0 builds late in the travel
+    // Env Mod law (SynthEngine.cpp): depth = (1-c)*(C0 + C0Slope*e) + c*(C1 + C1Slope*e)
+    // octaves per unit MEG, cutoff shift = depth * (MEG - (Offset + OffsetCutSlope*c)),
+    // and the MEG / accent-sweep time constants (Envelope.cpp).
+    PARAM_ENV_MOD_SCALE_C0 = 36,           // sweep depth (oct per unit MEG) at Env Mod 0, Cutoff min
+    PARAM_ENV_MOD_SCALE_C0_SLOPE = 37,     // added depth per unit Env Mod, Cutoff min
+    PARAM_ENV_MOD_SCALE_C1 = 38,           // sweep depth at Env Mod 0, Cutoff max
+    PARAM_ENV_MOD_SCALE_C1_SLOPE = 39,     // added depth per unit Env Mod, Cutoff max
+    PARAM_ENV_MOD_OFFSET = 40,             // MEG level where the Env Mod bias shift is neutral (floor drop = depth x offset)
+    PARAM_ENV_MOD_OFFSET_CUT_SLOPE = 41,   // offset change at Cutoff max
+    PARAM_VCF_DECAY_MIN_SEC = 42,          // MEG decay tau at Decay min
+    PARAM_VCF_DECAY_MAX_SEC = 43,          // MEG decay tau at Decay max
+    PARAM_ACCENT_DECAY_SEC = 44,           // MEG decay tau on accented notes
+    PARAM_ACCENT_CHARGE_BASE_SEC = 45,     // accent sweep: R46 x C13
+    PARAM_ACCENT_CHARGE_POT_SEC = 46,      // accent sweep: VR4b x C13, scaled by Resonance
+    PARAM_ACCENT_MIX_SEC = 47,             // accent sweep: mixing resistor x C13
 
-    PARAM_EXPERIMENTAL_COUNT = 32,
+    PARAM_ENV_MOD_TAPER_EXP = 48,              // Env Mod pot taper, knob^exp (1 = linear)
+    PARAM_ACCENT_DIODE_DROP = 49,              // D24 forward drop, fraction of the MEG swing (0 = ideal)
+    PARAM_VCF_DECAY_TAPER = 50,                // Decay pot taper a, R = Rtot*(a^x-1)/(a-1) (81 = 10 % at mid-travel)
+    PARAM_ENV_MOD_TAPER_MID = 51,              // logistic Env Mod taper mid-point
+    PARAM_ENV_MOD_TAPER_WIDTH = 52,            // logistic Env Mod taper width (0 = power law)
+    PARAM_CUTOFF_MAX_HZ = 53,                  // ceiling of the cutoff CV
+    PARAM_VCA_NORMAL_DELAY_MS = 54,            // VCA onset delay on unaccented notes
+    PARAM_VCA_ATTACK_MS = 55,                  // VEG onset time constant (Devil Fish: Soft Attack)
+
+    PARAM_EXPERIMENTAL_COUNT = 56,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT
@@ -138,6 +170,17 @@ public:
     void onBeginEditFromGui(clap_id paramId);
     void onParamValueFromGui(clap_id paramId, double value);
     void onEndEditFromGui(clap_id paramId);
+    // Calibration presets (src/core/CalibrationPresets.hpp): selecting one
+    // loads its calibration constants; the front-panel knobs are untouched.
+    // In a calibration build the constants are CLAP parameters, the host is
+    // told about each one, and editing any of them afterwards makes
+    // isCalibrationModified() true.
+    static int calibrationPresetCount();
+    int calibrationPresetIndex() const { return calibrationPreset_.load(); }
+    const char* calibrationPresetName() const;
+    bool isCalibrationModified() const;
+    void selectCalibrationPreset(int index, bool notifyHost);
+    void cycleCalibrationPresetFromGui();
     bool paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity);
     bool paramsTextToValue(clap_id paramId, const char* paramValueText, double* outValue);
     void paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out);
@@ -149,6 +192,13 @@ public:
     bool stateLoad(const clap_istream_t* stream);
 
     SynthEngine& getEngine() { return engine_; }
+
+    // For the GUI: number of accented note-ons so far (wraps), and the
+    // position in the host's current bar (0..1), extrapolated from the last
+    // processed block. transportBarPhase() returns false when the host is
+    // stopped or sends no tempo/beat timeline.
+    uint32_t accentCount() const { return accentCount_.load(std::memory_order_relaxed); }
+    bool transportBarPhase(double& phase) const;
 
     const clap_host_t* getHost() const { return host_; }
 
@@ -163,6 +213,15 @@ private:
     std::unique_ptr<class GuiWindow> guiWindow_;
 
     double paramValues_[PARAM_COUNT]{};
+    std::atomic<int> calibrationPreset_{0};
+    std::atomic<bool> stateDirty_{false};
+    std::atomic<uint32_t> accentCount_{0};
+    // Host transport at the start of the last block (see transportBarPhase).
+    std::atomic<bool> transportPlaying_{false};
+    std::atomic<double> transportBarPos_{0.0};      // fraction of the bar
+    std::atomic<double> transportBarsPerSec_{0.0};
+    std::atomic<int64_t> transportStampNs_{0};      // steady_clock time of that block
+    void noteOnFromHost(int key, float velocity);
 
     std::mutex outEventQueueMutex_;
     std::vector<GuiParamEvent> outEventQueue_;

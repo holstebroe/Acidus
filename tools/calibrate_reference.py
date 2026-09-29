@@ -91,6 +91,7 @@ except ImportError:  # pragma: no cover
     sys.exit("calibrate_reference.py needs numpy: pip install numpy")
 
 REPO = Path(__file__).resolve().parents[1]
+DEFAULT_MANIFEST = REPO / "test" / "resources" / "x0x-reference" / "x0x_reference_manifest.json"
 
 # ---------------------------------------------------------------------------
 # Parameter space
@@ -102,6 +103,11 @@ MODEL_PARAMS = {
     "oscCouplingHz":            (15.0, 60.0, True, "osc"),     # ref: none in hardware; Open303 44.5 (TB303_REFERENCE.md §11.3)
     "oscSawLpfHz":              (4000.0, 40000.0, True, "osc"),
     "oscSawShape":              (-0.4, 0.4, False, "osc"),
+    # Square duty = 0.45 + depth * exp(-f / 180 Hz): 0.62 at C2 with the
+    # antto depth 0.25; the x0x set's C2 squares null their 15th harmonic,
+    # i.e. duty ~0.533 (depth ~0.12). Level: saw/square ratio (§9).
+    "oscSquareDutyDepth":       (0.0, 0.35, False, "osc"),
+    "oscSquareLevel":           (0.3, 1.2, True, "osc"),
     # Filter
     # Upper bound extends past the ladder's own self-oscillation ceiling
     # (Filter.hpp's kLadderCriticalGain_ = 17): with the resonance-dependent
@@ -112,7 +118,8 @@ MODEL_PARAMS = {
     # already rejected by Problem._job's isfinite/amplitude check, so the
     # bound itself doesn't need to pre-guess where that line is.
     "filterFeedbackGain":       (6.0, 30.0, False, "filter"),
-    "filterResonanceSkew":      (0.05, 8.0, False, "filter"),
+    "filterResonanceLimit":     (0.90, 1.10, False, "filter"),  # max feedback vs the loop's critical gain (binds at high cutoff)
+    "filterResonanceSkew":      (-6.0, 8.0, False, "filter"),   # < 0: resonance builds late in the travel (x0x fit hit 0.05)
     "resCouplingHz":            (60.0, 160.0, True, "filter"),  # in-loop HP; antto 70-140, Open303 150 (§11.3)
     "filterCapScale1":          (0.2, 4.0, True, "filter"),
     "filterCapScale2":          (0.2, 4.0, True, "filter"),
@@ -121,7 +128,7 @@ MODEL_PARAMS = {
     "filterLadderInputScale":   (0.01, 0.4, True, "filter"),
     "filterInputCouplingHz":    (3.0, 60.0, True, "filter"),
     "filterOutputCouplingHz":   (6000.0, 40000.0, True, "filter"),
-    "filterPostHpHz":           (5.0, 200.0, True, "filter"),  # also stands in for the VCA-input coupling (10 nF into BA662, tens-hundreds of Hz, §15.4)
+    "filterPostHpHz":           (5.0, 400.0, True, "filter"),  # also stands in for the VCA-input coupling (10 nF into BA662, tens-hundreds of Hz, §15.4)
     "filterNotchHz":            (2.0, 25.0, True, "filter"),
     "filterNotchBandwidthHz":   (1.0, 15.0, True, "filter"),
     "filterAllpassHz":          (4.0, 50.0, True, "filter"),
@@ -129,23 +136,34 @@ MODEL_PARAMS = {
     "cutoffBaseHz":             (50.0, 800.0, True, "cv"),
     "cutoffSpanOct":            (1.5, 7.0, False, "cv"),
     "cutoffTaperExp":           (0.5, 3.5, False, "cv"),
+    "cutoffMaxHz":              (12000.0, 30000.0, True, "cv"),   # cutoff CV ceiling
     "envModScaleC0":            (0.3, 1.5, False, "cv"),
     "envModScaleC0Slope":       (2.0, 6.0, False, "cv"),
     "envModScaleC1":            (0.3, 1.5, False, "cv"),
     "envModScaleC1Slope":       (2.0, 6.0, False, "cv"),
     "envModOffset":             (0.1, 0.5, False, "cv"),
     "envModOffsetCutSlope":     (-0.2, 0.3, False, "cv"),
+    "envModTaperExp":           (0.5, 4.0, False, "cv"),      # Env Mod pot taper, knob^exp (1 = linear)
+    "envModTaperMid":           (0.4, 0.9, False, "cv"),      # logistic Env Mod taper (when width > 0)
+    "envModTaperWidth":         (0.05, 0.3, False, "cv"),
     "accentSweepDepthOct":      (0.0, 9.0, False, "cv"),
     "accentVcaDepth":           (0.0, 6.0, False, "cv"),
-    "accentChargeBaseSec":      (0.035, 0.065, True, "cv"),   # R46 x C13 +-30 %
-    "accentChargePotSec":       (0.030, 0.070, True, "cv"),   # VR4b x C13
-    "accentMixSec":             (0.07, 0.15, True, "cv"),     # R_mix x C13 (100k +-30 %)
+    # Accent sweep network time constants. Nominal R46 x C13 = 47 ms, VR4b x
+    # C13 = 50 ms, R_mix x C13 = 100 ms; the ranges are wider than component
+    # tolerance because the x0x set's accented Resonance-100 % notes peak
+    # ~15 ms after note-on, which the nominal network (peak ~60 ms) can't do.
+    "accentChargeBaseSec":      (0.004, 0.10, True, "cv"),
+    "accentChargePotSec":       (0.004, 0.10, True, "cv"),
+    "accentMixSec":             (0.02, 0.30, True, "cv"),
+    "accentDiodeDrop":          (0.0, 0.5, False, "cv"),      # D24 forward drop, fraction of the MEG swing
     # Envelopes / VCA
     "vcfAttackMs":              (0.02, 1.0, True, "env"),
     "vcaAttackMs":              (0.3, 8.0, True, "env"),     # VCA onset: few ms, R134/C41 2.2 ms (§15.2)
+    "vcaNormalDelayMs":         (0.0, 8.0, False, "env"),    # unaccented notes open later (x0x: ~4.5 ms)
     "vcfDecayMinSec":           (0.055, 0.10, True, "env"),   # tau, R136 x C62 (+-20 % caps)
     "vcfDecayMaxSec":           (0.85, 1.35, True, "env"),    # tau, (R136 + VR6) x C62
-    "accentDecaySec":           (0.055, 0.10, True, "env"),
+    "vcfDecayTaper":            (1.5, 200.0, True, "env"),    # Decay pot taper a (81 = 10 % at mid-travel)
+    "accentDecaySec":           (0.03, 0.15, True, "env"),
     "vegDecaySec":              (1.0, 6.0, True, "env"),      # R123 x C42 = 1.5 s (§15.1); hardware samples look flatter
     "vcaGateOffMs":             (0.3, 20.0, True, "env"),
     "vcaGateOffAccentMs":       (0.3, 80.0, True, "env"),
@@ -231,6 +249,17 @@ def write_wav(path, x, sr):
 
 
 class Reference:
+    """One reference note.
+
+    labels:  knob -> label of the hardware knob position it was recorded at
+             (the file-name digit, or "x<percent>" for manifest clips). Every
+             (knob, label) pair is one fitted knob position shared by all
+             notes that use it.
+    nominal: knob -> the label's nominal position (0..1).
+    fixed_tune_cents: render/analysis tuning given by the source (manifest);
+             None = measure it from the note.
+    timing_hint: (note-on ms, gate ms) given by the source; None = detect."""
+
     def __init__(self, path, accent_mode):
         self.path = Path(path)
         self.name = self.path.stem
@@ -241,12 +270,16 @@ class Reference:
         self.note = m["note"]
         self.midi = note_to_midi(m["note"])
         self.label_tune_cents = float(m["tune"])
-        self.digits = {KNOBS[k]: int(m[k]) for k in KNOBS}
+        self.labels = {KNOBS[k]: int(m[k]) for k in KNOBS}
+        self.nominal = {k: digit_to_position(d) for k, d in self.labels.items()}
+        self.fixed_tune_cents = None
+        self.timing_hint = None
+        self.group = None
         # The file name doesn't say whether the step was accented; the Accent
         # knob only does anything on an accented step, so by default a
         # non-minimum Accent knob implies the step was recorded with accent.
         if accent_mode == "knob":
-            self.accent_step = self.digits["accent"] != 0
+            self.accent_step = self.labels["accent"] != 0
         else:
             self.accent_step = accent_mode == "all"
         x, sr = read_wav(self.path)
@@ -254,6 +287,73 @@ class Reference:
         self.x = x - x[-tail:].mean()
         self.sr = sr
         self.n = len(self.x)
+
+    @classmethod
+    def from_clip(cls, clip, x, sr, analysis_ms=None, per_row_knobs=()):
+        """A note from a reference manifest (see tools/x0x_reference_manifest.py):
+        the clip window of a longer recording, with knobs, accent, tuning and
+        timing given by the manifest."""
+        self = cls.__new__(cls)
+        self.path = None
+        self.name = clip["id"]
+        self.waveform = 0 if clip["waveform"] == "saw" else 1
+        self.note = clip["note"]
+        self.midi = int(clip["midi"])
+        self.fixed_tune_cents = float(clip["render_tune_cents"])
+        self.label_tune_cents = self.fixed_tune_cents
+        pct = clip["knobs_pct"]
+        self.labels = {k: f"x{int(pct[k])}" for k in KNOBS.values()}
+        # Knobs held fixed through a whole chart row (e.g. Cutoff at 75 % in
+        # D2-D5) were set once per row and can sit away from where the same
+        # percentage landed while that knob was being swept (D1). End stops
+        # (0 / 100 %) are exact and stay shared.
+        swept = {"1": "cutoff", "2": "resonance", "3": "envMod", "4": "decay", "5": "accent"}.get(clip["set"][1:])
+        for k in per_row_knobs:
+            if k != swept and 0 < int(pct[k]) < 100:
+                self.labels[k] = f"x{int(pct[k])}@{clip['set'][0]}"
+        self.nominal = {k: float(clip["knobs"][k]) for k in KNOBS.values()}
+        self.accent_step = bool(clip["accent"])
+        self.group = clip.get("set")
+        a, b = int(clip["clip_start_sample"]), int(clip["clip_end_sample"])
+        if analysis_ms:
+            b = min(b, int(clip["note_on_sample"]) + int(round(analysis_ms * sr / 1000.0)))
+        seg = x[a:b]
+        # The recordings sit on a clean, DC-free floor: remove the level of
+        # the silence before the note, not of the (release) tail.
+        pre = seg[: max(8, int(clip["note_on_sample"]) - a)]
+        self.x = seg - pre.mean()
+        self.sr = sr
+        self.n = len(self.x)
+        self.timing_hint = ((int(clip["note_on_sample"]) - a) * 1000.0 / sr, float(clip["gate_ms"]))
+        return self
+
+
+def load_manifest(path, includes, excludes, analysis_ms=None, rotate=None, per_row_knobs=()):
+    """Reference notes from a manifest JSON (tools/x0x_reference_manifest.py).
+    includes/excludes are substrings matched against the clip ids, e.g.
+    "A1-" (a set), "-p2-" (a position), "square", "-acc".
+    rotate: None, or keep one note per (set, position), cycling through the note
+    kinds (saw / saw-acc / square / square-acc) from one position and set to
+    the next -- a quarter of the notes that still covers every knob setting
+    and every note kind evenly (a fast search subset). The value (0-3) is an
+    offset that selects one of the four disjoint quarters."""
+    path = Path(path)
+    man = json.loads(path.read_text(encoding="utf-8"))
+    clips = man["clips"]
+    if rotate is not None:
+        sets = sorted({c["set"] for c in clips})
+        clips = [c for c in clips
+                 if (c["note_number"] - 1) % 4 == (c["position"] - 1 + sets.index(c["set"]) + int(rotate)) % 4]
+    clips = [c for c in clips if not any(e in c["id"] for e in excludes)]
+    if includes:
+        clips = [c for c in clips if any(e in c["id"] for e in includes)]
+    audio, refs = {}, []
+    for c in clips:
+        if c["file"] not in audio:
+            audio[c["file"]] = read_wav(path.parent / c["file"])
+        x, sr = audio[c["file"]]
+        refs.append(Reference.from_clip(c, x, sr, analysis_ms, per_row_knobs))
+    return refs
 
 
 # ---------------------------------------------------------------------------
@@ -357,10 +457,76 @@ class FeatureSpec:
         fb = ref.sr / self.st_frame
         self.st_edges = np.unique(np.maximum(1, np.round(edges / fb).astype(int)))
         self.st_window = np.hanning(self.st_frame)
+        # Resonant-peak sweep track (enabled per reference, see Problem):
+        # 30 ms frames every 10 ms; the saw's -6 dB/oct tilt is removed and
+        # the spectrum smoothed over one harmonic spacing, so the peak is the
+        # resonance, not a harmonic.
+        self.sweep = False
+        self.sw_frame = int(round(0.030 * ref.sr))
+        self.sw_hop = int(round(0.010 * ref.sr))
+        self.sw_nfft = 8192
+        fr = np.fft.rfftfreq(self.sw_nfft, 1.0 / ref.sr)
+        self.sw_tilt = 20 * np.log10(np.maximum(fr, 1.0) / f0)
+        self.sw_kernel = np.ones(max(3, int(round(f0 / (ref.sr / self.sw_nfft))))) / max(3, int(round(f0 / (ref.sr / self.sw_nfft))))
+        self.sw_lo = int(np.searchsorted(fr, 150.0))
+        self.sw_hi = int(np.searchsorted(fr, min(fmax, 0.45 * ref.sr)))
+        self.sw_base = (int(np.searchsorted(fr, 80.0)), int(np.searchsorted(fr, 400.0)))
+        self.sw_freqs = fr
+        self.sw_window = np.hanning(self.sw_frame)
 
 
 def db(p):
     return 10.0 * np.log10(np.maximum(p, 1e-20))
+
+
+def sweep_track(x, spec):
+    """Resonant-peak frequency (log2 Hz) and height (dB above the 80-400 Hz
+    level) for every sweep frame of x."""
+    frames = np.lib.stride_tricks.sliding_window_view(x, spec.sw_frame)[::spec.sw_hop]
+    X = 20 * np.log10(np.abs(np.fft.rfft(frames * spec.sw_window, spec.sw_nfft, axis=1)) + 1e-9) + spec.sw_tilt
+    k = spec.sw_kernel
+    Xs = np.apply_along_axis(lambda r: np.convolve(r, k, "same"), 1, X[:, : spec.sw_hi + len(k)])
+    i = spec.sw_lo + np.argmax(Xs[:, spec.sw_lo:spec.sw_hi], axis=1)
+    base = np.median(Xs[:, spec.sw_base[0]:spec.sw_base[1]], axis=1)
+    return np.log2(spec.sw_freqs[i]), Xs[np.arange(len(i)), i] - base
+
+
+def sweep_valid(freq_log2, hop_sec, settle_sec=0.040, ceiling_oct=np.log2(1.4)):
+    """Frames whose peak is plausible: after the attack the resonance only
+    falls (the MEG decays, the accent sweep peaks early), so a frame more than
+    1.4x above the lowest peak so far is a noise pick (the tilt correction
+    lifts the noise ~47 dB at 15 kHz late in quiet notes)."""
+    valid = np.ones(len(freq_log2), dtype=bool)
+    lowest = np.inf
+    start = int(round(settle_sec / hop_sec))
+    for k, f in enumerate(freq_log2):
+        if k < start:
+            continue
+        if f > lowest + ceiling_oct:
+            valid[k] = False
+        else:
+            lowest = min(lowest, f)
+    return valid
+
+
+SWEEP_MIN_HEIGHT_DB = 6.0   # frames where the reference's peak is at least this clear
+
+
+def sweep_error(rf, sf):
+    """RMS difference (semitones, clipped at 2 octaves) between the
+    reference's and the render's resonant-peak tracks, over the frames where
+    the reference shows a clear peak."""
+    if "sweep" not in rf or "sweep" not in sf:
+        return 0.0
+    (rfr, rh), (sfr, _) = rf["sweep"], sf["sweep"]
+    n = min(len(rfr), len(sfr))
+    if "sweep_valid" not in rf:
+        rf["sweep_valid"] = sweep_valid(rfr, 0.010)
+    m = (rh[:n] >= SWEEP_MIN_HEIGHT_DB) & rf["sweep_valid"][:n]
+    if not np.any(m):
+        return 0.0
+    e = np.clip(12.0 * (sfr[:n] - rfr[:n]), -24.0, 24.0)[m]
+    return float(np.sqrt(np.mean(e * e)))
 
 
 def compute_features(x, spec):
@@ -378,13 +544,16 @@ def compute_features(x, spec):
     S = np.abs(np.fft.rfft(frames * spec.st_window, axis=1)) ** 2
     Sc = np.concatenate([np.zeros((S.shape[0], 1)), np.cumsum(S, axis=1)], axis=1)
     bands = Sc[:, spec.st_edges[1:]] - Sc[:, spec.st_edges[:-1]]
-    return {
+    out = {
         "y": x,
         "harm": db(harm * norm),
         "inter": db(inter * norm),
         "env": db(env),
         "stft": db(bands / spec.st_frame ** 2),
     }
+    if spec.sweep:
+        out["sweep"] = sweep_track(x, spec)
+    return out
 
 
 FLOORS = {"harm": 80.0, "inter": 80.0, "env": 50.0, "stft": 70.0}
@@ -605,23 +774,29 @@ class Problem:
         self.r = renderer
         self.args = args
         self.w = {"harm": args.w_harm, "inter": args.w_inter, "env": args.w_env, "stft": args.w_stft,
-                  "peak": args.w_peak, "wave": args.w_wave}
+                  "peak": args.w_peak, "wave": args.w_wave, "sweep": args.w_sweep}
         self.pool = ThreadPoolExecutor(max_workers=args.workers)
 
         # Per-reference analysis
         for ref in refs:
-            f_guess = midi_to_hz(ref.midi) * 2 ** (ref.label_tune_cents / 1200.0)
-            ref.f0 = estimate_f0(ref.x, ref.sr, f_guess)
-            ref.tune_cents = 1200 * math.log2(ref.f0 / midi_to_hz(ref.midi))
-            ref.drift_cents = pitch_drift_cents(ref.x, ref.sr, ref.f0)
+            if ref.fixed_tune_cents is not None:
+                ref.tune_cents = ref.fixed_tune_cents
+                ref.f0 = midi_to_hz(ref.midi) * 2 ** (ref.tune_cents / 1200.0)
+                ref.drift_cents = 0.0
+            else:
+                f_guess = midi_to_hz(ref.midi) * 2 ** (ref.label_tune_cents / 1200.0)
+                ref.f0 = estimate_f0(ref.x, ref.sr, f_guess)
+                ref.tune_cents = 1200 * math.log2(ref.f0 / midi_to_hz(ref.midi))
+                ref.drift_cents = pitch_drift_cents(ref.x, ref.sr, ref.f0)
             ref.spec = FeatureSpec(ref, ref.f0, args.fmax, 1 << int(math.ceil(math.log2(ref.n * 4))))
+            ref.spec.sweep = args.w_sweep > 0 and ref.nominal["resonance"] >= 0.5
             ref.feat = compute_features(ref.x, ref.spec)
-            ref.onset_ms, ref.gate_ms = detect_timing(ref)
+            ref.onset_ms, ref.gate_ms = ref.timing_hint or detect_timing(ref)
             # Waveform window: sustained part, 15 ms after onset to 5 ms
             # before the gate closes (skips the VCA attack and release).
             ref.wave_lo = int((ref.onset_ms + 15.0) * ref.sr / 1000.0)
             ref.wave_hi = int((ref.onset_ms + ref.gate_ms - 5.0) * ref.sr / 1000.0)
-            ref.has_peak = ref.digits["resonance"] >= 1
+            ref.has_peak = ref.nominal["resonance"] >= 0.5
             ref.peak_k, ref.peak_lo, ref.peak_hi, ref.peak_ref_rel, ref.peak_weight = \
                 peak_window(ref.feat, ref.spec, has_peak=ref.has_peak)
 
@@ -637,18 +812,29 @@ class Problem:
                 continue
             lo, hi = min(lo, init), max(hi, init)
             self.params.append(Param(name, lo, hi, log, init, "model", group, target=name))
-        used = sorted({(knob, ref.digits[knob]) for ref in refs for knob in KNOBS.values()})
+        self.knob_nominal = {}
+        for ref in refs:
+            for knob in KNOBS.values():
+                self.knob_nominal[(knob, ref.labels[knob])] = ref.nominal[knob]
+        used = sorted(self.knob_nominal, key=lambda kl: (kl[0], str(kl[1])))
         if not (only and "knobs" not in only) and "knobs" not in fixed:
-            for knob, digit in used:
-                nom = digit_to_position(digit)
+            for knob, label in used:
+                nom = self.knob_nominal[(knob, label)]
                 lo, hi = max(0.0, nom - KNOB_PRIOR_SPAN), min(1.0, nom + KNOB_PRIOR_SPAN)
-                self.params.append(Param(f"{knob}@{digit}", lo, hi, False, nom, "knob", "knobs",
-                                         target=knob, nominal=nom))
+                p = Param(f"{knob}@{label}", lo, hi, False, nom, "knob", "knobs", target=knob, nominal=nom)
+                p.label = label
+                self.params.append(p)
         self.knob_digits = used
         self.capscale_idx = [i for i, p in enumerate(self.params)
                              if p.kind == "model" and p.target in
                              ("filterCapScale1", "filterCapScale2", "filterCapScale3", "filterCapScale4")]
         onset0 = max(0.0, float(np.median([r.onset_ms for r in refs])))
+        # Manifest clips carry their own measured note-on; the fitted onset is
+        # then a shift relative to it (a clip-dependent start), not a global
+        # position in the file.
+        self.relative_onset = all(r.timing_hint is not None for r in refs)
+        if self.relative_onset:
+            onset0 = 0.0
         gate0 = float(np.median([r.gate_ms for r in refs if not r.accent_step] or [r.gate_ms for r in refs]))
         self.timing_init = {"onsetMs": onset0, "gateMs": gate0}
         if not (only and "timing" not in only) and "timing" not in fixed:
@@ -657,21 +843,25 @@ class Problem:
             # "harmonic" tail the hardware (trimmed ~1 ms before its onset)
             # doesn't have -- the optimizer will happily use it to fake a
             # faster VCA attack.
-            self.params.append(Param("onsetMs", 0.0, 8.0, False, max(0.0, onset0), "timing", "timing"))
+            if self.relative_onset:
+                # Shift of the note-on against the manifest's (grid) note-on.
+                self.params.append(Param("onsetMs", -4.0, 4.0, False, 0.0, "timing", "timing"))
+            else:
+                self.params.append(Param("onsetMs", 0.0, 8.0, False, max(0.0, onset0), "timing", "timing"))
             self.params.append(Param("gateMs", max(10.0, gate0 - 30), gate0 + 30, False, gate0, "timing", "timing"))
         self.u0 = np.array([p.to_unit(p.init) for p in self.params])
 
     # -- mapping ------------------------------------------------------------
     def decode(self, u):
         base = self.r.defaults.copy()
-        knobs = {(k, d): digit_to_position(d) for k, d in self.knob_digits}
+        knobs = dict(self.knob_nominal)
         timing = dict(self.timing_init)
         for p, ui in zip(self.params, u):
             v = p.to_real(ui)
             if p.kind == "model":
                 base[self.r.index[p.target]] = v
             elif p.kind == "knob":
-                knobs[(p.target, int(p.key.split("@")[1]))] = v
+                knobs[(p.target, p.label)] = v
             else:
                 timing[p.key] = v
         return base, knobs, timing
@@ -679,7 +869,7 @@ class Problem:
     def sample_values(self, base, knobs, ref, knob_override=None):
         v = base.copy()
         for knob in KNOBS.values():
-            pos = knobs[(knob, ref.digits[knob])]
+            pos = knobs[(knob, ref.labels[knob])]
             if knob_override and knob in knob_override:
                 pos = knob_override[knob]
             v[self.r.index[knob]] = pos
@@ -688,7 +878,8 @@ class Problem:
 
     def render_ref(self, values, ref, timing):
         sr = ref.sr
-        onset = int(round(timing["onsetMs"] * sr / 1000.0))
+        onset_ms = timing["onsetMs"] + (ref.onset_ms if self.relative_onset else 0.0)
+        onset = int(round(onset_ms * sr / 1000.0))
         gate = max(1, int(round(timing["gateMs"] * sr / 1000.0)))
         pre = max(0, -onset)
         y, ok = self.r.render(values, ref.waveform, ref.midi, ref.accent_step, sr, gate, ref.n + pre)
@@ -705,6 +896,16 @@ class Problem:
         if not ok or not np.all(np.isfinite(y)) or np.max(np.abs(y)) > 50:
             return None
         return compute_features(y, ref.spec)
+
+    def _job_key(self, u, ref):
+        """Everything a render + feature extraction depends on: notes recorded
+        with the same settings (e.g. the repeated base setting of each x0x
+        set) are rendered once per candidate."""
+        base, knobs, timing = self.decode(u)
+        v = self.sample_values(base, knobs, ref)
+        onset = timing["onsetMs"] + (ref.onset_ms if self.relative_onset else 0.0)
+        return (v.tobytes(), ref.waveform, ref.midi, ref.accent_step, round(onset * ref.sr / 1000.0),
+                round(timing["gateMs"] * ref.sr / 1000.0), ref.n, ref.sr, ref.f0, ref.spec.nfft)
 
     def solve_gain(self, feats, refs):
         num = den = 0.0
@@ -730,6 +931,7 @@ class Problem:
             "stft": weighted_rms(e["stft"]),
             "peak": weighted_rms(sim_rel - ref.peak_ref_rel, ref.peak_weight),
             "wave": wave_error(ref, sf["y"]) if self.w["wave"] > 0 else 0.0,
+            "sweep": sweep_error(ref.feat, sf),
         }
         cost = sum(self.w[k] * comp[k] for k in comp) / sum(self.w.values())
         return cost, comp
@@ -755,7 +957,13 @@ class Problem:
     def evaluate_batch(self, U, gain=None):
         """Returns (costs, details) for a list of unit-space candidates."""
         jobs = [(ci, ri) for ci in range(len(U)) for ri in range(len(self.refs))]
-        feats = list(self.pool.map(lambda j: self._job(U[j[0]], self.refs[j[1]]), jobs))
+        keys = [self._job_key(U[ci], self.refs[ri]) for ci, ri in jobs]
+        first = {}
+        for j, k in enumerate(keys):
+            first.setdefault(k, j)
+        uniq = list(first.values())
+        res = dict(zip(uniq, self.pool.map(lambda j: self._job(U[jobs[j][0]], self.refs[jobs[j][1]]), uniq)))
+        feats = [res[first[k]] for k in keys]
         nr = len(self.refs)
         costs, details = [], []
         for ci, u in enumerate(U):
@@ -854,7 +1062,7 @@ class CMAES:
 
 
 def optimize(problem, u0, seconds, patience, sigma0, seed, label="fit", popsize=None, log_every=15.0,
-             batch_eval=None):
+             batch_eval=None, on_improve=None):
     batch_eval = batch_eval or (lambda U: problem.evaluate_batch(U)[0])
     rng = np.random.default_rng(seed)
     best_u = np.array(u0, dtype=float)
@@ -882,6 +1090,8 @@ def optimize(problem, u0, seconds, patience, sigma0, seed, label="fit", popsize=
         if F[i] < best_f:
             best_f, best_u = F[i], np.clip(X[i], 0, 1)
             history.append((time.time() - start, best_f))
+            if on_improve:
+                on_improve(best_u, best_f)
         if es.sigma < 1e-3 or es.condition() > 1e12:
             restarts += 1
             lam = min(es.lam * 2, 64)
@@ -937,9 +1147,13 @@ def sample_stats(problem, ref, sf, gain):
             "sim_height_db": round(float(sh[k_sim] - sh[0]), 1),
             "shape_error_db": round(comp["peak"], 2) if comp else None,
         }
+    # Overall level of the note (sum of the harmonic energies) vs. hardware:
+    # the x0x references are not normalised, so this is meaningful per note.
+    level_db = float(10 * np.log10(np.sum(10 ** (sh / 10)) / np.sum(10 ** (rh / 10))))
     return {
         "cost": cost,
         "components": comp,
+        "level_db": level_db,
         "harm_within_1db": float(np.mean(np.abs(ev) <= 1)) * 100,
         "harm_within_3db": float(np.mean(np.abs(ev) <= 3)) * 100,
         "harm_within_6db": float(np.mean(np.abs(ev) <= 6)) * 100,
@@ -957,8 +1171,11 @@ def summarize(problem, u, gain=None):
     per = [sample_stats(problem, ref, sf, d["gain_db"]) for ref, sf in zip(problem.refs, d["feats"])]
     agg = {k: float(np.mean([p[k] for p in per if not p.get("failed")]))
            for k in ("cost", "harm_within_1db", "harm_within_3db", "harm_within_6db", "harm_mean_abs_db")}
-    for comp in ("harm", "inter", "env", "stft", "wave"):
+    agg["level_rms_db"] = float(np.sqrt(np.mean([p["level_db"] ** 2 for p in per if not p.get("failed")])))
+    for comp in ("harm", "inter", "env", "stft", "wave", "sweep"):
         agg[comp] = float(np.mean([p["components"][comp] for p in per if not p.get("failed")]))
+    sw = [p["components"]["sweep"] for p, ref in zip(per, problem.refs) if ref.spec.sweep and not p.get("failed")]
+    agg["sweep"] = float(np.mean(sw)) if sw else 0.0
     peak_costs = [p["components"]["peak"] for p, ref in zip(per, problem.refs) if ref.has_peak and not p.get("failed")]
     agg["peak"] = float(np.mean(peak_costs)) if peak_costs else 0.0
     agg["objective"] = costs[0]
@@ -989,7 +1206,7 @@ def refit_labels(problem, u_best, gain, seconds, seed):
     out = {}
     names = list(KNOBS.values())
     for ri, ref in enumerate(problem.refs):
-        start_pos = np.array([knobs[(k, ref.digits[k])] for k in names])
+        start_pos = np.array([knobs[(k, ref.labels[k])] for k in names])
 
         def batch(U, ref=ref):
             def job(v):
@@ -1032,7 +1249,7 @@ def duplicate_labels(refs, tol_db=1.5):
             a, b = refs[i], refs[j]
             if a.midi != b.midi or a.waveform != b.waveform or a.accent_step != b.accent_step:
                 continue
-            diff = [k for k in KNOBS.values() if a.digits[k] != b.digits[k]]
+            diff = [k for k in KNOBS.values() if a.labels[k] != b.labels[k]]
             if not diff:
                 continue
             ha, hb = a.feat["harm"] - a.feat["harm"].max(), b.feat["harm"] - b.feat["harm"].max()
@@ -1044,10 +1261,11 @@ def duplicate_labels(refs, tol_db=1.5):
     return out
 
 
-def absorbed_cutoff_law(base_vals, idx, knobs):
+def absorbed_cutoff_law(base_vals, idx, knobs, nominal):
     """Re-express fitted cutoff knob positions as a new cutoff law so the
     plugin's knob 0/0.5/1 lands where the hardware's min/half/max do."""
-    p0, p1 = knobs.get(("cutoff", 0)), knobs.get(("cutoff", 1))
+    at = {nominal[kl]: v for kl, v in knobs.items() if kl[0] == "cutoff"}
+    p0, p1 = at.get(0.0), at.get(1.0)
     if p0 is None or p1 is None:
         return None
     e = base_vals[idx["cutoffTaperExp"]]
@@ -1055,7 +1273,7 @@ def absorbed_cutoff_law(base_vals, idx, knobs):
     basehz = base_vals[idx["cutoffBaseHz"]]
     a0, a1 = p0 ** e, p1 ** e
     new = {"cutoffBaseHz": basehz * 2 ** (span * a0), "cutoffSpanOct": span * (a1 - a0), "cutoffTaperExp": e}
-    p5 = knobs.get(("cutoff", 5))
+    p5 = at.get(0.5)
     if p5 is not None and a1 > a0:
         ratio = (p5 ** e - a0) / (a1 - a0)
         if 0 < ratio < 1:
@@ -1098,7 +1316,7 @@ def fmt_table(rows, headers):
     return "\n".join([line, sep] + body)
 
 
-def maybe_plot(problem, before, after, out_dir):
+def maybe_plot(problem, before, after, out_dir, shown=None):
     try:
         import matplotlib
         matplotlib.use("Agg")
@@ -1106,6 +1324,8 @@ def maybe_plot(problem, before, after, out_dir):
     except ImportError:
         return False
     for ri, ref in enumerate(problem.refs):
+        if shown is not None and ref.name not in shown:
+            continue
         fig, ax = plt.subplots(2, 1, figsize=(11, 7))
         spec = ref.spec
         top = ref.feat["harm"].max()
@@ -1138,13 +1358,36 @@ def maybe_plot(problem, before, after, out_dir):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--refs", default=str(REPO / "test" / "resources"), help="reference sample folder")
+    ap.add_argument("--manifest", nargs="?", const=str(DEFAULT_MANIFEST), default=None,
+                    help="use the notes of a reference manifest instead of --refs (default with no value: "
+                    "the dinsync.info x0x set, test/resources/x0x-reference/x0x_reference_manifest.json); "
+                    "--include/--exclude then match clip ids such as 'A1-p3-saw-acc'")
+    ap.add_argument("--analysis-ms", type=float, default=None,
+                    help="manifest only: compare just the first N ms after note-on (faster search; "
+                    "anything after the window, e.g. the gate-off release, is then unconstrained)")
+    ap.add_argument("--rotate", nargs="?", type=int, const=0, default=None,
+                    help="manifest only: one note per set/position, rotating through the four note kinds "
+                    "(a quarter of the notes; fast search subset). An optional offset 0-3 picks one of "
+                    "the four disjoint quarters")
+    ap.add_argument("--per-row-knobs", default="",
+                    help="manifest only: comma list of knobs (e.g. cutoff) whose position is fitted per chart row "
+                    "where the row holds that knob fixed (the hand-set knob can sit elsewhere than where the same "
+                    "percentage landed in the set that sweeps it)")
+    ap.add_argument("--max-renders", type=int, default=40,
+                    help="write audio/plots for this many samples (the worst-fitting ones)")
+    ap.add_argument("--no-sensitivity", action="store_true",
+                    help="skip the per-parameter sensitivity scan (2 evaluations per free parameter)")
     ap.add_argument("--build-dir", default=str(REPO / "build"))
+    ap.add_argument("--calibration", default=None,
+                    help="start from a calibration profile (calibrations/<name>.json) instead of the "
+                    "compiled-in SynthParameters defaults")
     ap.add_argument("--rebuild", action="store_true", help="rebuild the render library first")
     ap.add_argument("--out", default=None, help="output folder (default calibration_results/<timestamp>)")
     ap.add_argument("--max-minutes", type=float, default=20.0, help="time cap for the main fit")
     ap.add_argument("--patience-minutes", type=float, default=4.0, help="stop after this long without progress")
-    ap.add_argument("--refit-seconds", type=float, default=30.0,
-                    help="per-sample budget for the wrong-label check (0 disables)")
+    ap.add_argument("--refit-seconds", type=float, default=None,
+                    help="per-sample budget for the wrong-label check (0 disables; default 30, "
+                    "0 with --manifest)")
     ap.add_argument("--sigma", type=float, default=0.12, help="initial CMA-ES step (unit-cube scale)")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--workers", type=int, default=os.cpu_count() or 4)
@@ -1173,30 +1416,48 @@ def main():
                     "trade the peak away (see 2026-09 peak-vs-broadband tradeoff)")
     ap.add_argument("--w-wave", type=float, default=0.0,
                     help="weight on the phase-aligned, per-frame-normalised waveform comparison (0 = off)")
+    ap.add_argument("--w-sweep", type=float, default=0.0,
+                    help="weight on the resonant-peak sweep track (peak frequency over time, 30 ms frames, "
+                    "semitones) at Resonance >= 50 %% (0 = off)")
     ap.add_argument("--evaluate-only", action="store_true", help="score the current code, no fitting")
     ap.add_argument("--apply", action="store_true", help="write fitted defaults into src/core/SynthEngine.hpp")
     args = ap.parse_args()
 
-    ref_paths = sorted(Path(args.refs).glob("*.wav"))
     excludes = [e for e in args.exclude.split(",") if e]
-    ref_paths = [p for p in ref_paths if not any(e in p.name for e in excludes)]
     includes = [e for e in args.include.split(",") if e]
-    if includes:
-        ref_paths = [p for p in ref_paths if any(e in p.name for e in includes)]
+    if args.refit_seconds is None:
+        args.refit_seconds = 0.0 if args.manifest else 30.0
     refs = []
-    for p in ref_paths:
-        try:
-            refs.append(Reference(p, args.accent))
-        except ValueError as e:
-            print(f"skipping {p.name}: {e}")
+    if args.manifest:
+        refs = load_manifest(args.manifest, includes, excludes, args.analysis_ms, args.rotate,
+                             [k for k in args.per_row_knobs.split(",") if k])
+    else:
+        ref_paths = sorted(Path(args.refs).glob("*.wav"))
+        ref_paths = [p for p in ref_paths if not any(e in p.name for e in excludes)]
+        if includes:
+            ref_paths = [p for p in ref_paths if any(e in p.name for e in includes)]
+        for p in ref_paths:
+            try:
+                refs.append(Reference(p, args.accent))
+            except ValueError as e:
+                print(f"skipping {p.name}: {e}")
     if not refs:
-        sys.exit(f"no usable reference samples in {args.refs}")
+        sys.exit(f"no usable reference samples in {args.manifest or args.refs}")
 
     renderer = Renderer(find_library(Path(args.build_dir), args.rebuild))
+    if args.calibration:
+        # Start from a per-source profile (tools/calibration_profile.py)
+        # instead of the compiled-in SynthParameters defaults.
+        prof = json.loads(Path(args.calibration).read_text(encoding="utf-8"))
+        unknown = [k for k in prof["parameters"] if k not in renderer.index]
+        if unknown:
+            sys.exit(f"{args.calibration}: unknown parameters {', '.join(unknown)} (rebuild the render library?)")
+        for k, v in prof["parameters"].items():
+            renderer.defaults[renderer.index[k]] = v
     t0 = time.time()
     problem = Problem(refs, renderer, args)
     print(f"{len(refs)} reference samples, {len(problem.params)} free parameters, {args.workers} workers")
-    for ref in refs:
+    for ref in (refs if len(refs) <= 40 else []):
         print(f"  {ref.name}: f0 {ref.f0:.3f} Hz, tuning {ref.tune_cents:+.1f} c (label {ref.label_tune_cents:+.0f}), "
               f"pitch drift {ref.drift_cents:.2f} c, accent step {ref.accent_step}")
 
@@ -1211,11 +1472,29 @@ def main():
                                    "restarts": 0, "seconds": 0.0, "history": []}
     else:
         print(f"Optimizing for up to {args.max_minutes:.1f} min (patience {args.patience_minutes:.1f} min) ...")
+        # Checkpoint: the best model constants so far, as a calibration
+        # profile, so a killed run can resume with --calibration <out>/checkpoint.json.
+        ckpt_dir = Path(args.out) if args.out else REPO / "calibration_results" / "checkpoint"
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        base_profile = (json.loads(Path(args.calibration).read_text(encoding="utf-8")) if args.calibration
+                        else {"source": "compiled-in defaults", "parameters": {}})
+
+        def checkpoint(u, f):
+            base, _, _ = problem.decode(u)
+            prof = dict(base_profile)
+            prof["parameters"] = dict(base_profile.get("parameters", {}))
+            prof["parameters"].update({p.target: float(base[problem.r.index[p.target]])
+                                       for p in problem.params if p.kind == "model"})
+            prof["checkpoint"] = {"objective": float(f), "time": datetime.datetime.now().isoformat(timespec="seconds")}
+            tmp = ckpt_dir / "checkpoint.json.tmp"
+            tmp.write_text(json.dumps(prof, indent=1) + "\n", encoding="utf-8")
+            tmp.replace(ckpt_dir / "checkpoint.json")
+
         u_best, _, run = optimize(problem, problem.u0, args.max_minutes * 60, args.patience_minutes * 60,
-                                  args.sigma, args.seed)
+                                  args.sigma, args.seed, on_improve=checkpoint)
         print(f"Stopped: {run['reason']} after {run['evaluations']} evaluations")
     after = summarize(problem, u_best)
-    sens = sensitivity(problem, u_best, after["aggregate"]["objective"])
+    sens = {} if args.no_sensitivity else sensitivity(problem, u_best, after["aggregate"]["objective"])
     labels = {}
     if args.refit_seconds > 0:
         print("Checking reference labels (free per-sample knob fit) ...")
@@ -1232,22 +1511,25 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
     base0, knobs0, timing0 = problem.decode(problem.u0)
     idx = problem.r.index
 
-    # Audio for listening.
-    for ref in problem.refs:
-        write_wav(out_dir / "renders" / f"{ref.name}_hardware.wav", ref.x, ref.sr)
-        for lab, (b, k, t, g) in (("before", (base0, knobs0, timing0, before["aggregate"]["gain_db"])),
-                                  ("after", (base, knobs, timing, after["aggregate"]["gain_db"]))):
-            y, _ = problem.render_ref(problem.sample_values(b, k, ref), ref, t)
-            write_wav(out_dir / "renders" / f"{ref.name}_{lab}.wav", y * 10 ** (g / 20), ref.sr)
-    plotted = maybe_plot(problem, before, after, out_dir)
-
     model_values = {p.target: float(base[idx[p.target]]) for p in problem.params if p.kind == "model"}
-    absorbed = absorbed_cutoff_law(base, idx, knobs)
+    absorbed = absorbed_cutoff_law(base, idx, knobs, problem.knob_nominal)
 
     # Outlier analysis.
     costs = np.array([s["cost"] for s in after["samples"]])
     med = float(np.median(costs))
     ranking = sorted(zip([r.name for r in problem.refs], costs), key=lambda t: -t[1])
+
+    # Audio / plots for listening: the worst --max-renders samples.
+    shown = {name for name, _ in ranking[:args.max_renders]}
+    for ref in problem.refs:
+        if ref.name not in shown:
+            continue
+        write_wav(out_dir / "renders" / f"{ref.name}_hardware.wav", ref.x, ref.sr)
+        for lab, (b, k, t, g) in (("before", (base0, knobs0, timing0, before["aggregate"]["gain_db"])),
+                                  ("after", (base, knobs, timing, after["aggregate"]["gain_db"]))):
+            y, _ = problem.render_ref(problem.sample_values(b, k, ref), ref, t)
+            write_wav(out_dir / "renders" / f"{ref.name}_{lab}.wav", y * 10 ** (g / 20), ref.sr)
+    plotted = maybe_plot(problem, before, after, out_dir, shown)
     suspects = []
     for name, c in ranking:
         lab = labels.get(name)
@@ -1275,12 +1557,13 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
         "weights": problem.w,
         "references": [{"name": r.name, "f0_hz": r.f0, "tuning_cents": r.tune_cents,
                         "label_tuning_cents": r.label_tune_cents, "pitch_drift_cents": r.drift_cents,
-                        "accent_step": r.accent_step, "digits": r.digits} for r in problem.refs],
+                        "accent_step": r.accent_step, "knob_labels": r.labels, "set": r.group}
+                       for r in problem.refs],
         "before": {"aggregate": before["aggregate"], "samples": before["samples"]},
         "after": {"aggregate": after["aggregate"], "samples": after["samples"]},
         "model_parameters": {k: {"before": float(base0[idx[k]]), "after": v, "sensitivity": sens.get(k)}
                              for k, v in model_values.items()},
-        "knob_positions": {f"{k}@{d}": {"nominal": digit_to_position(d), "fitted": knobs[(k, d)],
+        "knob_positions": {f"{k}@{d}": {"nominal": problem.knob_nominal[(k, d)], "fitted": knobs[(k, d)],
                                         "sensitivity": sens.get(f"{k}@{d}")} for k, d in problem.knob_digits},
         "timing": {k: {"before": timing0[k], "after": timing[k]} for k in TIMING_PARAMS},
         "absorbed_cutoff_law": absorbed,
@@ -1300,9 +1583,9 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
     for k, v in hdr_vals.items():
         lines.append(f"float {k}{{{fmt_float(v)}}};")
     lines.append("")
-    lines.append("// Fitted hardware knob positions (plugin knob value at each labeled digit):")
+    lines.append("// Fitted hardware knob positions (plugin knob value at each labeled position):")
     for k, d in problem.knob_digits:
-        lines.append(f"//   {k:10s} digit {d}: {knobs[(k, d)]:.3f}  (nominal {digit_to_position(d):.2f})")
+        lines.append(f"//   {k:10s} {str(d):5s}: {knobs[(k, d)]:.3f}  (nominal {problem.knob_nominal[(k, d)]:.2f})")
     (out_dir / "synth_parameters.txt").write_text("\n".join(lines) + "\n")
 
     applied = []
@@ -1329,7 +1612,9 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
                      ("inter", "inter-harmonic error (dB)"),
                      ("env", "envelope error (dB)"), ("stft", "spectrogram error (dB)"),
                      ("wave", "aligned waveform error (10*sqrt(residual/ref))"),
+                     ("sweep", "resonant-peak sweep track error (semitones)"),
                      ("harm_mean_abs_db", "mean |harmonic error| (dB)"),
+                     ("level_rms_db", "note level error, RMS over notes (dB)"),
                      ("harm_within_1db", "harmonics within 1 dB (%)"),
                      ("harm_within_3db", "harmonics within 3 dB (%)"),
                      ("harm_within_6db", "harmonics within 6 dB (%)")):
@@ -1338,6 +1623,30 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
     md.append("")
     md.append(f"Recording gain solved as {A['gain_db']:+.1f} dB (before: {B['gain_db']:+.1f} dB).")
     md.append("")
+    groups = sorted({r.group for r in problem.refs if r.group})
+    if groups:
+        md.append("## Per set")
+        md.append("")
+        md.append("Mean error of each set's notes, and the RMS of their level errors (the "
+                  "recordings are not normalised, so absolute note levels are compared under one "
+                  "global gain).")
+        md.append("")
+        rows = []
+        for g in groups:
+            ii = [i for i, r in enumerate(problem.refs) if r.group == g]
+            sb = [before["samples"][i] for i in ii]
+            sa = [after["samples"][i] for i in ii]
+            ok = lambda ss: [x for x in ss if not x.get("failed")]
+            rows.append([g, len(ii), f"{np.mean([x['cost'] for x in sb]):.2f}",
+                         f"{np.mean([x['cost'] for x in sa]):.2f}",
+                         f"{np.sqrt(np.mean([x['level_db'] ** 2 for x in ok(sb)])):.1f}",
+                         f"{np.sqrt(np.mean([x['level_db'] ** 2 for x in ok(sa)])):.1f}",
+                         f"{np.mean([x['components']['harm'] for x in ok(sa)]):.1f}",
+                         f"{np.mean([x['components']['env'] for x in ok(sa)]):.1f}",
+                         f"{np.mean([x['components']['stft'] for x in ok(sa)]):.1f}"])
+        md.append(fmt_table(rows, ["set", "notes", "before", "after", "level before (dB)",
+                                   "level after (dB)", "harm", "env", "stft"]))
+        md.append("")
     md.append("## Per sample (sorted by remaining error, worst first)")
     md.append("")
     rows = []
@@ -1350,9 +1659,10 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
                      f"{sa['components']['inter']:.1f}",
                      f"{sa['components']['env']:.1f}", f"{sa['components']['stft']:.1f}",
                      f"{sa['components']['wave']:.1f}",
-                     f"{sa['harm_within_3db']:.0f}%", f"{ref.tune_cents:+.1f}", f"{ref.drift_cents:.2f}"])
+                     f"{sa['harm_within_3db']:.0f}%", f"{sb['level_db']:+.1f}", f"{sa['level_db']:+.1f}",
+                     f"{ref.tune_cents:+.1f}", f"{ref.drift_cents:.2f}"])
     md.append(fmt_table(rows, ["sample", "before", "after", "harm", "peak", "inter", "env", "stft", "wave",
-                               "harm ±3dB", "tuning (c)", "drift (c)"]))
+                               "harm ±3dB", "level before", "level after", "tuning (c)", "drift (c)"]))
     md.append("")
     md.append("### Resonant peak (Resonance=max samples)")
     md.append("")
@@ -1403,9 +1713,9 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
     md.append("")
     md.append("## Fitted knob positions")
     md.append("")
-    rows = [[f"{k} ({'min' if d == 0 else 'max' if d == 1 else d})", f"{digit_to_position(d):.2f}",
+    rows = [[f"{k} ({d})", f"{problem.knob_nominal[(k, d)]:.2f}",
              f"{knobs[(k, d)]:.3f}", f"{sens.get(f'{k}@{d}', 0):.3f}"] for k, d in problem.knob_digits]
-    md.append(fmt_table(rows, ["knob (digit)", "nominal", "fitted", "sensitivity"]))
+    md.append(fmt_table(rows, ["knob (label)", "nominal", "fitted", "sensitivity"]))
     if absorbed:
         md.append("")
         md.append("Cutoff law with the fitted end stops folded in (so the plugin's knob range equals the "
@@ -1423,13 +1733,15 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
         s = sens.get(k, 0.0)
         par = next(p for p in problem.params if p.target == k and p.kind == "model")
         u = par.to_unit(v)
-        note = "unconstrained" if s < 0.005 else ""
+        note = "unconstrained" if sens and s < 0.005 else ""
         if u < 0.02 or u > 0.98:
             note = (note + " " if note else "") + "AT BOUND (model may lack structure)"
         rows.append([k, f"{base0[idx[k]]:.5g}", f"{v:.5g}", f"{s:.3f}", note])
     md.append(fmt_table(rows, ["parameter", "before", "after", "sensitivity", ""]))
     md.append("")
-    md.append(f"Timing: note-on offset {timing['onsetMs']:.2f} ms, gate length {timing['gateMs']:.1f} ms.")
+    md.append(f"Timing: note-on offset {timing['onsetMs']:.2f} ms"
+              + (" (relative to each clip's measured note-on)" if problem.relative_onset else "")
+              + f", gate length {timing['gateMs']:.1f} ms.")
     md.append("")
     md.append("## Applying the result")
     md.append("")
@@ -1439,10 +1751,12 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
         md.append("Paste `synth_parameters.txt` into `acidus::SynthParameters` (src/core/SynthEngine.hpp) "
                   "or rerun with `--apply`.")
     md.append("")
-    md.append(f"Audio: `renders/` (hardware / before / after per sample)."
+    md.append(f"Audio: `renders/` (hardware / before / after for the {len(shown)} worst samples)."
               + (" Plots: `<sample>.png`." if plotted else ""))
     (out_dir / "report.md").write_text("\n".join(md) + "\n")
-    print("\n".join(md))
+    # The per-sample sections of a large (manifest) run are too long for a console.
+    cut = next((i for i, l in enumerate(md) if l.startswith("## Per sample")), len(md))
+    print("\n".join(md if len(problem.refs) <= 40 else md[:cut]))
     print(f"\nWrote {out_dir}")
 
 
