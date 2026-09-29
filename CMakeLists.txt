@@ -151,6 +151,15 @@ add_executable(acidus_gui_test
 )
 target_link_libraries(acidus_gui_test PRIVATE ${GUI_LIBS})
 
+# Performance benchmark (DSP, GUI rendering, optional real X11 window)
+add_executable(acidus_perf_bench
+    ${CORE_SOURCES}
+    ${CLAP_SOURCES}
+    ${GUI_SOURCES}
+    src/perf_bench_main.cpp
+)
+target_link_libraries(acidus_perf_bench PRIVATE ${GUI_LIBS})
+
 # Shared library with a C ABI that tools/calibrate_reference.py loads through
 # ctypes to render candidate notes while fitting the model to hardware
 # reference samples (test/resources). Same DSP core as the plugin.

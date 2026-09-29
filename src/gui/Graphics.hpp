@@ -24,6 +24,9 @@ public:
 
     void drawText(const Font& font, const char* text, int x, int y, uint32_t color, int textScale = 1);
 
+    // Blend one pixel in buffer coordinates (logical x scale), no scaling.
+    void blendPixel(int bx, int by, uint32_t srcColor);
+
     uint32_t getWidth() const { return logicalWidth_; }
     uint32_t getHeight() const { return logicalHeight_; }
 
@@ -34,8 +37,6 @@ private:
     int scale_{1};
     uint32_t bufferWidth_{0};
     uint32_t bufferHeight_{0};
-
-    void blendPixel(int bx, int by, uint32_t srcColor);
 };
 
 } // namespace acidus

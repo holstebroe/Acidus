@@ -59,12 +59,13 @@ public:
 
     const std::vector<uint32_t>& getPixelBuffer() const { return pixelBuffer_; }
 
-    void setFont(const Font& font) { font_ = font; }
+    void setFont(const Font& font) { font_ = font; staticKey_.clear(); overlayValid_ = false; }
     const Font& getFont() const { return font_; }
 
     void setControlRenderer(std::unique_ptr<IControlRenderer> renderer) {
         if (renderer) {
             controlRenderer_ = std::move(renderer);
+            staticKey_.clear();
         }
     }
 
@@ -73,6 +74,9 @@ public:
     // does this with the real frame time; tests call it directly).
     void advanceAnimation(double dt);
     size_t getBubbleCount() const { return bubbles_.size(); }
+    // Tests: stop renderFrame from advancing the animation with real time.
+    void setAnimationFrozen(bool frozen) { animationFrozen_ = frozen; }
+    bool isVisible() const { return visible_; }
     // A click on the calibration label (logo plate) loads the next
     // calibration preset.
     void handleMouseDown(int x, int y, bool isShift = false);
@@ -86,6 +90,15 @@ private:
 
     std::vector<uint32_t> pixelBuffer_; // ARGB format (32-bit)
     std::vector<uint32_t> hiResBuffer_; // 2x supersampled buffer
+    // Render caches (see renderFrame): the static layer, redrawn when a knob
+    // value changes, and the logo plate's lettering as a transparent overlay.
+    std::vector<uint32_t> staticBuffer_;
+    std::vector<uint32_t> logoOverlay_;
+    std::vector<double> staticKey_;
+    bool overlayValid_{false};
+    std::atomic<bool> visible_{true};
+    bool animationFrozen_{false};
+    int dirtyX_{0}, dirtyY_{0}, dirtyW_{0}, dirtyH_{0};   // region the last renderFrame repainted
     std::vector<Control> controls_;
     bool lastShiftState_{false};
 
@@ -137,7 +150,11 @@ private:
 
     void initControls();
     void updateKnobValuesFromPlugin();
-    void drawAcidusTitle(Graphics& g, int x, int y);
+    // Parts of the logo plate, drawn in this order around the bubbles.
+    static constexpr unsigned kTitlePlate = 1;       // box and shadow (static layer)
+    static constexpr unsigned kTitleForeground = 2;  // screws, lettering, tagline (overlay)
+    static constexpr unsigned kTitleDynamic = 4;     // smiley and preset label (every frame)
+    void drawAcidusTitle(Graphics& g, int x, int y, unsigned parts);
 };
 
 } // namespace acidus

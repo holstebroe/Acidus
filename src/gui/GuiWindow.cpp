@@ -75,7 +75,7 @@ void GuiWindow::updateKnobValuesFromPlugin() {
     }
 }
 
-void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY) {
+void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY, unsigned parts) {
     // Helper lambda to draw letter primitives for ACIDUS
     auto renderLetters = [&](Graphics& gfx, int x, int y, uint32_t color) {
         // A
@@ -142,54 +142,61 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY) {
     logoPlateW_ = plateW;
     logoPlateH_ = plateH;
 
-    g.fillRect(plateX + 3, plateY + 4, plateW, plateH, 0x50000000);
-    g.fillRect(plateX, plateY, plateW, plateH, 0xFF131517);
-    g.drawRect(plateX - 2, plateY - 2, plateW + 4, plateH + 4, 0xFF4A4E52);
-    g.drawRect(plateX, plateY, plateW, plateH, 0xFF040506);
-    g.drawLine(plateX + 2, plateY + 2, plateX + plateW - 3, plateY + 2, 0xFF2C3030, 1);
-
-    // Bubbles rise behind the lettering.
-    drawBubbles(g);
-
-    // Small corner screws for a hardware badge feel.
-    for (int sx = 0; sx < 2; ++sx) {
-        for (int sy = 0; sy < 2; ++sy) {
-            int scx = plateX + 7 + sx * (plateW - 14);
-            int scy = plateY + 7 + sy * (plateH - 14);
-            g.fillCircle(scx, scy, 3, 0xFF3A3E42);
-            g.drawCircle(scx, scy, 3, 0xFF08090A, 1);
-            g.drawLine(scx - 2, scy, scx + 2, scy, 0xFF1A1C1E, 1);
-        }
-    }
-
-    // 1. Outer halo (pass offsets -2 to +2)
-    for (int dx = -2; dx <= 2; ++dx) {
-        for (int dy = -2; dy <= 2; ++dy) {
-            if (dx == 0 && dy == 0) continue;
-            renderLetters(g, startX + dx, startY + dy, dimGlow);
-        }
-    }
-
-    // 2. Inner halo (pass offsets -1 to +1)
-    for (int dx = -1; dx <= 1; ++dx) {
-        for (int dy = -1; dy <= 1; ++dy) {
-            if (dx == 0 && dy == 0) continue;
-            renderLetters(g, startX + dx, startY + dy, medGlow);
-        }
-    }
-
-    // 3. Core Acid Green
-    renderLetters(g, startX, startY, acidGreen);
-
-    // 4. Subtle inner highlight line
-    renderLetters(g, startX + 1, startY + 1, brightCore);
-
-    // 5. Tagline underneath the lockup, in the panel's own pixel font.
     const char* subtitle = "ANALOG BASS SYNTH";
     int subtitleW = font_.getTextWidth(subtitle, 1);
     int subtitleX = startX + (logoW - subtitleW) / 2;
     int subtitleY = startY + logoH + subtitleGap;
-    g.drawText(font_, subtitle, subtitleX, subtitleY, 0xFF1B8224, 1);
+
+    if (parts & kTitlePlate) {
+        g.fillRect(plateX + 3, plateY + 4, plateW, plateH, 0x50000000);
+        g.fillRect(plateX, plateY, plateW, plateH, 0xFF131517);
+        g.drawRect(plateX - 2, plateY - 2, plateW + 4, plateH + 4, 0xFF4A4E52);
+        g.drawRect(plateX, plateY, plateW, plateH, 0xFF040506);
+        g.drawLine(plateX + 2, plateY + 2, plateX + plateW - 3, plateY + 2, 0xFF2C3030, 1);
+    }
+
+    // (The bubbles are drawn here, between the plate and the lettering; see
+    // renderFrame.)
+
+    if (parts & kTitleForeground) {
+        // Small corner screws for a hardware badge feel.
+        for (int sx = 0; sx < 2; ++sx) {
+            for (int sy = 0; sy < 2; ++sy) {
+                int scx = plateX + 7 + sx * (plateW - 14);
+                int scy = plateY + 7 + sy * (plateH - 14);
+                g.fillCircle(scx, scy, 3, 0xFF3A3E42);
+                g.drawCircle(scx, scy, 3, 0xFF08090A, 1);
+                g.drawLine(scx - 2, scy, scx + 2, scy, 0xFF1A1C1E, 1);
+            }
+        }
+
+        // 1. Outer halo (pass offsets -2 to +2)
+        for (int dx = -2; dx <= 2; ++dx) {
+            for (int dy = -2; dy <= 2; ++dy) {
+                if (dx == 0 && dy == 0) continue;
+                renderLetters(g, startX + dx, startY + dy, dimGlow);
+            }
+        }
+
+        // 2. Inner halo (pass offsets -1 to +1)
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dy = -1; dy <= 1; ++dy) {
+                if (dx == 0 && dy == 0) continue;
+                renderLetters(g, startX + dx, startY + dy, medGlow);
+            }
+        }
+
+        // 3. Core Acid Green
+        renderLetters(g, startX, startY, acidGreen);
+
+        // 4. Subtle inner highlight line
+        renderLetters(g, startX + 1, startY + 1, brightCore);
+
+        // 5. Tagline underneath the lockup, in the panel's own pixel font.
+        g.drawText(font_, subtitle, subtitleX, subtitleY, 0xFF1B8224, 1);
+    }
+
+    if (!(parts & kTitleDynamic)) return;
 
     // 6. The acid smiley.
     drawSmiley(g, startX + logoW / 2, subtitleY + subtitleH + 13);
@@ -285,53 +292,106 @@ void GuiWindow::renderFrame() {
     updateKnobValuesFromPlugin();
 
     auto now = std::chrono::steady_clock::now();
-    if (haveLastFrameTime_) {
+    if (haveLastFrameTime_ && !animationFrozen_) {
         advanceAnimation(std::chrono::duration<double>(now - lastFrameTime_).count());
     }
     lastFrameTime_ = now;
     haveLastFrameTime_ = true;
 
-    int hW = width_ * 2;
-    int hH = height_ * 2;
-    if (hiResBuffer_.size() != static_cast<size_t>(hW * hH)) {
-        hiResBuffer_.resize(hW * hH);
+    const int hW = static_cast<int>(width_) * 2;
+    const int hH = static_cast<int>(height_) * 2;
+    const size_t hiResSize = static_cast<size_t>(hW) * static_cast<size_t>(hH);
+    const int titleX = static_cast<int>(width_) - 180 + 26;
+    const int titleY = 42;
+    if (hiResBuffer_.size() != hiResSize) {
+        hiResBuffer_.assign(hiResSize, 0);
+        staticBuffer_.assign(hiResSize, 0);
+        logoOverlay_.assign(hiResSize, 0);
+        staticKey_.clear();
+        overlayValid_ = false;
+    }
+
+    // Only the logo plate animates. Everything else (panel, knobs, the
+    // plate's box) is cached in staticBuffer_ and redrawn when a knob value
+    // changes; the plate's lettering, screws and tagline are drawn once into
+    // a transparent overlay. Each frame then repaints just the plate.
+    std::vector<double> key;
+    key.reserve(controls_.size());
+    for (const auto& c : controls_) key.push_back(c.currentVal);
+    const bool fullRedraw = (key != staticKey_);
+    if (fullRedraw) {
+        staticKey_ = key;
+        Graphics g(staticBuffer_.data(), width_, height_, 2);
+
+        // 1. Brushed silver panel background
+        g.clear(0xFFDBDFE1);
+
+        // Top & Bottom metallic borders / trims
+        g.drawRect(0, 0, width_, 12, 0xFFC0C4C8);
+        g.drawLine(0, 12, width_, 12, 0xFF808488, 1);
+        g.drawLine(0, 13, width_, 13, 0xFFFFFFFF, 1);
+
+        g.drawLine(0, height_ - 14, width_, height_ - 14, 0xFF808488, 1);
+        g.drawRect(0, height_ - 13, width_, 13, 0xFFC0C4C8);
+
+        // Vertical dividing line separating controls from right title panel
+        int dividerX = static_cast<int>(width_) - 180;
+        g.drawLine(dividerX, 14, dividerX, height_ - 14, 0xFF181818, 2);
+
+        // 2. Draw Controls
+        if (controlRenderer_) {
+            for (const auto& ctrl : controls_) {
+                if (ctrl.type == ControlType::Knob) {
+                    controlRenderer_->drawKnob(g, ctrl, font_);
+                } else if (ctrl.type == ControlType::ToggleSwitch) {
+                    controlRenderer_->drawToggleSwitch(g, ctrl, font_);
+                }
+            }
+        }
+        drawAcidusTitle(g, titleX, titleY, kTitlePlate);
+    }
+    if (!overlayValid_) {
+        std::fill(logoOverlay_.begin(), logoOverlay_.end(), 0u);
+        Graphics og(logoOverlay_.data(), width_, height_, 2);
+        drawAcidusTitle(og, titleX, titleY, kTitleForeground);
+        overlayValid_ = true;
+    }
+
+    // Region to repaint: the whole frame after a knob change, else the plate
+    // (with its frame and shadow), in hi-res pixels.
+    int rx0 = 0, ry0 = 0, rx1 = hW, ry1 = hH;
+    if (!fullRedraw) {
+        rx0 = std::max(0, 2 * (logoPlateX_ - 4));
+        ry0 = std::max(0, 2 * (logoPlateY_ - 4));
+        rx1 = std::min(hW, 2 * (logoPlateX_ + logoPlateW_ + 6));
+        ry1 = std::min(hH, 2 * (logoPlateY_ + logoPlateH_ + 6));
+    }
+    for (int y = ry0; y < ry1; ++y) {
+        std::memcpy(&hiResBuffer_[static_cast<size_t>(y) * hW + rx0],
+                    &staticBuffer_[static_cast<size_t>(y) * hW + rx0],
+                    static_cast<size_t>(rx1 - rx0) * sizeof(uint32_t));
     }
 
     Graphics g(hiResBuffer_.data(), width_, height_, 2);
-
-    // 1. Brushed silver panel background
-    g.clear(0xFFDBDFE1);
-
-    // Top & Bottom metallic borders / trims
-    g.drawRect(0, 0, width_, 12, 0xFFC0C4C8);
-    g.drawLine(0, 12, width_, 12, 0xFF808488, 1);
-    g.drawLine(0, 13, width_, 13, 0xFFFFFFFF, 1);
-
-    g.drawLine(0, height_ - 14, width_, height_ - 14, 0xFF808488, 1);
-    g.drawRect(0, height_ - 13, width_, 13, 0xFFC0C4C8);
-
-    // Vertical dividing line separating controls from right title panel
-    int dividerX = static_cast<int>(width_) - 180;
-    g.drawLine(dividerX, 14, dividerX, height_ - 14, 0xFF181818, 2);
-
-    // 2. Draw Controls
-    if (controlRenderer_) {
-        for (const auto& ctrl : controls_) {
-            if (ctrl.type == ControlType::Knob) {
-                controlRenderer_->drawKnob(g, ctrl, font_);
-            } else if (ctrl.type == ControlType::ToggleSwitch) {
-                controlRenderer_->drawToggleSwitch(g, ctrl, font_);
-            }
+    // 3. The logo plate: bubbles, then the cached lettering on top, then the
+    // smiley and the calibration preset label.
+    drawBubbles(g);
+    const int ox0 = std::max(0, 2 * (logoPlateX_ - 4)), oy0 = std::max(0, 2 * (logoPlateY_ - 4));
+    const int ox1 = std::min(hW, 2 * (logoPlateX_ + logoPlateW_ + 6)), oy1 = std::min(hH, 2 * (logoPlateY_ + logoPlateH_ + 6));
+    for (int y = oy0; y < oy1; ++y) {
+        for (int x = ox0; x < ox1; ++x) {
+            const uint32_t o = logoOverlay_[static_cast<size_t>(y) * hW + x];
+            if (o >> 24) g.blendPixel(x, y, o);
         }
     }
+    drawAcidusTitle(g, titleX, titleY, kTitleDynamic);
 
-    // 3. Draw Title Logo "ACIDUS" in acid green with glow
-    drawAcidusTitle(g, dividerX + 26, 42);
+    dirtyX_ = rx0 / 2; dirtyY_ = ry0 / 2; dirtyW_ = (rx1 - rx0) / 2; dirtyH_ = (ry1 - ry0) / 2;
 
-    // 4. Downsample hiResBuffer_ (2x2 box filter) into pixelBuffer_
+    // 4. Downsample the repainted region (2x2 box filter) into pixelBuffer_
     pixelBuffer_.resize(width_ * height_);
-    for (uint32_t py = 0; py < height_; ++py) {
-        for (uint32_t px = 0; px < width_; ++px) {
+    for (int py = ry0 / 2; py < ry1 / 2; ++py) {
+        for (int px = rx0 / 2; px < rx1 / 2; ++px) {
             uint32_t p00 = hiResBuffer_[(2 * py) * hW + (2 * px)];
             uint32_t p01 = hiResBuffer_[(2 * py) * hW + (2 * px + 1)];
             uint32_t p10 = hiResBuffer_[(2 * py + 1) * hW + (2 * px)];
@@ -476,11 +536,13 @@ bool GuiWindow::setSize(uint32_t width, uint32_t height) {
 }
 
 bool GuiWindow::show() {
+    visible_ = true;
     renderFrame();
     return true;
 }
 
 bool GuiWindow::hide() {
+    visible_ = false;   // stops the animation repaints until shown again
     return true;
 }
 
@@ -536,6 +598,8 @@ void GuiWindow::eventLoopX11() {
             XNextEvent(display, &ev);
 
             if (ev.type == Expose) {
+                dirtyX_ = 0; dirtyY_ = 0;   // the server lost the window contents: send all
+                dirtyW_ = static_cast<int>(width_); dirtyH_ = static_cast<int>(height_);
                 drawX11Frame();
             } else if (ev.type == ButtonPress) {
                 bool isShift = (ev.xbutton.state & ShiftMask) != 0;
@@ -551,7 +615,7 @@ void GuiWindow::eventLoopX11() {
         }
         // Periodic repaint for the logo plate's bubble animation (~30 fps).
         auto now = std::chrono::steady_clock::now();
-        if (now - lastX11Repaint >= std::chrono::milliseconds(33)) {
+        if (visible_ && now - lastX11Repaint >= std::chrono::milliseconds(33)) {
             lastX11Repaint = now;
             renderFrame();
         }
@@ -571,7 +635,9 @@ void GuiWindow::drawX11Frame() {
                                  width_, height_, 32, 0);
 
     GC gc = DefaultGC(display, screen);
-    XPutImage(display, x11Window_, gc, image, 0, 0, 0, 0, width_, height_);
+    // Only the region renderFrame repainted (usually just the logo plate).
+    XPutImage(display, x11Window_, gc, image, dirtyX_, dirtyY_, dirtyX_, dirtyY_,
+              static_cast<unsigned>(dirtyW_), static_cast<unsigned>(dirtyH_));
 
     image->data = nullptr;
     XDestroyImage(image);
@@ -591,11 +657,11 @@ static LRESULT CALLBACK AcidusWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             CREATESTRUCTW* cs = reinterpret_cast<CREATESTRUCTW*>(lParam);
             gui = reinterpret_cast<GuiWindow*>(cs->lpCreateParams);
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(gui));
-            SetTimer(hwnd, 1, 16, NULL);
+            SetTimer(hwnd, 1, 33, NULL);   // ~30 fps bubble animation
             return 0;
         }
         case WM_TIMER: {
-            if (gui) {
+            if (gui && gui->isVisible()) {
                 gui->renderFrame();
             }
             return 0;
