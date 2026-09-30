@@ -227,7 +227,7 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY, unsigned pa
 }
 
 void GuiWindow::advanceAnimation(double dt) {
-    if (dt <= 0.0) return;
+    if (!(dt > 0.0)) return;   // also rejects NaN
     dt = std::min(dt, 0.1);   // don't burst after a stall
     animTime_ += dt;
     eyeFlash_ = std::max(0.0, eyeFlash_ - dt);
@@ -238,14 +238,15 @@ void GuiWindow::advanceAnimation(double dt) {
     double cutoff = 0.5;
     for (const auto& c : controls_) {
         if (c.id == PARAM_CUTOFF) {
-            cutoff = std::min(std::max((c.currentVal - c.minVal) / (c.maxVal - c.minVal), 0.0), 1.0);
+            const double norm = (c.currentVal - c.minVal) / (c.maxVal - c.minVal);
+            cutoff = std::isfinite(norm) ? std::min(std::max(norm, 0.0), 1.0) : 0.5;
         }
     }
     const double rate = 0.5 + 12.0 * std::pow(cutoff, 1.5);   // bubbles per second
     bubbleSpawnAccum_ += rate * dt;
 
     std::uniform_real_distribution<double> uni(0.0, 1.0);
-    while (bubbleSpawnAccum_ >= 1.0) {
+    while (bubbleSpawnAccum_ >= 1.0 && bubbles_.size() < 256) {
         bubbleSpawnAccum_ -= 1.0;
         Bubble b;
         b.r = 1.0 + 2.2 * uni(rng_);
@@ -255,6 +256,7 @@ void GuiWindow::advanceAnimation(double dt) {
         b.phase = 6.283 * uni(rng_);
         bubbles_.push_back(b);
     }
+    bubbleSpawnAccum_ = std::min(bubbleSpawnAccum_, 1.0);
     for (auto& b : bubbles_) {
         b.y -= b.speed * dt;
     }
@@ -310,6 +312,7 @@ double GuiWindow::glowPulse() const {
 }
 
 void GuiWindow::renderFrame() {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
     updateKnobValuesFromPlugin();
 
     // An accented note makes the smiley's eyes pop for a moment.
@@ -414,7 +417,8 @@ void GuiWindow::renderFrame() {
     const int ox1 = std::min(hW, 2 * (logoPlateX_ + logoPlateW_ + 6)), oy1 = std::min(hH, 2 * (logoPlateY_ + logoPlateH_ + 6));
     // The lettering's halo breathes once per bar (see glowPulse), under the
     // lettering itself.
-    const uint32_t glowAlpha = static_cast<uint32_t>(std::lround(255.0 * glowPulse()));
+    const double pulse = glowPulse();
+    const uint32_t glowAlpha = static_cast<uint32_t>(std::min(std::max(std::isfinite(pulse) ? 255.0 * pulse : 255.0, 0.0), 255.0));
     for (int y = oy0; y < oy1; ++y) {
         for (int x = ox0; x < ox1; ++x) {
             const size_t i = static_cast<size_t>(y) * hW + x;
@@ -455,6 +459,7 @@ void GuiWindow::renderFrame() {
 }
 
 void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
     lastShiftState_ = isShift;
 
     // Click on the calibration label: load the next calibration preset.
@@ -507,6 +512,7 @@ void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
 }
 
 void GuiWindow::handleMouseDrag(int x, int y, bool isShift) {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
     if (activeControlIndex_ < 0 || activeControlIndex_ >= static_cast<int>(controls_.size())) return;
 
     auto& ctrl = controls_[activeControlIndex_];
@@ -521,6 +527,7 @@ void GuiWindow::handleMouseDrag(int x, int y, bool isShift) {
     int deltaY = dragStartY_ - y;
 
     double range = ctrl.maxVal - ctrl.minVal;
+    if (!(range > 0.0)) return;
     double sensitivity = (isShift ? 0.0025 : 0.0125) * range;
     double newVal = dragStartVal_ + deltaY * sensitivity;
 
@@ -535,6 +542,7 @@ void GuiWindow::handleMouseDrag(int x, int y, bool isShift) {
 }
 
 void GuiWindow::handleMouseUp() {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
     if (activeControlIndex_ >= 0 && activeControlIndex_ < static_cast<int>(controls_.size())) {
         if (plugin_) {
             plugin_->onEndEditFromGui(controls_[activeControlIndex_].id);
@@ -544,7 +552,7 @@ void GuiWindow::handleMouseUp() {
 }
 
 bool GuiWindow::setParent(const clap_window_t* window) {
-    if (!window) return false;
+    if (!window || !window->api) return false;
 #if defined(__linux__) && !defined(__APPLE__)
     if (std::strcmp(window->api, CLAP_WINDOW_API_X11) == 0) {
         x11ParentWindow_ = window->x11;
@@ -568,9 +576,14 @@ bool GuiWindow::setParent(const clap_window_t* window) {
 }
 
 bool GuiWindow::setSize(uint32_t width, uint32_t height) {
+    // The layout is fixed; refuse sizes that are degenerate or would allocate
+    // absurd amounts (the 2x supersample buffer alone is 16 bytes/pixel).
+    constexpr uint32_t kMaxDim = 4096;
+    if (width == 0 || height == 0 || width > kMaxDim || height > kMaxDim) return false;
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
     width_ = width;
     height_ = height;
-    pixelBuffer_.resize(width_ * height_, 0xFFDBDFE1);
+    pixelBuffer_.assign(static_cast<size_t>(width_) * height_, 0xFFDBDFE1);
     renderFrame();
     return true;
 }
@@ -628,6 +641,7 @@ void GuiWindow::initX11Window() {
 }
 
 void GuiWindow::eventLoopX11() {
+  try {
     if (!x11Display_) return;
     Display* display = static_cast<Display*>(x11Display_);
     auto lastX11Repaint = std::chrono::steady_clock::now();
@@ -641,7 +655,7 @@ void GuiWindow::eventLoopX11() {
                 dirtyX_ = 0; dirtyY_ = 0;   // the server lost the window contents: send all
                 dirtyW_ = static_cast<int>(width_); dirtyH_ = static_cast<int>(height_);
                 drawX11Frame();
-            } else if (ev.type == ButtonPress) {
+            } else if (ev.type == ButtonPress && ev.xbutton.button == Button1) {
                 bool isShift = (ev.xbutton.state & ShiftMask) != 0;
                 handleMouseDown(ev.xbutton.x, ev.xbutton.y, isShift);
             } else if (ev.type == MotionNotify) {
@@ -649,7 +663,7 @@ void GuiWindow::eventLoopX11() {
                     bool isShift = (ev.xmotion.state & ShiftMask) != 0;
                     handleMouseDrag(ev.xmotion.x, ev.xmotion.y, isShift);
                 }
-            } else if (ev.type == ButtonRelease) {
+            } else if (ev.type == ButtonRelease && ev.xbutton.button == Button1) {
                 handleMouseUp();
             }
         }
@@ -661,10 +675,22 @@ void GuiWindow::eventLoopX11() {
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
+  } catch (...) {
+    // An exception escaping a thread function would std::terminate the host.
+  }
 }
 
 void GuiWindow::drawX11Frame() {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
     if (!x11Display_ || !x11Created_) return;
+    if (pixelBuffer_.size() < static_cast<size_t>(width_) * height_) return;
+
+    // Clip the dirty region to the image: an out-of-range XPutImage raises an
+    // X protocol error, whose default handler exits the whole host process.
+    const int imgW = static_cast<int>(width_), imgH = static_cast<int>(height_);
+    int x0 = std::min(std::max(dirtyX_, 0), imgW), y0 = std::min(std::max(dirtyY_, 0), imgH);
+    int x1 = std::min(std::max(dirtyX_ + dirtyW_, 0), imgW), y1 = std::min(std::max(dirtyY_ + dirtyH_, 0), imgH);
+    if (x1 <= x0 || y1 <= y0) return;
 
     Display* display = static_cast<Display*>(x11Display_);
     int screen = DefaultScreen(display);
@@ -673,11 +699,12 @@ void GuiWindow::drawX11Frame() {
                                  24, ZPixmap, 0,
                                  reinterpret_cast<char*>(pixelBuffer_.data()),
                                  width_, height_, 32, 0);
+    if (!image) return;
 
     GC gc = DefaultGC(display, screen);
     // Only the region renderFrame repainted (usually just the logo plate).
-    XPutImage(display, x11Window_, gc, image, dirtyX_, dirtyY_, dirtyX_, dirtyY_,
-              static_cast<unsigned>(dirtyW_), static_cast<unsigned>(dirtyH_));
+    XPutImage(display, x11Window_, gc, image, x0, y0, x0, y0,
+              static_cast<unsigned>(x1 - x0), static_cast<unsigned>(y1 - y0));
 
     image->data = nullptr;
     XDestroyImage(image);
@@ -689,7 +716,7 @@ void GuiWindow::drawX11Frame() {
 static const wchar_t* kAcidusClassName = L"AcidusWindowCLASS";
 static bool g_win32ClassRegistered = false;
 
-static LRESULT CALLBACK AcidusWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+static LRESULT CALLBACK AcidusWndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     GuiWindow* gui = reinterpret_cast<GuiWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 
     switch (msg) {
@@ -749,6 +776,14 @@ static LRESULT CALLBACK AcidusWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
+static LRESULT CALLBACK AcidusWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    try {
+        return AcidusWndProcImpl(hwnd, msg, wParam, lParam);
+    } catch (...) {
+        return DefWindowProcW(hwnd, msg, wParam, lParam);   // never unwind through the OS
+    }
+}
+
 void GuiWindow::initWin32Window() {
     if (hwnd_) return;
 
@@ -777,7 +812,9 @@ void GuiWindow::initWin32Window() {
 }
 
 void GuiWindow::drawWin32Frame() {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
     if (!hwnd_) return;
+    if (pixelBuffer_.size() < static_cast<size_t>(width_) * height_) return;
 
     HDC hdc = GetDC(static_cast<HWND>(hwnd_));
     if (!hdc) return;
@@ -812,16 +849,17 @@ void GuiWindow::drawCocoaFrame() {}
 const clap_plugin_gui_t g_acidusGuiExtension = {
     [](const clap_plugin_t* plugin, const char* api, bool is_floating) -> bool {
 #if defined(__linux__) && !defined(__APPLE__)
-        return std::strcmp(api, CLAP_WINDOW_API_X11) == 0 && !is_floating;
+        return api && std::strcmp(api, CLAP_WINDOW_API_X11) == 0 && !is_floating;
 #elif defined(_WIN32)
-        return std::strcmp(api, CLAP_WINDOW_API_WIN32) == 0 && !is_floating;
+        return api && std::strcmp(api, CLAP_WINDOW_API_WIN32) == 0 && !is_floating;
 #elif defined(__APPLE__)
-        return std::strcmp(api, CLAP_WINDOW_API_COCOA) == 0 && !is_floating;
+        return api && std::strcmp(api, CLAP_WINDOW_API_COCOA) == 0 && !is_floating;
 #else
         return false;
 #endif
     },
     [](const clap_plugin_t* plugin, const char** api, bool* is_floating) -> bool {
+        if (!api || !is_floating) return false;
 #if defined(__linux__) && !defined(__APPLE__)
         *api = CLAP_WINDOW_API_X11;
 #elif defined(_WIN32)
@@ -834,17 +872,18 @@ const clap_plugin_gui_t g_acidusGuiExtension = {
     },
     [](const clap_plugin_t* plugin, const char* api, bool is_floating) -> bool {
         auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
-        self->createGuiWindow();
+        try { self->createGuiWindow(); } catch (...) { return false; }
         return true;
     },
     [](const clap_plugin_t* plugin) {
         auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
-        self->destroyGuiWindow();
+        try { self->destroyGuiWindow(); } catch (...) {}
     },
     [](const clap_plugin_t* plugin, double scale) -> bool {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
+        if (!width || !height) return false;
         *width = 1070;
         *height = 180;
         return true;
@@ -856,23 +895,29 @@ const clap_plugin_gui_t g_acidusGuiExtension = {
         return false;
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
+        if (!width || !height) return false;
         *width = 1070;
         *height = 180;
         return true;
     },
     [](const clap_plugin_t* plugin, uint32_t width, uint32_t height) -> bool {
         auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
-        if (self->getGuiWindow()) {
-            return self->getGuiWindow()->setSize(width, height);
-        }
+        try {
+            if (self->getGuiWindow()) {
+                return self->getGuiWindow()->setSize(width, height);
+            }
+        } catch (...) { return false; }
         return true;
     },
     [](const clap_plugin_t* plugin, const clap_window_t* window) -> bool {
         auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
-        if (!self->getGuiWindow()) {
-            self->createGuiWindow();
-        }
-        return self->getGuiWindow()->setParent(window);
+        if (!window || !window->api) return false;
+        try {
+            if (!self->getGuiWindow()) {
+                self->createGuiWindow();
+            }
+            return self->getGuiWindow() && self->getGuiWindow()->setParent(window);
+        } catch (...) { return false; }
     },
     [](const clap_plugin_t* plugin, const clap_window_t* window) -> bool {
         return false;
@@ -880,16 +925,20 @@ const clap_plugin_gui_t g_acidusGuiExtension = {
     [](const clap_plugin_t* plugin, const char* title) {},
     [](const clap_plugin_t* plugin) -> bool {
         auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
-        if (self->getGuiWindow()) {
-            return self->getGuiWindow()->show();
-        }
+        try {
+            if (self->getGuiWindow()) {
+                return self->getGuiWindow()->show();
+            }
+        } catch (...) {}
         return false;
     },
     [](const clap_plugin_t* plugin) -> bool {
         auto* self = static_cast<AcidusClap*>(plugin->plugin_data);
-        if (self->getGuiWindow()) {
-            return self->getGuiWindow()->hide();
-        }
+        try {
+            if (self->getGuiWindow()) {
+                return self->getGuiWindow()->hide();
+            }
+        } catch (...) {}
         return false;
     }
 };

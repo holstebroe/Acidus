@@ -151,6 +151,16 @@ add_executable(acidus_gui_test
 )
 target_link_libraries(acidus_gui_test PRIVATE ${GUI_LIBS})
 
+# Robustness tests: hostile parameters/events/state must never crash or
+# produce non-finite audio.
+add_executable(acidus_robustness_test
+    ${CORE_SOURCES}
+    ${CLAP_SOURCES}
+    ${GUI_SOURCES}
+    src/robustness_test_main.cpp
+)
+target_link_libraries(acidus_robustness_test PRIVATE ${GUI_LIBS})
+
 # Performance benchmark (DSP, GUI rendering, optional real X11 window)
 add_executable(acidus_perf_bench
     ${CORE_SOURCES}

@@ -4,11 +4,105 @@
 
 namespace acidus {
 
+namespace {
+
+// Hard limit on the plugin's output: only reached by a numerical blow-up, well
+// above anything the model produces in normal use.
+constexpr float kOutputSafetyLimit = 4.0f;
+
+inline float clampParam(float v, float lo, float hi, float fallback) {
+    if (!std::isfinite(v)) return fallback;
+    return std::min(std::max(v, lo), hi);
+}
+
+// A copy of `in` with every field forced finite and into a range the DSP
+// handles without dividing by zero, going unstable or overflowing. The ranges
+// are deliberately wider than the CLAP parameter ranges: this is a last line of
+// defence against corrupt state, hostile host automation and bad callers, not
+// the parameters' user-facing limits.
+SynthParameters sanitizeParams(const SynthParameters& in) {
+    const SynthParameters d;   // defaults, used for non-finite values
+    SynthParameters p = in;
+    auto fix = [](float& v, float lo, float hi, float def) { v = clampParam(v, lo, hi, def); };
+
+    fix(p.cutoff, 0.0f, 1.0f, d.cutoff);
+    fix(p.resonance, 0.0f, 1.0f, d.resonance);
+    fix(p.envMod, 0.0f, 1.0f, d.envMod);
+    fix(p.decay, 0.0f, 1.0f, d.decay);
+    fix(p.accent, 0.0f, 1.0f, d.accent);
+    fix(p.masterVolume, 0.0f, 4.0f, d.masterVolume);
+    fix(p.drive, 0.0f, 1.0f, d.drive);
+    fix(p.tuningCents, -1200.0f, 1200.0f, d.tuningCents);
+    if (p.waveform != Waveform::Saw && p.waveform != Waveform::Square) p.waveform = Waveform::Saw;
+
+    fix(p.oscCouplingHz, 1.0f, 500.0f, d.oscCouplingHz);
+    fix(p.resCouplingHz, 1.0f, 2000.0f, d.resCouplingHz);
+    fix(p.filterFeedbackGain, 0.0f, 40.0f, d.filterFeedbackGain);
+    fix(p.filterPostHpHz, 1.0f, 1000.0f, d.filterPostHpHz);
+    fix(p.filterNotchHz, 0.5f, 100.0f, d.filterNotchHz);
+    fix(p.filterNotchBandwidthHz, 0.1f, 100.0f, d.filterNotchBandwidthHz);
+    fix(p.filterAllpassHz, 0.5f, 200.0f, d.filterAllpassHz);
+    fix(p.filterInputCouplingHz, 0.5f, 500.0f, d.filterInputCouplingHz);
+    fix(p.filterOutputCouplingHz, 1000.0f, 40000.0f, d.filterOutputCouplingHz);
+    fix(p.filterCapScale1, 0.2f, 4.0f, d.filterCapScale1);
+    fix(p.filterCapScale2, 0.2f, 4.0f, d.filterCapScale2);
+    fix(p.filterCapScale3, 0.2f, 4.0f, d.filterCapScale3);
+    fix(p.filterCapScale4, 0.2f, 4.0f, d.filterCapScale4);
+    fix(p.filterLadderInputScale, 0.005f, 1.0f, d.filterLadderInputScale);
+    fix(p.filterLadderTopology, 0.0f, 1.0f, d.filterLadderTopology);
+    fix(p.vegDecaySec, 0.05f, 30.0f, d.vegDecaySec);
+    fix(p.vcaGateOffMs, 0.05f, 1000.0f, d.vcaGateOffMs);
+    fix(p.vcaGateOffAccentMs, 0.05f, 1000.0f, d.vcaGateOffAccentMs);
+    fix(p.vcaResTapRatio, 0.0f, 10.0f, d.vcaResTapRatio);
+    fix(p.vcaGainSaturationDrive, 0.0f, 50.0f, d.vcaGainSaturationDrive);
+
+    fix(p.cutoffBaseHz, 10.0f, 2000.0f, d.cutoffBaseHz);
+    fix(p.cutoffSpanOct, 0.0f, 8.0f, d.cutoffSpanOct);
+    fix(p.cutoffMaxHz, 100.0f, 40000.0f, d.cutoffMaxHz);
+    fix(p.cutoffTaperExp, 0.1f, 5.0f, d.cutoffTaperExp);
+    fix(p.envModScaleC0, 0.0f, 20.0f, d.envModScaleC0);
+    fix(p.envModScaleC0Slope, 0.0f, 20.0f, d.envModScaleC0Slope);
+    fix(p.envModScaleC1, 0.0f, 20.0f, d.envModScaleC1);
+    fix(p.envModScaleC1Slope, 0.0f, 20.0f, d.envModScaleC1Slope);
+    fix(p.envModOffset, -2.0f, 2.0f, d.envModOffset);
+    fix(p.envModTaperExp, 0.1f, 8.0f, d.envModTaperExp);
+    fix(p.envModTaperMid, 0.05f, 1.0f, d.envModTaperMid);
+    fix(p.envModTaperWidth, 0.0f, 2.0f, d.envModTaperWidth);
+    fix(p.envModOffsetCutSlope, -2.0f, 2.0f, d.envModOffsetCutSlope);
+    fix(p.accentSweepDepthOct, 0.0f, 20.0f, d.accentSweepDepthOct);
+    fix(p.accentVcaDepth, 0.0f, 20.0f, d.accentVcaDepth);
+    fix(p.accentChargeBaseSec, 0.0005f, 2.0f, d.accentChargeBaseSec);
+    fix(p.accentChargePotSec, 0.0005f, 2.0f, d.accentChargePotSec);
+    fix(p.accentDiodeDrop, 0.0f, 0.9f, d.accentDiodeDrop);
+    fix(p.accentMixSec, 0.001f, 2.0f, d.accentMixSec);
+    fix(p.oscSawLpfHz, 100.0f, 1.0e6f, d.oscSawLpfHz);
+    fix(p.oscSawShape, -1.0f, 1.0f, d.oscSawShape);
+    fix(p.oscSquareDutyDepth, 0.0f, 0.25f, d.oscSquareDutyDepth);
+    fix(p.oscSquareLevel, 0.0f, 2.0f, d.oscSquareLevel);
+    fix(p.vcfAttackMs, 0.01f, 100.0f, d.vcfAttackMs);
+    fix(p.vcaNormalDelayMs, 0.0f, 100.0f, d.vcaNormalDelayMs);
+    fix(p.vcaAttackMs, 0.05f, 500.0f, d.vcaAttackMs);
+    fix(p.vcfDecayMinSec, 0.005f, 10.0f, d.vcfDecayMinSec);
+    fix(p.vcfDecayMaxSec, 0.005f, 20.0f, d.vcfDecayMaxSec);
+    p.vcfDecayMaxSec = std::max(p.vcfDecayMaxSec, p.vcfDecayMinSec);
+    fix(p.vcfDecayTaper, 1.0f, 500.0f, d.vcfDecayTaper);
+    fix(p.accentDecaySec, 0.005f, 5.0f, d.accentDecaySec);
+    fix(p.filterResonanceSkew, -20.0f, 20.0f, d.filterResonanceSkew);
+    fix(p.filterResonanceLimit, 0.1f, 3.0f, d.filterResonanceLimit);
+    return p;
+}
+
+} // namespace
+
 SynthEngine::SynthEngine() {
     setSampleRate(44100.0);
 }
 
 void SynthEngine::setSampleRate(double sampleRate) {
+    // A host can hand over zero, a negative or a non-finite rate; every
+    // coefficient below divides by it.
+    if (!std::isfinite(sampleRate) || sampleRate <= 0.0) sampleRate = 44100.0;
+    sampleRate = std::min(std::max(sampleRate, 8000.0), 768000.0);
     sampleRate_ = sampleRate;
     osc_.setSampleRate(sampleRate_);
     env_.setSampleRate(sampleRate_);
@@ -25,6 +119,9 @@ void SynthEngine::reset() {
 }
 
 void SynthEngine::noteOn(int noteNumber, float velocity) {
+    if (noteNumber < 0 || noteNumber > 127) return;   // not a MIDI note (e.g. the CLAP wildcard -1)
+    if (!std::isfinite(velocity)) velocity = 1.0f;
+    const SynthParameters p = sanitizeParams(params_);
     bool isSlide = isNoteActive_;
     bool isAccent = (velocity >= kAccentVelocity);
     accentLevel_ = isAccent ? 1.0f : 0.0f;
@@ -32,11 +129,11 @@ void SynthEngine::noteOn(int noteNumber, float velocity) {
     currentNote_ = noteNumber;
     isNoteActive_ = true;
 
-    osc_.setWaveform(params_.waveform);
+    osc_.setWaveform(p.waveform);
     osc_.noteOn(noteNumber, isSlide);
     env_.setFaithfulAccentDecay(true);
-    env_.setDecay(params_.decay);
-    env_.noteOn(isAccent, isSlide, params_.accent);
+    env_.setDecay(p.decay);
+    env_.noteOn(isAccent, isSlide, p.accent);
 }
 
 void SynthEngine::noteOff(int noteNumber) {
@@ -48,42 +145,46 @@ void SynthEngine::noteOff(int noteNumber) {
 }
 
 void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
-    osc_.setWaveform(params_.waveform);
+    if (numFrames <= 0) return;
+    // params_ is written by the GUI/host threads while this runs; work from a
+    // sanitized snapshot so a torn or corrupt update can never reach the DSP.
+    const SynthParameters p = sanitizeParams(params_);
+    osc_.setWaveform(p.waveform);
     env_.setFaithfulAccentDecay(true);
-    env_.setDecay(params_.decay);
+    env_.setDecay(p.decay);
 
-    osc_.setTuningCents(params_.tuningCents);
-    osc_.setCouplingHz(params_.oscCouplingHz);
-    filter_.setResCouplingHz(params_.resCouplingHz);
-    filter_.setFeedbackGainCeiling(params_.filterFeedbackGain);
-    filter_.setPostFilterHpHz(params_.filterPostHpHz);
-    filter_.setNotchFreqHz(params_.filterNotchHz);
-    filter_.setNotchBandwidthHz(params_.filterNotchBandwidthHz);
-    filter_.setAllpassFreqHz(params_.filterAllpassHz);
-    filter_.setInputCouplingHz(params_.filterInputCouplingHz);
-    filter_.setOutputCouplingHz(params_.filterOutputCouplingHz);
-    filter_.setCapScale1(params_.filterCapScale1);
-    filter_.setCapScale2(params_.filterCapScale2);
-    filter_.setCapScale3(params_.filterCapScale3);
-    filter_.setCapScale4(params_.filterCapScale4);
-    filter_.setLadderInputScale(params_.filterLadderInputScale);
-    filter_.setLadderTopology(params_.filterLadderTopology >= 0.5f ? 1 : 0);
-    env_.setVegDecaySec(params_.vegDecaySec);
-    env_.setVcaGateOffMs(params_.vcaGateOffMs);
-    env_.setVcaGateOffAccentMs(params_.vcaGateOffAccentMs);
-    env_.setAttackTimesMs(params_.vcfAttackMs, params_.vcaAttackMs);
-    env_.setDecayTaper(params_.vcfDecayTaper);
-    env_.setDecayRangeSec(params_.vcfDecayMinSec, params_.vcfDecayMaxSec);
-    env_.setAccentDecaySec(params_.accentDecaySec);
-    env_.setAccentSweepResonance(params_.resonance);
-    env_.setAccentSweepTimes(params_.accentChargeBaseSec, params_.accentChargePotSec, params_.accentMixSec);
-    env_.setAccentKnob(std::min(std::max(params_.accent, 0.0f), 1.0f));
-    env_.setAccentDiodeDrop(params_.accentDiodeDrop);
-    env_.setVcaNormalDelaySec(params_.vcaNormalDelayMs * 0.001f);
-    osc_.setSawShaping(params_.oscSawLpfHz, params_.oscSawShape);
-    osc_.setSquareShaping(params_.oscSquareDutyDepth, params_.oscSquareLevel);
-    filter_.setResonanceSkew(params_.filterResonanceSkew);
-    filter_.setResonanceLimit(params_.filterResonanceLimit);
+    osc_.setTuningCents(p.tuningCents);
+    osc_.setCouplingHz(p.oscCouplingHz);
+    filter_.setResCouplingHz(p.resCouplingHz);
+    filter_.setFeedbackGainCeiling(p.filterFeedbackGain);
+    filter_.setPostFilterHpHz(p.filterPostHpHz);
+    filter_.setNotchFreqHz(p.filterNotchHz);
+    filter_.setNotchBandwidthHz(p.filterNotchBandwidthHz);
+    filter_.setAllpassFreqHz(p.filterAllpassHz);
+    filter_.setInputCouplingHz(p.filterInputCouplingHz);
+    filter_.setOutputCouplingHz(p.filterOutputCouplingHz);
+    filter_.setCapScale1(p.filterCapScale1);
+    filter_.setCapScale2(p.filterCapScale2);
+    filter_.setCapScale3(p.filterCapScale3);
+    filter_.setCapScale4(p.filterCapScale4);
+    filter_.setLadderInputScale(p.filterLadderInputScale);
+    filter_.setLadderTopology(p.filterLadderTopology >= 0.5f ? 1 : 0);
+    env_.setVegDecaySec(p.vegDecaySec);
+    env_.setVcaGateOffMs(p.vcaGateOffMs);
+    env_.setVcaGateOffAccentMs(p.vcaGateOffAccentMs);
+    env_.setAttackTimesMs(p.vcfAttackMs, p.vcaAttackMs);
+    env_.setDecayTaper(p.vcfDecayTaper);
+    env_.setDecayRangeSec(p.vcfDecayMinSec, p.vcfDecayMaxSec);
+    env_.setAccentDecaySec(p.accentDecaySec);
+    env_.setAccentSweepResonance(p.resonance);
+    env_.setAccentSweepTimes(p.accentChargeBaseSec, p.accentChargePotSec, p.accentMixSec);
+    env_.setAccentKnob(std::min(std::max(p.accent, 0.0f), 1.0f));
+    env_.setAccentDiodeDrop(p.accentDiodeDrop);
+    env_.setVcaNormalDelaySec(p.vcaNormalDelayMs * 0.001f);
+    osc_.setSawShaping(p.oscSawLpfHz, p.oscSawShape);
+    osc_.setSquareShaping(p.oscSquareDutyDepth, p.oscSquareLevel);
+    filter_.setResonanceSkew(p.filterResonanceSkew);
+    filter_.setResonanceLimit(p.filterResonanceLimit);
 
     for (int i = 0; i < numFrames; ++i) {
         if (!env_.isActive() && !isNoteActive_) {
@@ -101,14 +202,14 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float accentVcaVal = env_.getAccentVca();
         bool noteAccent = env_.isAccent();
 
-        float cNorm = std::min(std::max(params_.cutoff, 0.0f), 1.0f);
-        float resNorm = std::min(std::max(params_.resonance, 0.0f), 1.0f);
-        float envModNorm = std::min(std::max(params_.envMod, 0.0f), 1.0f);
-        float accentNorm = std::min(std::max(params_.accent, 0.0f), 1.0f);
+        float cNorm = std::min(std::max(p.cutoff, 0.0f), 1.0f);
+        float resNorm = std::min(std::max(p.resonance, 0.0f), 1.0f);
+        float envModNorm = std::min(std::max(p.envMod, 0.0f), 1.0f);
+        float accentNorm = std::min(std::max(p.accent, 0.0f), 1.0f);
 
-        float cTaper = std::pow(cNorm, params_.cutoffTaperExp);
+        float cTaper = std::pow(cNorm, p.cutoffTaperExp);
 
-        float cv_base = params_.cutoffSpanOct * cTaper;
+        float cv_base = p.cutoffSpanOct * cTaper;
 
         // Env Mod law (TB303_REFERENCE.md §13.1-13.2, Open303's fit of
         // hardware measurements): the MEG enters the antilog converter in
@@ -128,18 +229,18 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // mid-point, flattening toward 100 % -- the x0x unit measures
         // 0.86 / 1.48 / 3.58 / 5.05 oct at 25..100 % in both E3 and D3.
         float envModTapered;
-        if (params_.envModTaperWidth > 0.0f) {
+        if (p.envModTaperWidth > 0.0f) {
             auto logistic = [&](float x) {
-                return 1.0f / (1.0f + std::exp(-(x - params_.envModTaperMid) / params_.envModTaperWidth));
+                return 1.0f / (1.0f + std::exp(-(x - p.envModTaperMid) / p.envModTaperWidth));
             };
             float l0 = logistic(0.0f), l1 = logistic(1.0f);
             envModTapered = (logistic(envModNorm) - l0) / std::max(l1 - l0, 1e-6f);
         } else {
-            envModTapered = std::pow(envModNorm, params_.envModTaperExp);
+            envModTapered = std::pow(envModNorm, p.envModTaperExp);
         }
-        float envScaler = (1.0f - cNorm) * (params_.envModScaleC0 + params_.envModScaleC0Slope * envModTapered)
-                        + cNorm * (params_.envModScaleC1 + params_.envModScaleC1Slope * envModTapered);
-        float envOffset = params_.envModOffset + params_.envModOffsetCutSlope * cNorm;
+        float envScaler = (1.0f - cNorm) * (p.envModScaleC0 + p.envModScaleC0Slope * envModTapered)
+                        + cNorm * (p.envModScaleC1 + p.envModScaleC1Slope * envModTapered);
+        float envOffset = p.envModOffset + p.envModOffsetCutSlope * cNorm;
         float cv_envmod = envScaler * (vcfEnvVal - envOffset);
 
         // Accent sweep: the VR4b wiper voltage of the R46 / VR4b / C13 network
@@ -147,12 +248,12 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // Accent knob. Low Resonance: a sharp kick of ~0.42 x MEG_acc; high
         // Resonance: the delayed, rounded C13 bump ("wow"). C13's charge is
         // seen on every note, so notes after an accent start higher.
-        float cv_accent = accentSweepVal * params_.accentSweepDepthOct;
+        float cv_accent = accentSweepVal * p.accentSweepDepthOct;
 
         float cv_total = cv_base + cv_envmod + cv_accent;
 
-        float effectiveCutoff = params_.cutoffBaseHz * std::pow(2.0f, cv_total);
-        float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), params_.cutoffMaxHz);
+        float effectiveCutoff = p.cutoffBaseHz * std::pow(2.0f, cv_total);
+        float totalCutoff = std::min(std::max(effectiveCutoff, 20.0f), p.cutoffMaxHz);
         lastCutoffHz_ = totalCutoff;
 
         float filterOut = filter_.processSample(rawOsc, totalCutoff, resNorm);
@@ -168,7 +269,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // accented notes with no audible release at all.
         float vcaControl = vcaEnvVal;
         if (noteAccent) {
-            vcaControl += accentVcaVal * accentNorm * params_.accentVcaDepth;
+            vcaControl += accentVcaVal * accentNorm * p.accentVcaDepth;
         }
 
         // Control-current sum -> gain. vcaGainSaturationDrive > 0 bends the
@@ -178,9 +279,9 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // hardware pair D2 c1r1 a0/a1 shows +7.8 dB). Default 0 = linear
         // control law (TB303_REFERENCE.md §15.3: accent is a control-current
         // sum); the saturation lives on the signal below.
-        float driveNorm = vcaControl * params_.vcaGainSaturationDrive;
-        float vcaGain = (params_.vcaGainSaturationDrive > 0.0f)
-                            ? std::tanh(driveNorm) / std::tanh(std::max(params_.vcaGainSaturationDrive, 1e-6f))
+        float driveNorm = vcaControl * p.vcaGainSaturationDrive;
+        float vcaGain = (p.vcaGainSaturationDrive > 0.0f)
+                            ? std::tanh(driveNorm) / std::tanh(std::max(p.vcaGainSaturationDrive, 1e-6f))
                             : vcaControl;
 
         // Smooth OTA-style soft ceiling on the signal. Must stay smooth
@@ -196,12 +297,23 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // loss. This is the circuit's own level path, not a compensation
         // stage: the hardware samples show only 1.4 dB between A2 c0r0 and
         // c0r1, where the ladder alone gives ~7 dB.
-        float tapGain = (1.0f + params_.vcaResTapRatio * resNorm) / (1.0f + params_.vcaResTapRatio);
+        float tapGain = (1.0f + p.vcaResTapRatio * resNorm) / (1.0f + p.vcaResTapRatio);
         float xVal = filterOut * tapGain * vcaGain;
         float vcaSignal = std::tanh(xVal);
 
-        float drivenSignal = distortion_.processSample(vcaSignal, params_.drive);
-        float finalSample = drivenSignal * params_.masterVolume;
+        float drivenSignal = distortion_.processSample(vcaSignal, p.drive);
+        float finalSample = drivenSignal * p.masterVolume;
+
+        // A numerical blow-up (NaN/Inf in a filter or pedal state) would
+        // otherwise latch forever and poison the host's mix bus: silence this
+        // sample and restart the stateful stages from rest.
+        if (!std::isfinite(finalSample)) {
+            filter_.reset();
+            distortion_.reset();
+            osc_.resetFilterStates();
+            finalSample = 0.0f;
+        }
+        finalSample = std::min(std::max(finalSample, -kOutputSafetyLimit), kOutputSafetyLimit);
 
         if (outLeft) outLeft[i] = finalSample;
         if (outRight) outRight[i] = finalSample;

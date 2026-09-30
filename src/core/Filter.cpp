@@ -161,6 +161,7 @@ void Filter::reset() {
 
 float Filter::processSample(float input, float cutoffHz, float resonance) {
     constexpr int kOS = 8;
+    if (!std::isfinite(input)) input = 0.0f;
     float dt = 1.0f / static_cast<float>(oversampledRate_);
     // Safety clamp only: the engine limits the cutoff CV (cutoffMaxHz); the
     // 8x oversampled solver stays accurate to ~10 % of its own rate.
@@ -175,6 +176,7 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
     // the loop's critical gain at this cutoff (see setResonanceLimit).
     const float kMax = std::min(feedbackGainCeiling_, resonanceLimit_ * criticalFeedbackGain(totalCutoffHz));
     float kFb = skewResonance(resNorm) * kMax;
+    if (!std::isfinite(kFb)) kFb = 0.0f;
 
     const float Vt = 0.052f;
     const float VtInv = 19.23f;

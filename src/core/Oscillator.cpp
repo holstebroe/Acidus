@@ -90,10 +90,12 @@ float Oscillator::processNextSample() {
         currentFreq_ = pitchToFreq(currentPitch_);
     }
 
-    double phaseInc = currentFreq_ / sampleRate_;
+    // Keep the increment below Nyquist and the phase in [0, 1) even at the
+    // top MIDI notes on a low sample rate.
+    double phaseInc = std::min(currentFreq_ / sampleRate_, 0.49);
     phase_ += phaseInc;
     if (phase_ >= 1.0) {
-        phase_ -= 1.0;
+        phase_ -= std::floor(phase_);
     }
 
     double raw = 0.0;
