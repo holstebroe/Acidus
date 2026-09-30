@@ -219,7 +219,7 @@ int main() {
         }
         check(calPlugin.calibrationPresetIndex() == 0, "cycling wraps around to the first preset");
         calPlugin.selectCalibrationPreset(3, true);
-        check(std::string(calPlugin.calibrationPresetName()) == "DEVIL FISH", "DEVIL FISH preset");
+        check(std::string(calPlugin.calibrationPresetName()) == "HELL FISH", "HELL FISH preset");
         check(std::abs(calPlugin.getEngine().getParams().vcaAttackMs - presets[3].params.vcaAttackMs) < 1e-5f,
               "non-default constant applied");
 
@@ -234,7 +234,7 @@ int main() {
         check(std::abs(v - presets[3].params.vcaAttackMs) < 1e-6, "calibration parameter loaded from the preset");
         calPlugin.onParamValueFromGui(acidus::PARAM_CUTOFF_BASE_HZ, presets[3].params.cutoffBaseHz + 50.0);
         check(calPlugin.isCalibrationModified(), "edited calibration parameter marks the preset modified");
-        calGui.renderFrame();   // label now "DEVIL FISH*"
+        calGui.renderFrame();   // label now "HELL FISH*"
 #endif
 
         // State round trip: preset, calibration edits and knobs survive.

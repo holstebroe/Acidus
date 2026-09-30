@@ -186,7 +186,7 @@ inline SynthParameters makeCalibrationPreset_factory() {
     return p;
 }
 
-inline SynthParameters makeCalibrationPreset_devilfish() {
+inline SynthParameters makeCalibrationPreset_hellfish() {
     SynthParameters p;
     p.oscCouplingHz = 47.2397f;
     p.resCouplingHz = 104.291f;
@@ -248,7 +248,7 @@ inline const CalibrationPreset* calibrationPresets() {
         {"x0x", "X0X", makeCalibrationPreset_x0x()},
         {"acidvoice", "ACIDVOICE", makeCalibrationPreset_acidvoice()},
         {"factory", "FACTORY", makeCalibrationPreset_factory()},
-        {"devilfish", "DEVIL FISH", makeCalibrationPreset_devilfish()},
+        {"hellfish", "HELL FISH", makeCalibrationPreset_hellfish()},
     };
     return presets;
 }
