@@ -127,6 +127,12 @@ here). Its conformance failures (MEG and accent decay times, VEG onset,
 cutoff minimum) are the mod's intended departures from the stock
 schematic.
 
+## Adding a profile from a new source
+
+The whole procedure (recording a reference set, the knob sheet and manifest, fitting,
+judging the score, capturing the profile and adding it as a preset) is in
+[`docs/CALIBRATION_COOKBOOK.md`](../docs/CALIBRATION_COOKBOOK.md).
+
 ## Presets in the plugin
 
 The four profiles are built into the plugin as calibration presets. The

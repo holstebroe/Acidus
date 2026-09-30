@@ -197,6 +197,13 @@ python3 tools/calibrate_reference.py --manifest --rotate --analysis-ms 800 --no-
 
 `--include`/`--exclude` then match note ids such as `C2-p3-square-acc`.
 
+To calibrate against a new source (more samples, a hardware unit or clone, a
+software plugin, or found samples with video evidence of the knobs), follow
+[`docs/CALIBRATION_COOKBOOK.md`](docs/CALIBRATION_COOKBOOK.md): what to record, how
+to name and place the files, the knob sheet and manifest
+(`tools/make_reference_manifest.py`), the fit, how to judge it, and how to turn it
+into a plugin preset.
+
 Fitted constants are kept per source in `calibrations/` (`x0x`, `acidvoice`,
 `factory`, `devilfish`) and compiled into the plugin's presets with
 `tools/calibration_profile.py presets`; `calibrations/README.md` explains
