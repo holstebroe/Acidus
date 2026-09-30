@@ -478,6 +478,22 @@ void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
             int dx = x - ctrl.x;
             int dy = y - ctrl.y;
             if (dx * dx + dy * dy <= (ctrl.radius + 10) * (ctrl.radius + 10)) {
+                // Second click on the same knob within the window: reset it
+                // to its default as one complete gesture, and don't start a drag.
+                const auto now = std::chrono::steady_clock::now();
+                const bool isDoubleClick = lastClickControl_ == static_cast<int>(i)
+                                           && now - lastClickTime_ <= kDoubleClickWindow;
+                lastClickControl_ = isDoubleClick ? -1 : static_cast<int>(i);
+                lastClickTime_ = now;
+                double defaultVal = 0.0;
+                if (isDoubleClick && plugin_ && plugin_->paramsDefaultValue(ctrl.id, &defaultVal)) {
+                    ctrl.currentVal = (std::min)((std::max)(defaultVal, ctrl.minVal), ctrl.maxVal);
+                    plugin_->onBeginEditFromGui(ctrl.id);
+                    plugin_->onParamValueFromGui(ctrl.id, ctrl.currentVal);
+                    plugin_->onEndEditFromGui(ctrl.id);
+                    renderFrame();
+                    break;
+                }
                 activeControlIndex_ = static_cast<int>(i);
                 dragStartY_ = y;
                 dragStartVal_ = ctrl.currentVal;
@@ -525,6 +541,7 @@ void GuiWindow::handleMouseDrag(int x, int y, bool isShift) {
     }
 
     int deltaY = dragStartY_ - y;
+    if (deltaY != 0) lastClickControl_ = -1;   // a drag isn't the first half of a double-click
 
     double range = ctrl.maxVal - ctrl.minVal;
     if (!(range > 0.0)) return;

@@ -167,6 +167,7 @@ public:
     uint32_t paramsCount() const;
     bool paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) const;
     bool paramsValue(clap_id paramId, double* outValue);
+    bool paramsDefaultValue(clap_id paramId, double* outValue) const;
     void setParamValueFromGui(clap_id paramId, double value);
     void onBeginEditFromGui(clap_id paramId);
     void onParamValueFromGui(clap_id paramId, double value);

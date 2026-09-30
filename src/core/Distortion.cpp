@@ -40,13 +40,16 @@ constexpr float kThermalVoltage = 0.02585f;
 constexpr float kVHigh = 3.0f;
 constexpr float kVLow = 2.6f;
 
-// Calibration from the plugin's -1..1 float domain into the circuit's volts:
-// a full-scale sample is treated as a hot ~50 mV pedal input, matching a
-// guitar peak level scaled for a punchy bass synth; the output scale maps
-// the diode clipper's self-limited ceiling (~0.2-0.3 V, Section 6.1) back to
-// roughly unity so max-drive square waves don't blow past full scale.
+// Calibration from the plugin's float domain into the circuit's volts. The
+// engine's output stage (SynthEngine.cpp, kOutputStageGain) puts a typical
+// note at ~0 dBFS peak, and a full-scale sample is a ~50 mV pedal input:
+// the diodes start clipping about a quarter of the way up the Distortion
+// travel and the 741 hits its rails from about two thirds (Section 6.1),
+// while the lowest settings stay a crunch. The output scale maps the diode clipper's
+// self-limited ceiling (~0.2-0.3 V, Section 6.1) to about +1 dBFS, so
+// engaging the pedal is never quieter than bypass.
 constexpr float kInputVoltScale = 0.05f;
-constexpr float kOutputVoltScale = 0.25f;
+constexpr float kOutputVoltScale = 0.2f;
 
 constexpr int kOversample = 8;
 constexpr int kDiodeNewtonIters = 5;

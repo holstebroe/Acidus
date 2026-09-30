@@ -10,6 +10,15 @@ namespace {
 // above anything the model produces in normal use.
 constexpr float kOutputSafetyLimit = 4.0f;
 
+// Output amplifier after the VCA (the 303's output buffer), a fixed linear
+// gain. The VCA's tanh ceiling is unity, but a typical note only reaches a
+// quarter of it, which left the plugin peaking around -14 dBFS at full
+// Volume and fed the Distortion+ a signal too small to reach its op-amp
+// rails. Linear, so the clean timbre (and the calibration fits, which solve
+// one global gain) are unchanged; it sets the level everything downstream
+// sees: ~0 dBFS peaks at full Volume, and a hotter pedal input.
+constexpr float kOutputStageGain = 4.0f;
+
 inline float clampParam(float v, float lo, float hi, float fallback) {
     if (!std::isfinite(v)) return fallback;
     return std::min(std::max(v, lo), hi);
@@ -299,7 +308,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // c0r1, where the ladder alone gives ~7 dB.
         float tapGain = (1.0f + p.vcaResTapRatio * resNorm) / (1.0f + p.vcaResTapRatio);
         float xVal = filterOut * tapGain * vcaGain;
-        float vcaSignal = std::tanh(xVal);
+        float vcaSignal = std::tanh(xVal) * kOutputStageGain;
 
         float drivenSignal = distortion_.processSample(vcaSignal, p.drive);
         float finalSample = drivenSignal * p.masterVolume;

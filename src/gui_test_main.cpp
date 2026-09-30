@@ -82,6 +82,18 @@ int main() {
     std::cout << "Resonance after 80px fine drag with Shift: " << valFine << std::endl;
     assert(std::abs(valFine - 0.70) < 0.01);
 
+    // Double-click on a knob resets it to its default, without dragging.
+    gui.handleMouseDown(232, 100, false);
+    gui.handleMouseUp();
+    gui.handleMouseDown(232, 100, false);
+    gui.handleMouseDrag(232, 20, false);   // ignored: the double-click started no drag
+    gui.handleMouseUp();
+    double valReset = 0.0, resDefault = -1.0;
+    plugin.paramsValue(acidus::PARAM_RESONANCE, &valReset);
+    plugin.paramsDefaultValue(acidus::PARAM_RESONANCE, &resDefault);
+    std::cout << "Resonance after double-click: " << valReset << std::endl;
+    assert(std::abs(valReset - resDefault) < 1e-9);
+
     testCtx.types.clear();
     testCtx.paramIds.clear();
     testCtx.values.clear();

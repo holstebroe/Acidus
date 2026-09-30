@@ -927,6 +927,12 @@ bool AcidusClap::paramsValue(clap_id paramId, double* outValue) {
     return true;
 }
 
+bool AcidusClap::paramsDefaultValue(clap_id paramId, double* outValue) const {
+    if (paramId >= PARAM_COUNT || !outValue) return false;
+    *outValue = paramDefault_[paramId];
+    return true;
+}
+
 void AcidusClap::requestHostFlush() {
     if (host_) {
         const auto* host_params = static_cast<const clap_host_params_t*>(

@@ -134,6 +134,10 @@ private:
     void drawSmiley(Graphics& g, int cx, int cy);
     int dragStartY_{0};
     double dragStartVal_{0.0};
+    // Double-click on a knob resets it to its default value.
+    static constexpr std::chrono::milliseconds kDoubleClickWindow{400};
+    int lastClickControl_{-1};
+    std::chrono::steady_clock::time_point lastClickTime_{};
 
     std::atomic<bool> isRunning_{false};
     std::thread eventThread_;
