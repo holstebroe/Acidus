@@ -5,6 +5,7 @@
 #include "core/SynthEngine.hpp"
 #include <memory>
 #include <vector>
+#include <array>
 #include <mutex>
 #include <atomic>
 
@@ -212,7 +213,18 @@ private:
     SynthEngine engine_;
     std::unique_ptr<class GuiWindow> guiWindow_;
 
-    double paramValues_[PARAM_COUNT]{};
+    // Written by the audio thread (host automation, MIDI CC) and the GUI
+    // thread, read by both: atomic so a read is never torn.
+    std::atomic<double> paramValues_[PARAM_COUNT];
+    double paramMin_[PARAM_COUNT]{};
+    double paramMax_[PARAM_COUNT]{};
+    double paramDefault_[PARAM_COUNT]{};
+    double getParam(clap_id id) const { return paramValues_[id].load(std::memory_order_relaxed); }
+    // Clamps to the parameter's range; NaN/Inf fall back to the default.
+    double sanitizeParam(clap_id id, double v) const;
+    void setParam(clap_id id, double v) { paramValues_[id].store(sanitizeParam(id, v), std::memory_order_relaxed); }
+    void resetParamsToDefaults();
+    SynthParameters buildParams() const;
     std::atomic<int> calibrationPreset_{0};
     std::atomic<bool> stateDirty_{false};
     std::atomic<uint32_t> accentCount_{0};
@@ -223,8 +235,15 @@ private:
     std::atomic<int64_t> transportStampNs_{0};      // steady_clock time of that block
     void noteOnFromHost(int key, float velocity);
 
+    // GUI/preset -> host events, drained by the audio thread. Fixed capacity
+    // (no allocation on either side, bounded when the host is not processing);
+    // events beyond it are dropped.
+    static constexpr size_t kOutQueueCapacity = 1024;
     std::mutex outEventQueueMutex_;
-    std::vector<GuiParamEvent> outEventQueue_;
+    std::array<GuiParamEvent, kOutQueueCapacity> outEventQueue_;
+    size_t outEventCount_{0};
+    std::array<GuiParamEvent, kOutQueueCapacity> drainBuffer_;   // audio-thread scratch
+    void queueOutEvent(const GuiParamEvent& ev, bool audioThread);
 
     void handleEvent(const clap_event_header_t* header);
     void syncParamsToEngine();

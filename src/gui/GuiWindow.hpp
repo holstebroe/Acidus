@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstdint>
 #include <atomic>
+#include <mutex>
 #include <thread>
 #include <memory>
 #include <chrono>
@@ -89,6 +90,10 @@ private:
     AcidusClap* plugin_{nullptr};
     uint32_t width_{1070};
     uint32_t height_{180};
+
+    // The host's UI thread (show/setSize/...) and the window's own event
+    // thread both render and handle input; this serialises them.
+    mutable std::recursive_mutex guiMutex_;
 
     std::vector<uint32_t> pixelBuffer_; // ARGB format (32-bit)
     std::vector<uint32_t> hiResBuffer_; // 2x supersampled buffer
