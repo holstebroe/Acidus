@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 namespace acidus {
@@ -49,6 +50,25 @@ static const clap_plugin_audio_ports_t g_audioPorts = {
         info->port_type = CLAP_PORT_STEREO;
         info->in_place_pair = CLAP_INVALID_ID;
         return true;
+    }
+};
+
+static const clap_plugin_params_t g_params = {
+    [](const clap_plugin_t*) -> uint32_t { return 1; },
+    [](const clap_plugin_t* p, uint32_t i, clap_param_info_t* info) -> bool {
+        return guarded(false, [&] { return self(p)->paramsInfo(i, info); });
+    },
+    [](const clap_plugin_t* p, clap_id id, double* v) -> bool {
+        return guarded(false, [&] { return self(p)->paramsValue(id, v); });
+    },
+    [](const clap_plugin_t* p, clap_id id, double v, char* buf, uint32_t size) -> bool {
+        return guarded(false, [&] { return self(p)->paramsValueToText(id, v, buf, size); });
+    },
+    [](const clap_plugin_t* p, clap_id id, const char* text, double* v) -> bool {
+        return guarded(false, [&] { return self(p)->paramsTextToValue(id, text, v); });
+    },
+    [](const clap_plugin_t* p, const clap_input_events_t* in, const clap_output_events_t* out) {
+        guardedVoid([&] { self(p)->paramsFlush(in, out); });
     }
 };
 
@@ -194,10 +214,26 @@ clap_process_status SequencerClap::process(const clap_process_t* process) {
     const clap_input_events_t* in = process->in_events;
     const uint32_t inCount = in ? in->size(in) : 0;
     triggers_.clear();
+    // A transpose set outside the audio thread (GUI, state load) applies
+    // from the start of this block.
+    const int pendingTranspose = globalTranspose();
+    if (pendingTranspose != engine_.globalTranspose()) {
+        triggers_.push_back({ 0, false, -1, true, pendingTranspose });
+    }
     for (uint32_t i = 0; i < inCount; ++i) {
         const clap_event_header_t* h = in->get(in, i);
         if (!h || h->space_id != CLAP_CORE_EVENT_SPACE_ID) continue;
         TriggerEvent t;
+        int semitones;
+        if (transposeEvent(h, semitones)) {
+            // Host automation: sample-accurate.
+            globalTranspose_.store(semitones, std::memory_order_relaxed);
+            t = { h->time, false, -1, true, semitones };
+            t.time = std::min(t.time, frames > 0 ? frames - 1 : 0);
+            if (!triggers_.empty() && t.time < triggers_.back().time) t.time = triggers_.back().time;
+            if (triggers_.size() < kMaxBlockEvents) triggers_.push_back(t);
+            continue;
+        }
         if (asTrigger(h, t) && triggers_.size() < kMaxBlockEvents) {
             t.time = std::min(t.time, frames > 0 ? frames - 1 : 0);
             // Keep the list sorted even if the host's isn't.
@@ -213,6 +249,7 @@ clap_process_status SequencerClap::process(const clap_process_t* process) {
     // Merge the sequencer's notes with the passed-through events, in time order.
     const clap_output_events_t* out = process->out_events;
     if (!out || !out->try_push) return CLAP_PROCESS_CONTINUE;
+    pushParamOut(out);   // time 0: ahead of everything else
     uint32_t n = 0;
     auto pushNote = [&](const NoteEvent& e) {
         clap_event_note_t ev{};
@@ -245,17 +282,19 @@ const void* SequencerClap::getExtension(const char* id) {
     if (std::strcmp(id, CLAP_EXT_NOTE_PORTS) == 0) return &g_notePorts;
     if (std::strcmp(id, CLAP_EXT_AUDIO_PORTS) == 0) return &g_audioPorts;
     if (std::strcmp(id, CLAP_EXT_STATE) == 0) return &g_state;
+    if (std::strcmp(id, CLAP_EXT_PARAMS) == 0) return &g_params;
     if (std::strcmp(id, CLAP_EXT_GUI) == 0) return &g_sequencerGuiExtension;
     return nullptr;
 }
 
-// State: the pattern bank (Pattern.cpp), then the edited pattern and the
-// follow flag.
+// State: the pattern bank (Pattern.cpp), then the edited pattern, the
+// follow flag and the global transpose (int8).
 bool SequencerClap::stateSave(const clap_ostream_t* stream) {
     if (!stream || !stream->write) return false;
     std::string data = bank_.serialize();
     data += static_cast<char>(editPattern());
     data += static_cast<char>(followPlaying() ? 1 : 0);
+    data += static_cast<char>(static_cast<int8_t>(globalTranspose()));
     size_t done = 0;
     while (done < data.size()) {
         const int64_t w = stream->write(stream, data.data() + done, data.size() - done);
@@ -282,7 +321,120 @@ bool SequencerClap::stateLoad(const clap_istream_t* stream) {
         editPattern_.store(std::min<int>(data[used], kNumPatterns - 1));
         follow_.store(data[used + 1] != 0);
     }
+    int transpose = 0;
+    if (data.size() >= used + 3) transpose = static_cast<int8_t>(data[used + 2]);
+    globalTranspose_.store(std::min(std::max(transpose, kMinTranspose), kMaxTranspose));
     return true;
+}
+
+// --- Global transpose parameter ---------------------------------------------
+
+bool SequencerClap::transposeEvent(const clap_event_header_t* h, int& semitones) {
+    if (h->type != CLAP_EVENT_PARAM_VALUE || h->size < sizeof(clap_event_param_value_t)) return false;
+    const auto* ev = reinterpret_cast<const clap_event_param_value_t*>(h);
+    if (ev->param_id != kParamTranspose || !std::isfinite(ev->value)) return false;
+    semitones = static_cast<int>(std::lround(std::min(std::max(ev->value, double(kMinTranspose)), double(kMaxTranspose))));
+    return true;
+}
+
+bool SequencerClap::paramsInfo(uint32_t index, clap_param_info_t* info) const {
+    if (index != 0 || !info) return false;
+    std::memset(info, 0, sizeof(*info));
+    info->id = kParamTranspose;
+    info->flags = CLAP_PARAM_IS_AUTOMATABLE | CLAP_PARAM_IS_STEPPED;
+    std::snprintf(info->name, sizeof(info->name), "Key Transpose");
+    info->min_value = kMinTranspose;
+    info->max_value = kMaxTranspose;
+    info->default_value = 0.0;
+    return true;
+}
+
+bool SequencerClap::paramsValue(clap_id id, double* value) const {
+    if (id != kParamTranspose || !value) return false;
+    *value = globalTranspose();
+    return true;
+}
+
+bool SequencerClap::paramsValueToText(clap_id id, double value, char* buf, uint32_t size) const {
+    if (id != kParamTranspose || !buf || size == 0 || !std::isfinite(value)) return false;
+    std::snprintf(buf, size, "%+d st", static_cast<int>(std::lround(value)));
+    return true;
+}
+
+bool SequencerClap::paramsTextToValue(clap_id id, const char* text, double* value) const {
+    if (id != kParamTranspose || !text || !value) return false;
+    char* end = nullptr;
+    const double v = std::strtod(text, &end);
+    if (end == text || !std::isfinite(v)) return false;
+    *value = std::min(std::max(std::round(v), double(kMinTranspose)), double(kMaxTranspose));
+    return true;
+}
+
+void SequencerClap::paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out) {
+    const uint32_t count = in ? in->size(in) : 0;
+    for (uint32_t i = 0; i < count; ++i) {
+        const clap_event_header_t* h = in->get(in, i);
+        int semitones;
+        if (h && h->space_id == CLAP_CORE_EVENT_SPACE_ID && transposeEvent(h, semitones)) {
+            globalTranspose_.store(semitones, std::memory_order_relaxed);   // the next block applies it
+        }
+    }
+    if (out && out->try_push) pushParamOut(out);
+}
+
+void SequencerClap::queueParamOut(uint16_t type, double value) {
+    std::lock_guard<std::mutex> lock(paramOutMutex_);
+    if (paramOutCount_ < static_cast<int>(sizeof(paramOut_) / sizeof(paramOut_[0]))) {
+        paramOut_[paramOutCount_++] = { type, value };
+    }
+}
+
+void SequencerClap::pushParamOut(const clap_output_events_t* out) {
+    // Audio or main thread; never wait for the GUI.
+    std::unique_lock<std::mutex> lock(paramOutMutex_, std::try_to_lock);
+    if (!lock.owns_lock()) return;
+    for (int i = 0; i < paramOutCount_; ++i) {
+        if (paramOut_[i].type == CLAP_EVENT_PARAM_VALUE) {
+            clap_event_param_value_t ev{};
+            ev.header = { sizeof(ev), 0, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_PARAM_VALUE, 0 };
+            ev.param_id = kParamTranspose;
+            ev.cookie = nullptr;
+            ev.note_id = -1; ev.port_index = -1; ev.channel = -1; ev.key = -1;
+            ev.value = paramOut_[i].value;
+            out->try_push(out, &ev.header);
+        } else {
+            clap_event_param_gesture_t ev{};
+            ev.header = { sizeof(ev), 0, CLAP_CORE_EVENT_SPACE_ID, paramOut_[i].type, 0 };
+            ev.param_id = kParamTranspose;
+            out->try_push(out, &ev.header);
+        }
+    }
+    paramOutCount_ = 0;
+}
+
+void SequencerClap::requestFlush() {
+    if (!host_ || !host_->get_extension) return;
+    const auto* hp = static_cast<const clap_host_params_t*>(host_->get_extension(host_, CLAP_EXT_PARAMS));
+    if (hp && hp->request_flush) hp->request_flush(host_);
+    else if (host_->request_process) host_->request_process(host_);
+}
+
+void SequencerClap::beginTransposeEdit() {
+    queueParamOut(CLAP_EVENT_PARAM_GESTURE_BEGIN, 0.0);
+    requestFlush();
+}
+
+void SequencerClap::setTransposeFromGui(int semitones) {
+    semitones = std::min(std::max(semitones, kMinTranspose), kMaxTranspose);
+    if (globalTranspose_.exchange(semitones) == semitones) return;
+    queueParamOut(CLAP_EVENT_PARAM_VALUE, semitones);
+    requestFlush();
+    markStateDirty();
+}
+
+void SequencerClap::endTransposeEdit() {
+    queueParamOut(CLAP_EVENT_PARAM_GESTURE_END, 0.0);
+    requestFlush();
 }
 
 static const char* g_features[] = {

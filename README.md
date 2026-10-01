@@ -40,16 +40,27 @@ route its note output to Acidus).
   - **tie** (`T`) extends the previous note's gate; a slide to the same pitch
     is also a tie;
   - **accent** is velocity 127, other notes 100 (Acidus accents at 102 and up).
-- **Pitch**: C..B with octave down / none / up spans C1-B3 (C2 = MIDI 36 is
-  the middle octave), plus a per-pattern **transpose** of ±12 semitones.
+- **Pitch**: C..B and high C (C') with octave down / none / up spans C1-C4,
+  the 303's range (C2 = MIDI 36 is the middle octave). On top come a
+  per-pattern **transpose** and a global **KEY** transpose (both ±12
+  semitones). KEY is an automatable host parameter, applied sample-accurately
+  from the next note, like the 303's track transpose; editing it in the GUI
+  records automation.
+- **Pattern chaining** (the 303's track mode): each pattern's **NEXT** names
+  the pattern played after it. Triggering A plays A > NEXT(A) > ... until a
+  link is unset or points back into the chain, then loops from A. The chain
+  counts as one long pattern on the host grid, and slides and ties carry
+  across pattern boundaries.
 - Other notes (above D#0) and MIDI (CCs etc.) pass straight through.
 
 **Editing.** Click a pattern number to edit it (FOLLOW makes the editor jump
 to the pattern that starts playing). In the grid, left-click a cell for the
 next value, right-click for the previous one, or left-drag up/down to cycle.
-Note cells go rest -> C ... B -> tie; a tie is shown as a dimmed note fill, a rest as a dark empty cell. LENGTH and TRANSPOSE work
-the same way; steps past the length are shaded. Slots 1-5 hold factory
-patterns (Da Funk, Acid Tracks 2, Brain Tool, Overpowered 2, Raga Bhairav 1).
+Note cells go rest -> C ... B -> C' -> tie; a tie is shown as a dimmed note
+fill, a rest as a dark empty cell. The LENGTH, TRANSPOSE, NEXT and KEY boxes
+work the same way; steps past the length are shaded, and the pattern
+buttons of the edited pattern's chain are underlined. Slots 1-7 hold
+original demo patterns, 6 and 7 chained.
 
 ---
 

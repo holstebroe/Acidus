@@ -42,11 +42,42 @@ void SequencerEngine::release(uint32_t time) {
     if (sounding_) emit(time, false, soundingKey_, 0.0f);
     sounding_ = false;
     connected_ = false;
-    chainSlide_ = false;
+    tieSlide_ = false;
     offCountdown_ = 0;
 }
 
+int SequencerEngine::chainOf(const PatternBank& bank, int start, int* patterns) {
+    int count = 0;
+    for (int p = start; p >= 0 && p < kNumPatterns && count < kNumPatterns; p = bank.next(p)) {
+        if (std::find(patterns, patterns + count, p) != patterns + count) break;   // back into the chain
+        patterns[count++] = p;
+    }
+    return count;
+}
+
+void SequencerEngine::locate(int start, int64_t stepNum, int& pattern, int& index) const {
+    int chain[kNumPatterns];
+    const int count = chainOf(bank_, start, chain);
+    int lengths[kNumPatterns];
+    int total = 0;
+    for (int i = 0; i < count; ++i) {
+        lengths[i] = std::max(1, bank_.length(chain[i]));
+        total += lengths[i];
+    }
+    int pos = wrap(stepNum, std::max(1, total));
+    for (int i = 0; i < count; ++i) {
+        if (pos < lengths[i]) { pattern = chain[i]; index = pos; return; }
+        pos -= lengths[i];
+    }
+    pattern = start;
+    index = 0;
+}
+
 void SequencerEngine::handleTrigger(const TriggerEvent& ev, uint32_t time) {
+    if (ev.setTranspose) {
+        globalTranspose_ = std::min(std::max(ev.transpose, kMinTranspose), kMaxTranspose);
+        return;
+    }
     const int pattern = ev.key - kFirstTriggerKey;
     if (pattern < 0 || pattern >= kNumPatterns) return;
 
@@ -77,8 +108,8 @@ void SequencerEngine::handleTrigger(const TriggerEvent& ev, uint32_t time) {
 
 void SequencerEngine::stepBoundary(int64_t stepNum, uint32_t time) {
     samplesSinceBoundary_ = 0;
-    const int pattern = activePattern();
-    if (pattern < 0) {
+    const int trigger = activePattern();
+    if (trigger < 0) {
         // No trigger: no new step. A gate held into this step ends here.
         lastBoundaryPlayed_ = false;
         if (connected_) release(time);
@@ -86,16 +117,17 @@ void SequencerEngine::stepBoundary(int64_t stepNum, uint32_t time) {
     }
     lastBoundaryPlayed_ = true;
 
-    const int length = std::max(1, bank_.length(pattern));
-    const int index = wrap(stepNum, length);
+    int pattern, index, nextPattern, nextIndex;
+    locate(trigger, stepNum, pattern, index);
+    locate(trigger, stepNum + 1, nextPattern, nextIndex);   // the last step wraps to the first
     const Step step = bank_.step(pattern, index);
-    const Step next = bank_.step(pattern, wrap(stepNum + 1, length));   // the last step wraps to the first
+    const Step next = bank_.step(nextPattern, nextIndex);
     const bool gateOpen = sounding_ && connected_;
     lastPattern_ = pattern;
     lastStep_ = index;
 
     if (step.isNote()) {
-        const int key = bank_.keyFor(pattern, step);
+        const int key = bank_.keyFor(pattern, step, globalTranspose_);
         const float velocity = step.accent ? kAccentVelocity : kNormalVelocity;
         if (gateOpen) {
             // Slide: new note first, then the old note's off, at the same
@@ -111,16 +143,16 @@ void SequencerEngine::stepBoundary(int64_t stepNum, uint32_t time) {
             soundingKey_ = key;
             sounding_ = true;
         }
-        chainSlide_ = step.slide;
+        tieSlide_ = step.slide;
     } else if (step.note == kNoteTie && gateOpen) {
-        chainSlide_ = chainSlide_ || step.slide;
+        tieSlide_ = tieSlide_ || step.slide;
     } else {
         // A rest, or a tie with no note to extend.
         release(time);
         return;
     }
 
-    connected_ = chainSlide_ || next.note == kNoteTie;
+    connected_ = tieSlide_ || next.note == kNoteTie;
     const double stepSamples = 1.0 / stepsPerSample_;
     offCountdown_ = connected_
         ? static_cast<int64_t>(std::ceil(stepSamples + kHeldGateGraceSec * sampleRate_))
@@ -211,7 +243,8 @@ uint32_t SequencerEngine::process(uint32_t frames, const TransportInfo& t,
                             : pos_ + static_cast<double>(freeSamples_) / stepSamples;
 
     const bool active = heldCount_ > 0 || sounding_;
-    playingPattern_.store(active ? (heldCount_ > 0 ? activePattern() : lastPattern_) : -1,
+    // The chain member playing; before a trigger's first step, the trigger.
+    playingPattern_.store(active ? (lastStep_ >= 0 ? lastPattern_ : activePattern()) : -1,
                           std::memory_order_relaxed);
     playingStep_.store(active ? lastStep_ : -1, std::memory_order_relaxed);
     return outCount_;

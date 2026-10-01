@@ -2,10 +2,12 @@
 #define ACIDUS_SEQ_SEQUENCER_CLAP_HPP
 
 #include <clap/clap.h>
+#include <clap/ext/params.h>
 #include "Pattern.hpp"
 #include "SequencerEngine.hpp"
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 namespace acidus {
@@ -49,6 +51,20 @@ public:
     bool followPlaying() const { return follow_.load(std::memory_order_relaxed); }
     void setFollowPlaying(bool f) { follow_.store(f, std::memory_order_relaxed); markStateDirty(); }
 
+    // Global key transpose: the plugin's one CLAP parameter (automatable).
+    static constexpr clap_id kParamTranspose = 0;
+    int globalTranspose() const { return globalTranspose_.load(std::memory_order_relaxed); }
+    // GUI edits, sent to the host as one automation gesture.
+    void beginTransposeEdit();
+    void setTransposeFromGui(int semitones);
+    void endTransposeEdit();
+
+    bool paramsInfo(uint32_t index, clap_param_info_t* info) const;
+    bool paramsValue(clap_id id, double* value) const;
+    bool paramsValueToText(clap_id id, double value, char* buf, uint32_t size) const;
+    bool paramsTextToValue(clap_id id, const char* text, double* value) const;
+    void paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out);
+
 private:
     const clap_host_t* host_;
     clap_plugin_t clapPlugin_{};
@@ -58,6 +74,18 @@ private:
     std::atomic<bool> stateDirty_{false};
     std::atomic<int> editPattern_{0};
     std::atomic<bool> follow_{true};
+    std::atomic<int> globalTranspose_{0};
+
+    // GUI parameter events waiting to go to the host.
+    struct ParamOut { uint16_t type; double value; };
+    std::mutex paramOutMutex_;
+    ParamOut paramOut_[64];
+    int paramOutCount_{0};
+    void queueParamOut(uint16_t type, double value);
+    void pushParamOut(const clap_output_events_t* out);
+    void requestFlush();
+    // A host parameter event: true (and the new value) if it sets the transpose.
+    bool transposeEvent(const clap_event_header_t* h, int& semitones);
 
     std::vector<TriggerEvent> triggers_;
     std::vector<NoteEvent> notes_;

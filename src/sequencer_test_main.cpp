@@ -63,7 +63,9 @@ struct Run {
             std::vector<TriggerEvent> in;
             for (const auto& tr : triggers) {
                 if (static_cast<int64_t>(tr.time) >= s && static_cast<int64_t>(tr.time) < s + frames) {
-                    in.push_back({ static_cast<uint32_t>(tr.time - s), tr.on, tr.key });
+                    TriggerEvent e = tr;
+                    e.time = static_cast<uint32_t>(tr.time - s);
+                    in.push_back(e);
                 }
             }
             const uint32_t n = engine.process(frames, t, in.data(), static_cast<uint32_t>(in.size()),
@@ -323,18 +325,71 @@ static void testNoStuckNotes() {
 
 static void testFactoryPatterns() {
     PatternBank b;
-    check(b.name(0) == "DA FUNK" && b.length(0) == 16 && b.transpose(0) == 5, "Da Funk header");
+    check(b.name(0) == "OCTAVE JUMPER" && b.length(0) == 16 && b.transpose(0) == 5, "factory 1 header");
     const Step s0 = b.step(0, 0);
-    check(s0.note == 3 && s0.octave == -1 && !s0.accent && !s0.slide, "Da Funk step 1 = D down");
-    const Step s4 = b.step(0, 4);
-    check(s4.note == 11 && s4.accent && s4.slide && s4.octave == 0, "Da Funk step 5 = A# accent slide");
-    check(b.keyFor(0, s0) == 36 + 2 - 12 + 5, "Da Funk step 1 key");
-    check(b.length(1) == 8 && b.step(1, 0).slide && b.step(1, 0).octave == 1, "Acid Tracks 2");
-    check(b.length(2) == 8 && b.step(2, 1).accent && b.step(2, 0).octave == -1, "Brain Tool");
-    check(b.step(3, 11).note == kNoteTie && b.step(3, 10).slide, "Overpowered 2 tie/slide");
-    check(b.step(4, 1).note == kNoteTie && b.step(4, 15).note == kNoteTie && b.step(4, 9).note == 4,
-          "Raga Bhairav 1 ties");
-    check(b.name(5) == "PATTERN 6" && b.step(5, 0).note == kNoteRest, "empty slots");
+    check(s0.note == 1 && s0.octave == -1 && !s0.accent && !s0.slide, "factory 1 step 1 = C down");
+    const Step s5 = b.step(0, 5);
+    check(s5.note == 11 && s5.octave == -1 && s5.accent && s5.slide, "factory 1 step 6 = A# down accent slide");
+    check(b.keyFor(0, s0) == 36 - 12 + 5, "factory 1 step 1 key");
+    check(b.length(1) == 8 && b.step(1, 0).slide && b.step(1, 0).octave == 1, "factory 2");
+    check(b.step(3, 5).note == kNoteTie && b.step(3, 3).slide, "factory 4 tie/slide");
+    check(b.step(4, 1).note == kNoteTie && b.step(4, 15).note == kNoteTie, "factory 5 ties");
+    check(b.next(5) == 6 && b.next(6) == 5 && b.next(0) == -1, "factory chain 6 > 7 > 6");
+    check(b.step(6, 0).note == kNoteHighC && b.step(6, 0).octave == 1
+          && b.keyFor(6, b.step(6, 0)) == 60, "high C with octave up is C4 (MIDI 60), the 303's top note");
+    check(b.name(7) == "PATTERN 8" && b.step(7, 0).note == kNoteRest, "empty slots");
+}
+
+static void testChaining() {
+    Run r;
+    setPattern(r.bank, 0, { note(1), note(3) });
+    setPattern(r.bank, 2, { note(5), note(6), note(8) });
+    r.bank.setNext(0, 2);
+    r.bank.setNext(2, 0);   // back to the start: chain 1 > 3, then loops
+    r.go(0, 6 * kStep, { { 0, true, 0 } });
+    std::vector<int> keys;
+    for (const auto& e : r.events) if (e.on) keys.push_back(e.key);
+    check(keys == std::vector<int>({ 36, 38, 40, 41, 43, 36 }), "chain 1 > 3 then loops" + describe(r.events));
+
+    // A link back into the middle of the chain still loops from the start;
+    // a slide (applied at the end of its tie) and a tie cross pattern
+    // boundaries.
+    Run r2;
+    setPattern(r2.bank, 0, { note(1, 0, false, true) });
+    setPattern(r2.bank, 1, { tie(), note(8) });
+    r2.bank.setNext(0, 1);
+    r2.bank.setNext(1, 1);
+    r2.go(0, 3 * kStep, { { 0, true, 0 } });
+    expectEvents(r2.events, {
+        { kDelay, true, 36, 0 },
+        { 2 * kStep + kDelay, true, 43, 0 }, { 2 * kStep + kDelay, false, 36, 0 },
+        { 2 * kStep + kDelay + kStep / 2, false, 43, 0 },
+    }, "slide and tie across a chain boundary");
+
+    // The chain follows the song position too: song step 4 of a 2 + 3 chain
+    // is the second pattern's last step.
+    Run r3;
+    setPattern(r3.bank, 0, { note(1), note(3) });
+    setPattern(r3.bank, 2, { note(5), note(6), note(8) });
+    r3.bank.setNext(0, 2);
+    r3.go(4 * kStep, kStep, { { 0, true, 0 } });
+    check(!r3.events.empty() && r3.events[0].key == 43, "chain position follows the song" + describe(r3.events));
+    check(r3.engine.playingPattern() == 2, "the playing chain member is reported");
+}
+
+static void testGlobalTranspose() {
+    Run r;
+    setPattern(r.bank, 0, { note(1, 0, false, true), note(1), note(1), note(1) });
+    // Transpose +7 during step 1 (a slid note): it holds; step 2 is an
+    // equal-pitch slide in the pattern but sounds a new pitch, so it glides.
+    TriggerEvent tr{ static_cast<uint32_t>(kStep / 4), false, -1, true, 7 };
+    TriggerEvent tr2{ static_cast<uint32_t>(3 * kStep), false, -1, true, -30 };   // clamped to -12
+    r.go(0, 4 * kStep, { { 0, true, 0 }, tr, tr2 });
+    std::vector<int> keys;
+    for (const auto& e : r.events) if (e.on) keys.push_back(e.key);
+    check(keys == std::vector<int>({ 36, 43, 43, 24 }), "global transpose applies from the next note" + describe(r.events));
+    check(r.events.size() > 2 && r.events[1].on && r.events[2].key == 36 && !r.events[2].on,
+          "a transposed slide still overlaps" + describe(r.events));
 }
 
 static void testStepPacking() {
@@ -370,6 +425,8 @@ static void testStateRoundTrip() {
     a.bank().setName(7, "MY RIFF");
     a.setEditPattern(7);
     a.setFollowPlaying(false);
+    a.bank().setNext(7, 2);
+    a.setTransposeFromGui(-5);
 
     Buf buf;
     clap_ostream_t os{ &buf, [](const clap_ostream_t* s, const void* d, uint64_t n) -> int64_t {
@@ -390,14 +447,26 @@ static void testStateRoundTrip() {
     check(b.stateLoad(&is), "state load");
     check(b.bank().step(7, 3) == note(9, 1, true, true) && b.bank().length(7) == 11
           && b.bank().transpose(7) == -7 && b.bank().name(7) == "MY RIFF"
-          && b.editPattern() == 7 && !b.followPlaying(), "state round trip");
+          && b.editPattern() == 7 && !b.followPlaying() && b.bank().next(7) == 2
+          && b.globalTranspose() == -5, "state round trip");
 
     // Truncated state: rejected, nothing changed.
     SequencerClap c(testHost());
     buf.pos = 0;
     buf.data.resize(buf.data.size() / 2);
     check(!c.stateLoad(&is), "truncated state is rejected");
-    check(c.bank().name(0) == "DA FUNK", "rejected state leaves the patterns alone");
+    check(c.bank().name(0) == "OCTAVE JUMPER", "rejected state leaves the patterns alone");
+
+    // Version 1 state (no next byte; the tie was note 13).
+    std::string v1("A3SQ\x01", 5);
+    for (int p = 0; p < kNumPatterns; ++p) {
+        v1 += static_cast<char>(4); v1 += static_cast<char>(2); v1 += static_cast<char>(1); v1 += 'X';
+        for (int i = 0; i < kMaxSteps; ++i) v1 += static_cast<char>(i == 1 ? 13 : 0x11);
+    }
+    PatternBank old;
+    check(old.deserialize(reinterpret_cast<const uint8_t*>(v1.data()), v1.size()) == v1.size()
+          && old.step(3, 1).note == kNoteTie && old.step(3, 0).note == 1 && old.next(3) == -1
+          && old.length(3) == 4 && old.transpose(3) == 2 && old.name(3) == "X", "version 1 state loads");
 }
 
 struct EventList {
@@ -478,47 +547,118 @@ static void testClapRouting() {
     check(r[100] == 0.0f, "audio output is silent");
 }
 
+static void testTransposeParam() {
+    SequencerClap plugin(testHost());
+    const clap_plugin_t* p = plugin.getClapPlugin();
+    p->activate(p, kRate, 1, 4096);
+    setPattern(plugin.bank(), 0, { note(1), note(1) });
+    const auto* params = static_cast<const clap_plugin_params_t*>(p->get_extension(p, CLAP_EXT_PARAMS));
+    check(params && params->count(p) == 1, "one parameter");
+    clap_param_info_t info;
+    check(params->get_info(p, 0, &info) && (info.flags & CLAP_PARAM_IS_AUTOMATABLE)
+          && info.min_value == -12 && info.max_value == 12, "key transpose param info");
+
+    // Host automation to +3 in mid-block, before the second step's note.
+    EventList in;
+    in.addNote(CLAP_EVENT_NOTE_ON, 0, 0);
+    clap_event_param_value_t pv{};
+    pv.header = { sizeof(pv), 3000, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_PARAM_VALUE, 0 };
+    pv.param_id = SequencerClap::kParamTranspose;
+    pv.value = 3.0;
+    in.add(&pv.header);
+    EventList out;
+    clap_input_events_t inEv{ &in,
+        [](const clap_input_events_t* l) -> uint32_t { return static_cast<uint32_t>(static_cast<EventList*>(l->ctx)->events.size()); },
+        [](const clap_input_events_t* l, uint32_t i) -> const clap_event_header_t* {
+            return reinterpret_cast<const clap_event_header_t*>(static_cast<EventList*>(l->ctx)->events[i].data());
+        } };
+    clap_output_events_t outEv{ &out, [](const clap_output_events_t* l, const clap_event_header_t* h) -> bool {
+        static_cast<EventList*>(l->ctx)->add(h);
+        return true;
+    } };
+    clap_event_transport_t tr{};
+    tr.flags = CLAP_TRANSPORT_HAS_TEMPO | CLAP_TRANSPORT_HAS_BEATS_TIMELINE | CLAP_TRANSPORT_IS_PLAYING;
+    tr.tempo = kTempo;
+    clap_process_t proc{};
+    proc.frames_count = 2 * kStep;
+    proc.transport = &tr;
+    proc.in_events = &inEv;
+    proc.out_events = &outEv;
+    p->process(p, &proc);
+    std::vector<int> keys;
+    for (const auto& e : out.events) {
+        const auto* h = reinterpret_cast<const clap_event_header_t*>(e.data());
+        if (h->type == CLAP_EVENT_NOTE_ON) keys.push_back(reinterpret_cast<const clap_event_note_t*>(h)->key);
+    }
+    check(keys == std::vector<int>({ 36, 39 }) && plugin.globalTranspose() == 3,
+          "host automation transposes from the next note");
+
+    // A GUI edit goes to the host as begin / value / end.
+    plugin.beginTransposeEdit();
+    plugin.setTransposeFromGui(5);
+    plugin.endTransposeEdit();
+    EventList flushed;
+    clap_output_events_t flushOut{ &flushed, outEv.try_push };
+    EventList none;
+    clap_input_events_t noIn{ &none, inEv.size, inEv.get };
+    params->flush(p, &noIn, &flushOut);
+    std::vector<uint16_t> types;
+    for (const auto& e : flushed.events) types.push_back(reinterpret_cast<const clap_event_header_t*>(e.data())->type);
+    check(types == std::vector<uint16_t>({ CLAP_EVENT_PARAM_GESTURE_BEGIN, CLAP_EVENT_PARAM_VALUE, CLAP_EVENT_PARAM_GESTURE_END }),
+          "GUI transpose edit is one host gesture");
+    double v = 0;
+    check(params->get_value(p, SequencerClap::kParamTranspose, &v) && v == 5.0, "param value follows the GUI");
+}
+
 static void testGuiEditing() {
     SequencerClap plugin(testHost());
     plugin.createGui();
     SequencerGui* gui = plugin.gui();
-    plugin.setEditPattern(5);
+    plugin.setEditPattern(9);   // an empty slot
     int x, y, w, h;
 
     // Note cell: click up, right-click down, wraps.
     SequencerGui::cellRect(SequencerGui::Row::Note, 2, x, y, w, h);
     gui->mouseDown(x + 5, y + 5, false); gui->mouseUp(x + 5, y + 5);
-    check(plugin.bank().step(5, 2).note == 1, "click: rest -> C");
+    check(plugin.bank().step(9, 2).note == 1, "click: rest -> C");
     gui->mouseDown(x + 5, y + 5, true); gui->mouseUp(x + 5, y + 5);
     gui->mouseDown(x + 5, y + 5, true); gui->mouseUp(x + 5, y + 5);
-    check(plugin.bank().step(5, 2).note == kNoteTie, "right-click: C -> rest -> tie");
+    check(plugin.bank().step(9, 2).note == kNoteTie, "right-click: C -> rest -> tie");
 
     // Drag up three values.
     gui->mouseDown(x + 5, y + 20, false);
     gui->mouseDrag(x + 5, y + 20 - 36);
     gui->mouseUp(x + 5, y + 20 - 36);
-    check(plugin.bank().step(5, 2).note == 2, "drag up 3: tie -> rest -> C -> C#");
+    check(plugin.bank().step(9, 2).note == 2, "drag up 3: tie -> rest -> C -> C#");
 
     SequencerGui::cellRect(SequencerGui::Row::Octave, 2, x, y, w, h);
     gui->mouseDown(x + 5, y + 5, false); gui->mouseUp(x + 5, y + 5);
-    check(plugin.bank().step(5, 2).octave == 1, "octave up");
+    check(plugin.bank().step(9, 2).octave == 1, "octave up");
     SequencerGui::cellRect(SequencerGui::Row::Slide, 2, x, y, w, h);
     gui->mouseDown(x + 5, y + 5, false); gui->mouseUp(x + 5, y + 5);
-    check(plugin.bank().step(5, 2).slide, "slide on");
+    check(plugin.bank().step(9, 2).slide, "slide on");
     SequencerGui::cellRect(SequencerGui::Row::Accent, 2, x, y, w, h);
     gui->mouseDown(x + 5, y + 5, true); gui->mouseUp(x + 5, y + 5);
-    check(plugin.bank().step(5, 2).accent, "accent toggles with either button");
+    check(plugin.bank().step(9, 2).accent, "accent toggles with either button");
 
-    SequencerGui::lengthBoxRect(x, y, w, h);
-    gui->mouseDown(x + 5, y + 5, true); gui->mouseUp(x + 5, y + 5);
-    check(plugin.bank().length(5) == 15, "length down");
-    SequencerGui::transposeBoxRect(x, y, w, h);
+    SequencerGui::boxRect(SequencerGui::Box::Length, x, y, w, h);
+    gui->mouseDown(x + 5, y + 5, true);
+    check(plugin.bank().length(9) == 15, "length down");
+    SequencerGui::boxRect(SequencerGui::Box::Transpose, x, y, w, h);
     gui->mouseDown(x + 5, y + 5, false); gui->mouseUp(x + 5, y + 5);
-    check(plugin.bank().transpose(5) == 1, "transpose up");
+    check(plugin.bank().transpose(9) == 1, "transpose up");
+    SequencerGui::boxRect(SequencerGui::Box::Next, x, y, w, h);
+    gui->mouseDown(x + 5, y + 20, false);
+    gui->mouseDrag(x + 5, y + 20 - 24);   // - > 1 > 2
+    gui->mouseUp(x + 5, y + 20 - 24);
+    check(plugin.bank().next(9) == 1, "next: drag up from - to 2");
+    SequencerGui::boxRect(SequencerGui::Box::Key, x, y, w, h);
+    gui->mouseDown(x + 5, y + 5, true);
+    check(plugin.globalTranspose() == -1, "key transpose down");
 
-    SequencerGui::patternButtonRect(9, x, y, w, h);
+    SequencerGui::patternButtonRect(11, x, y, w, h);
     gui->mouseDown(x + 5, y + 5, false); gui->mouseUp(x + 5, y + 5);
-    check(plugin.editPattern() == 9, "pattern button selects");
+    check(plugin.editPattern() == 11, "pattern button selects");
 
     // Rendering: the inactive area past the length is darker than the active grid.
     plugin.setEditPattern(1);   // 8 steps
@@ -552,6 +692,9 @@ int main() {
     testLoopJump();
     testNoStuckNotes();
     testFactoryPatterns();
+    testChaining();
+    testGlobalTranspose();
+    testTransposeParam();
     testStepPacking();
     testStateRoundTrip();
     testClapRouting();

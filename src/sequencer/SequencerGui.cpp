@@ -29,7 +29,8 @@ static constexpr int kTitleY = 10, kTitleH = 26;
 static constexpr int kPatternY = 46, kPatternH = 30;
 static constexpr int kGridY = 88;
 static constexpr int kRowH[SequencerGui::kRowCount] = { 52, 36, 36, 36 };
-static constexpr int kFooterY = 260;
+static constexpr int kSetupY = 258, kSetupH = 26;
+static constexpr int kFooterY = 298;
 static constexpr int kDragPixelsPerValue = 12;
 
 // --- Colours (ARGB) -----------------------------------------------------------
@@ -72,15 +73,17 @@ void SequencerGui::patternButtonRect(int pattern, int& x, int& y, int& w, int& h
 }
 
 void SequencerGui::followBoxRect(int& x, int& y, int& w, int& h) {
-    x = 560; y = kTitleY; w = 76; h = kTitleH;
+    x = 660; y = kTitleY; w = 76; h = kTitleH;
 }
 
-void SequencerGui::lengthBoxRect(int& x, int& y, int& w, int& h) {
-    x = 700; y = kTitleY; w = 44; h = kTitleH;
-}
-
-void SequencerGui::transposeBoxRect(int& x, int& y, int& w, int& h) {
-    x = kGridX + kMaxSteps * kCellW - 52; y = kTitleY; w = 52; h = kTitleH;
+void SequencerGui::boxRect(Box box, int& x, int& y, int& w, int& h) {
+    y = kSetupY; h = kSetupH;
+    switch (box) {
+        case Box::Length:    x = 148; w = 44; break;
+        case Box::Transpose: x = 268; w = 52; break;
+        case Box::Next:      x = 366; w = 44; break;
+        case Box::Key:       x = kGridX + kMaxSteps * kCellW - 52; y = kTitleY; w = 52; h = kTitleH; break;
+    }
 }
 
 static bool inside(int px, int py, int x, int y, int w, int h) {
@@ -146,13 +149,34 @@ void SequencerGui::setCellValue(Row row, int step, int value) {
     plugin_->markStateDirty();
 }
 
+int SequencerGui::boxValue(Box box) const {
+    const int pattern = plugin_->editPattern();
+    switch (box) {
+        case Box::Length: return plugin_->bank().length(pattern);
+        case Box::Transpose: return plugin_->bank().transpose(pattern);
+        case Box::Next: return plugin_->bank().next(pattern);
+        case Box::Key: return plugin_->globalTranspose();
+    }
+    return 0;
+}
+
+// Box values clamp (they don't cycle like grid cells).
+void SequencerGui::setBoxValue(Box box, int value) {
+    const int pattern = plugin_->editPattern();
+    PatternBank& bank = plugin_->bank();
+    switch (box) {
+        case Box::Length: bank.setLength(pattern, value); break;
+        case Box::Transpose: bank.setTranspose(pattern, value); break;
+        case Box::Next: bank.setNext(pattern, std::min(std::max(value, -1), kNumPatterns - 1)); break;
+        case Box::Key: plugin_->setTransposeFromGui(value); return;   // marks dirty itself
+    }
+    plugin_->markStateDirty();
+}
+
 // --- Input ------------------------------------------------------------------------
 
 void SequencerGui::mouseDown(int x, int y, bool rightButton) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
-    const int delta = rightButton ? -1 : 1;
-    const int pattern = plugin_->editPattern();
-    PatternBank& bank = plugin_->bank();
     dragTarget_ = Target::Idle;
     dragMoved_ = false;
     dragStartY_ = y;
@@ -172,19 +196,22 @@ void SequencerGui::mouseDown(int x, int y, bool rightButton) {
         renderFrame();
         return;
     }
-    lengthBoxRect(bx, by, bw, bh);
-    if (inside(x, y, bx, by, bw, bh)) {
-        bank.setLength(pattern, bank.length(pattern) + delta);
-        plugin_->markStateDirty();
-        if (!rightButton) { dragTarget_ = Target::Length; dragStartValue_ = bank.length(pattern); }
-        renderFrame();
-        return;
-    }
-    transposeBoxRect(bx, by, bw, bh);
-    if (inside(x, y, bx, by, bw, bh)) {
-        bank.setTranspose(pattern, bank.transpose(pattern) + delta);
-        plugin_->markStateDirty();
-        if (!rightButton) { dragTarget_ = Target::Transpose; dragStartValue_ = bank.transpose(pattern); }
+    for (int b = 0; b < kBoxCount; ++b) {
+        const Box box = static_cast<Box>(b);
+        boxRect(box, bx, by, bw, bh);
+        if (!inside(x, y, bx, by, bw, bh)) continue;
+        if (box == Box::Key) plugin_->beginTransposeEdit();
+        if (rightButton) {
+            // No release follows a right-click: it is a whole edit.
+            setBoxValue(box, boxValue(box) - 1);
+            if (box == Box::Key) plugin_->endTransposeEdit();
+        } else {
+            // Left button, as for grid cells: +1 on release unless it
+            // turns into a drag. The Key gesture ends on release.
+            dragTarget_ = Target::Box;
+            dragBox_ = box;
+            dragStartValue_ = boxValue(box);
+        }
         renderFrame();
         return;
     }
@@ -216,14 +243,8 @@ void SequencerGui::mouseDrag(int x, int y) {
     const int steps = (dragStartY_ - y) / kDragPixelsPerValue;
     if (steps != 0) dragMoved_ = true;
     if (!dragMoved_) return;
-    const int pattern = plugin_->editPattern();
-    PatternBank& bank = plugin_->bank();
-    switch (dragTarget_) {
-        case Target::Cell: setCellValue(dragRow_, dragStep_, dragStartValue_ + steps); break;
-        case Target::Length: bank.setLength(pattern, dragStartValue_ + steps); plugin_->markStateDirty(); break;
-        case Target::Transpose: bank.setTranspose(pattern, dragStartValue_ + steps); plugin_->markStateDirty(); break;
-        default: break;
-    }
+    if (dragTarget_ == Target::Cell) setCellValue(dragRow_, dragStep_, dragStartValue_ + steps);
+    else setBoxValue(dragBox_, dragStartValue_ + steps);
     renderFrame();
 }
 
@@ -232,7 +253,10 @@ void SequencerGui::mouseUp(int x, int y) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (dragTarget_ == Target::Cell && !dragMoved_) {
         setCellValue(dragRow_, dragStep_, dragStartValue_ + 1);
+    } else if (dragTarget_ == Target::Box && !dragMoved_) {
+        setBoxValue(dragBox_, dragStartValue_ + 1);
     }
+    if (dragTarget_ == Target::Box && dragBox_ == Box::Key) plugin_->endTransposeEdit();
     dragTarget_ = Target::Idle;
     renderFrame();
 }
@@ -280,17 +304,17 @@ void SequencerGui::draw(Graphics& g) {
     followBoxRect(x, y, w, h);
     const bool follow = plugin_->followPlaying();
     drawBox(g, font_, x, y, w, h, "FOLLOW", follow ? kLight : kPanelDark, follow ? kInk : kLight, 2);
-    lengthBoxRect(x, y, w, h);
-    g.drawText(font_, "LENGTH", x - 40, y + 10, kLight, 1);
-    std::snprintf(buf, sizeof(buf), "%d", length);
-    drawBox(g, font_, x, y, w, h, buf, kPanelDark, kLight, 2);
-    transposeBoxRect(x, y, w, h);
-    g.drawText(font_, "TRANSPOSE", x - 58, y + 10, kLight, 1);
-    const int tr = bank.transpose(pattern);
-    std::snprintf(buf, sizeof(buf), tr > 0 ? "+%d" : "%d", tr);
+    boxRect(Box::Key, x, y, w, h);
+    g.drawText(font_, "KEY", x - 22, y + 10, kLight, 1);
+    const int key = plugin_->globalTranspose();
+    std::snprintf(buf, sizeof(buf), key > 0 ? "+%d" : "%d", key);
     drawBox(g, font_, x, y, w, h, buf, kPanelDark, kLight, 2);
 
-    // Pattern buttons.
+    // Pattern buttons; the edited pattern's chain is underlined.
+    int chain[kNumPatterns];
+    const int chainCount = SequencerEngine::chainOf(bank, pattern, chain);
+    bool inChain[kNumPatterns] = {};
+    for (int i = 0; i < chainCount; ++i) inChain[chain[i]] = true;
     g.drawText(font_, "PATTERN", 14, kPatternY + 11, kLight, 1);
     for (int p = 0; p < kNumPatterns; ++p) {
         patternButtonRect(p, x, y, w, h);
@@ -301,6 +325,7 @@ void SequencerGui::draw(Graphics& g) {
         if (playing) { bg = kAcid; fg = kDarkText; }
         std::snprintf(buf, sizeof(buf), "%d", p + 1);
         drawBox(g, font_, x, y, w, h, buf, bg, fg, 2);
+        if (inChain[p] && !editing) g.fillRect(x + 6, y + h - 5, w - 12, 3, kTieBg);
         if (playing && editing) {
             g.drawRect(x + 2, y + 2, w - 4, h - 4, kLight);
             g.drawRect(x + 3, y + 3, w - 6, h - 6, kLight);
@@ -365,6 +390,27 @@ void SequencerGui::draw(Graphics& g) {
         }
     }
 
+    // Pattern setup row.
+    g.drawText(font_, "SETUP", 14, kSetupY + 10, kLight, 1);
+    boxRect(Box::Length, x, y, w, h);
+    g.drawText(font_, "LENGTH", x - 42, y + 10, kLight, 1);
+    std::snprintf(buf, sizeof(buf), "%d", length);
+    drawBox(g, font_, x, y, w, h, buf, kPanelDark, kLight, 2);
+    boxRect(Box::Transpose, x, y, w, h);
+    g.drawText(font_, "TRANSPOSE", x - 60, y + 10, kLight, 1);
+    const int tr = bank.transpose(pattern);
+    std::snprintf(buf, sizeof(buf), tr > 0 ? "+%d" : "%d", tr);
+    drawBox(g, font_, x, y, w, h, buf, kPanelDark, kLight, 2);
+    boxRect(Box::Next, x, y, w, h);
+    g.drawText(font_, "NEXT", x - 30, y + 10, kLight, 1);
+    const int next = bank.next(pattern);
+    std::snprintf(buf, sizeof(buf), next < 0 ? "-" : "%d", next + 1);
+    drawBox(g, font_, x, y, w, h, buf, kPanelDark, kLight, 2);
+    std::string chainText = "PLAYS ";
+    for (int i = 0; i < chainCount; ++i) chainText += std::to_string(chain[i] + 1) + (i + 1 < chainCount ? ">" : "");
+    chainText += chainCount > 1 ? "  THEN LOOPS" : "  (LOOPS)";
+    g.drawText(font_, chainText.c_str(), x + w + 16, y + 10, kLight, 1);
+
     // Footer.
     std::snprintf(buf, sizeof(buf), "TRIGGER KEY %s  (PATTERNS 1-16 = C-1 TO D#0)",
                   keyName(kFirstTriggerKey + pattern).c_str());
@@ -378,6 +424,8 @@ std::string SequencerGui::signature() {
     std::string s;
     s += static_cast<char>(pattern);
     s += static_cast<char>(plugin_->followPlaying());
+    s += static_cast<char>(plugin_->globalTranspose());
+    for (int p = 0; p < kNumPatterns; ++p) s += static_cast<char>(bank.next(p));   // the chain shown
     s += static_cast<char>(bank.length(pattern));
     s += static_cast<char>(bank.transpose(pattern));
     s += static_cast<char>(plugin_->engine().playingPattern());

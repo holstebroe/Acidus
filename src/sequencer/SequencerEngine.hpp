@@ -17,11 +17,15 @@ struct TransportInfo {
     double songPosBeats{0.0};     // quarter notes
 };
 
-// A pattern-trigger key going down or up (key kFirstTriggerKey + pattern).
+// An input event: a pattern-trigger key going down or up (key
+// kFirstTriggerKey + pattern), or, with setTranspose, a change of the global
+// key transpose to `transpose` semitones at this sample.
 struct TriggerEvent {
     uint32_t time;
     bool on;
     int key;
+    bool setTranspose{false};
+    int transpose{0};
 };
 
 // A note the sequencer plays, for the synth chained after it.
@@ -47,6 +51,15 @@ struct NoteEvent {
 //   chain, as on the 303 where the flag belongs to the pitch, not the step.
 //   A slide between equal pitches is a tie (§4.4): no new note, no accent.
 // - Accent: velocity 127; normal notes 100 (Acidus accents at >= 0.8).
+// - Pitch: the step's note, octave and pattern transpose, plus the global key
+//   transpose (automatable; like the 303's track transpose it is taken when a
+//   note starts, so it never bends a note already sounding).
+//
+// Pattern chaining (the 303's track mode): a pattern's `next` link names the
+// pattern that plays after it. Triggering A plays the chain A, next(A),
+// next(next(A)), ... until a link is unset or points back into the chain,
+// then loops from A. The whole chain counts as one long pattern on the grid,
+// so it too follows the song position.
 //
 // The step grid is locked to the host's song position: step n plays at 16th
 // note n of the song, pattern step (n mod length). Playback started (or
@@ -88,6 +101,10 @@ public:
     // Pattern being played (0-based), or -1; and its current step, or -1.
     int playingPattern() const { return playingPattern_.load(std::memory_order_relaxed); }
     int playingStep() const { return playingStep_.load(std::memory_order_relaxed); }
+    int globalTranspose() const { return globalTranspose_; }
+
+    // The patterns triggering `start` plays, in order; returns the count.
+    static int chainOf(const PatternBank& bank, int start, int* patterns);
 
 private:
     const PatternBank& bank_;
@@ -116,7 +133,8 @@ private:
     bool sounding_{false};
     int soundingKey_{-1};
     bool connected_{false};         // gate held into the next step (slide/tie)
-    bool chainSlide_{false};        // the sounding note's slide flag (applies at the end of its ties)
+    bool tieSlide_{false};          // the sounding note's slide flag (applies at the end of its ties)
+    int globalTranspose_{0};
     int64_t offCountdown_{0};
     bool pendingRelease_{false};
     int lastPattern_{-1};
@@ -133,6 +151,8 @@ private:
     void release(uint32_t time);
     void handleTrigger(const TriggerEvent& ev, uint32_t time);
     void stepBoundary(int64_t stepNum, uint32_t time);
+    // Pattern and step index song step `stepNum` plays in the chain from `start`.
+    void locate(int start, int64_t stepNum, int& pattern, int& index) const;
 };
 
 } // namespace seq

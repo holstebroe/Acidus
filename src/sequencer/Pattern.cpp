@@ -80,9 +80,20 @@ void PatternBank::setName(int pattern, const std::string& name) {
     names_[pattern] = clean;
 }
 
-int PatternBank::keyFor(int pattern, const Step& s) const {
+int PatternBank::next(int pattern) const {
+    if (!validIndex(pattern)) return -1;
+    return next_[pattern].load(std::memory_order_relaxed);
+}
+
+void PatternBank::setNext(int pattern, int next) {
+    if (!validIndex(pattern)) return;
+    next_[pattern].store(static_cast<int8_t>(next >= 0 && next < kNumPatterns ? next : -1),
+                         std::memory_order_relaxed);
+}
+
+int PatternBank::keyFor(int pattern, const Step& s, int extraTranspose) const {
     if (!s.isNote()) return -1;
-    const int key = kBaseKey + (s.note - 1) + 12 * s.octave + transpose(pattern);
+    const int key = kBaseKey + (s.note - 1) + 12 * s.octave + transpose(pattern) + extraTranspose;
     return std::min(std::max(key, 0), 127);
 }
 
@@ -91,29 +102,42 @@ void PatternBank::clearPattern(int pattern) {
     for (int i = 0; i < kMaxSteps; ++i) setStep(pattern, i, Step{});
     setLength(pattern, kMaxSteps);
     setTranspose(pattern, 0);
+    setNext(pattern, -1);
     setName(pattern, "PATTERN " + std::to_string(pattern + 1));
 }
 
 // Factory pattern text: one token per step. A token is a note (C, C#, ...,
-// B), "T" (tie) or "-" (rest), followed by lower-case flags: u = octave up,
+// B, C' = high C), "T" (tie) or "-" (rest), followed by lower-case flags: u = octave up,
 // d = octave down, a = accent, s = slide.
 struct FactoryPattern {
     const char* name;
     int transpose;
+    int next;           // chained pattern (1-based), 0 = loop
     const char* steps;
 };
 
+// Original demo patterns, each showing off a 303 technique.
 static const FactoryPattern kFactory[] = {
-    { "DA FUNK", 5,
-      "Dd Fu Ds A#u A#as Fd Cdas A#d A#us D Cus Duas D Ds Dds D#s" },
-    { "ACID TRACKS 2", 0,
-      "Aus Ad Cda A#da Ed C#ua C#d A#a" },
-    { "BRAIN TOOL", 0,
-      "Dd Da D D D Da D D" },
-    { "OVERPOWERED 2", 5,
-      "D#d D#d D#ua D# D#u D#s F#u D#s D#das G#ua D#ds T D#u F#u D# C" },
-    { "RAGA BHAIRAV 1", 0,
-      "D T Du T D T Du D T D#u T D# D#u T Du T" },
+    // Octave jumps with long slide runs and three accents.
+    { "OCTAVE JUMPER", 5, 0,
+      "Cd Cu D#s Gu F A#das Gd Cu Cus D# A#ds Cuas C Ds Fds F#s" },
+    // An 8-step line with accents carrying the groove.
+    { "SQUELCH 8", 0, 0,
+      "Eus Ed Ga Bda A Gua Ed Da" },
+    // One note, rhythm from accents and octave drops only.
+    { "ONE NOTE PUMP", 0, 0,
+      "Ed E Ea E Ed E Ea Es" },
+    // A pedal note with octave jumps, a tie and slides.
+    { "PEDAL DRIVE", 3, 0,
+      "Fda Fu F Fds G#u T F Fu Fda Cs Fd Fu A#ua Fd Fus D#" },
+    // Long tied notes over a flat second.
+    { "PHRYGIAN DRONE", 0, 0,
+      "E T T Eu E T Fu T E Eu T F T Eu E T" },
+    // A two-pattern chain (6 > 7 > 6 ...) reaching the 303's high C.
+    { "CHAIN A", 0, 7,
+      "Cd C D#s Fa Gs G#u T Cus" },
+    { "CHAIN B", 0, 6,
+      "C'ua C' Gs Fa D#s T Cd C'" },
 };
 
 static int parseFactorySteps(const char* text, Step* out) {
@@ -132,6 +156,7 @@ static int parseFactorySteps(const char* text, Step* out) {
             ++p;
             if (*p == '#') { ++semitone; ++p; }
             s.note = 1 + semitone % 12;
+            if (*p == '\'' && s.note == 1) { s.note = kNoteHighC; ++p; }
         }
         for (; *p && *p != ' '; ++p) {
             if (*p == 'u') s.octave = 1;
@@ -153,15 +178,17 @@ void PatternBank::loadFactory() {
         for (int i = 0; i < n; ++i) setStep(p, i, steps[i]);
         setLength(p, n);
         setTranspose(p, f.transpose);
+        setNext(p, f.next - 1);
         setName(p, f.name);
         ++p;
     }
 }
 
 // State: "A3SQ", version byte, then per pattern: length, transpose (int8),
-// name length, name bytes, kMaxSteps packed step bytes.
+// next (int8, version 2), name length, name bytes, kMaxSteps packed step
+// bytes. Version 1 had no next byte and numbered the tie 13 (now high C).
 static constexpr char kMagic[4] = { 'A', '3', 'S', 'Q' };
-static constexpr uint8_t kVersion = 1;
+static constexpr uint8_t kVersion = 2;
 
 std::string PatternBank::serialize() const {
     std::string out(kMagic, 4);
@@ -169,6 +196,7 @@ std::string PatternBank::serialize() const {
     for (int p = 0; p < kNumPatterns; ++p) {
         out += static_cast<char>(length(p));
         out += static_cast<char>(static_cast<int8_t>(transpose(p)));
+        out += static_cast<char>(static_cast<int8_t>(next(p)));
         const std::string n = name(p);
         out += static_cast<char>(n.size());
         out += n;
@@ -180,32 +208,38 @@ std::string PatternBank::serialize() const {
 }
 
 size_t PatternBank::deserialize(const uint8_t* data, size_t size) {
-    if (!data || size < 5 || std::memcmp(data, kMagic, 4) != 0 || data[4] != kVersion) return 0;
+    if (!data || size < 5 || std::memcmp(data, kMagic, 4) != 0) return 0;
+    const int version = data[4];
+    if (version < 1 || version > kVersion) return 0;
+    const size_t header = version >= 2 ? 4 : 3;   // length, transpose, [next,] name length
     // Validate the whole blob first, so a truncated one changes nothing.
     size_t pos = 5;
     for (int p = 0; p < kNumPatterns; ++p) {
-        if (pos + 3 > size) return 0;
-        pos += 3 + data[pos + 2] + kMaxSteps;
+        if (pos + header > size) return 0;
+        pos += header + data[pos + header - 1] + kMaxSteps;
         if (pos > size) return 0;
     }
     pos = 5;
     for (int p = 0; p < kNumPatterns; ++p) {
-        const int len = data[pos];
-        const int tr = static_cast<int8_t>(data[pos + 1]);
-        const size_t nameLen = data[pos + 2];
-        pos += 3;
-        setLength(p, len);
-        setTranspose(p, tr);
+        setLength(p, data[pos]);
+        setTranspose(p, static_cast<int8_t>(data[pos + 1]));
+        setNext(p, version >= 2 ? static_cast<int8_t>(data[pos + 2]) : -1);
+        const size_t nameLen = data[pos + header - 1];
+        pos += header;
         setName(p, std::string(reinterpret_cast<const char*>(data + pos), nameLen));
         pos += nameLen;
-        for (int i = 0; i < kMaxSteps; ++i) setStep(p, i, Step::unpack(data[pos + i]));
+        for (int i = 0; i < kMaxSteps; ++i) {
+            Step s = Step::unpack(data[pos + i]);
+            if (version == 1 && s.note == kNoteHighC) s.note = kNoteTie;
+            setStep(p, i, s);
+        }
         pos += kMaxSteps;
     }
     return pos;
 }
 
 const char* noteName(int note) {
-    static const char* kNames[] = { "", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "T" };
+    static const char* kNames[] = { "", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "C'", "T" };
     return (note >= 0 && note < kNoteValueCount) ? kNames[note] : "";
 }
 

@@ -22,14 +22,19 @@ extern const clap_plugin_gui_t g_sequencerGuiExtension;
 // The pattern editor: a row of 16 pattern buttons and a Note / Octave /
 // Accent / Slide grid for the pattern being edited. Left-click a cell for the
 // next value, right-click for the previous one, or left-drag up/down to cycle
-// through them. Same for the Length and Transpose boxes.
+// through them. The value boxes (pattern length, transpose and next pattern,
+// and the global key transpose) work the same way.
 class SequencerGui {
 public:
     static constexpr int kWidth = 880;
-    static constexpr int kHeight = 282;
+    static constexpr int kHeight = 318;
 
     enum class Row { Note, Octave, Accent, Slide };
     static constexpr int kRowCount = 4;
+    // Value boxes: the edited pattern's length, transpose and next pattern,
+    // and the global key transpose (a host parameter).
+    enum class Box { Length, Transpose, Next, Key };
+    static constexpr int kBoxCount = 4;
 
     explicit SequencerGui(SequencerClap* plugin);
     ~SequencerGui();
@@ -52,8 +57,7 @@ public:
     // Layout, for input mapping and tests.
     static void cellRect(Row row, int step, int& x, int& y, int& w, int& h);
     static void patternButtonRect(int pattern, int& x, int& y, int& w, int& h);
-    static void lengthBoxRect(int& x, int& y, int& w, int& h);
-    static void transposeBoxRect(int& x, int& y, int& w, int& h);
+    static void boxRect(Box box, int& x, int& y, int& w, int& h);
     static void followBoxRect(int& x, int& y, int& w, int& h);
 
 private:
@@ -66,9 +70,10 @@ private:
     std::atomic<bool> visible_{true};
 
     // The control being dragged.
-    enum class Target { Idle, Cell, Length, Transpose };
+    enum class Target { Idle, Cell, Box };
     Target dragTarget_{Target::Idle};
     Row dragRow_{Row::Note};
+    Box dragBox_{Box::Length};
     int dragStep_{0};
     int dragStartY_{0};
     int dragStartValue_{0};
@@ -80,6 +85,8 @@ private:
     int cellValue(Row row, int step) const;
     void setCellValue(Row row, int step, int value);
     static int valueCount(Row row);
+    int boxValue(Box box) const;
+    void setBoxValue(Box box, int value);
     void present();
 
     std::atomic<bool> running_{false};
