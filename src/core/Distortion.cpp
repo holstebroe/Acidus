@@ -47,11 +47,18 @@ constexpr float kVLow = 2.6f;
 // input. At the default Volume the diodes start clipping about a quarter of
 // the way up the Distortion travel and the 741 hits its rails from about two
 // thirds (Section 6.1); full Volume reaches both sooner, while low Volume and
-// low Distortion stay a crunch. The output scale maps the diode clipper's
-// self-limited ceiling (~0.2-0.3 V, Section 6.1) to about +1 dBFS, so
-// engaging the pedal is never quieter than bypass.
+// low Distortion stay a crunch.
+//
+// The output scale is set so that, below clipping, the pedal at minimum
+// Distortion has the same level as bypass: its small-signal gain there is
+// the gain stage's 9.5 dB plateau times the R5/volume-pot divider (about
+// 1.5x, i.e. +3.5 dB on the real pedal with Output at full), so dividing by
+// that brings engaging the pedal at 1 % in at the bypass level. Turning
+// Distortion up then only adds level until the diodes take over and hold
+// the peaks at their ~0.2-0.3 V ceiling (Section 6.1).
 constexpr float kInputVoltScale = 0.05f;
-constexpr float kOutputVoltScale = 0.2f;
+constexpr float kGainMinLinear = 2.985f;   // 10^(kGainMinDb / 20)
+constexpr float kOutputVoltScale = kInputVoltScale * kGainMinLinear * (kRvol / (kR5 + kRvol));
 
 constexpr int kOversample = 8;
 constexpr int kDiodeNewtonIters = 5;
