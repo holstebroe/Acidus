@@ -47,7 +47,7 @@ route its note output to Acidus).
 **Editing.** Click a pattern number to edit it (FOLLOW makes the editor jump
 to the pattern that starts playing). In the grid, left-click a cell for the
 next value, right-click for the previous one, or left-drag up/down to cycle.
-Note cells go rest (hatched) -> C ... B -> T (tie). LENGTH and TRANSPOSE work
+Note cells go rest -> C ... B -> tie; a tie is shown as a dimmed note fill, a rest as a dark empty cell. LENGTH and TRANSPOSE work
 the same way; steps past the length are shaded. Slots 1-5 hold factory
 patterns (Da Funk, Acid Tracks 2, Brain Tool, Overpowered 2, Raga Bhairav 1).
 

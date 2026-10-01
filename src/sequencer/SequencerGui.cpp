@@ -34,19 +34,21 @@ static constexpr int kDragPixelsPerValue = 12;
 
 // --- Colours (ARGB) -----------------------------------------------------------
 
-static constexpr uint32_t kBg = 0xFF4F9DA6;
-static constexpr uint32_t kPanelDark = 0xFF3B7E87;
-static constexpr uint32_t kGridLine = 0xFFD9EEF0;
-static constexpr uint32_t kWhite = 0xFFFFFFFF;
-static constexpr uint32_t kTeal = 0xFF2C7680;
-static constexpr uint32_t kRestBg = 0xFF468F98;
-static constexpr uint32_t kRestHatch = 0xFF3D838C;
-static constexpr uint32_t kTieBg = 0xFFC4E4E8;
-static constexpr uint32_t kTieText = 0xFF6FA9B0;
-static constexpr uint32_t kInactiveShade = 0xB0284248;
-static constexpr uint32_t kAcid = 0xFFB4F03C;
-static constexpr uint32_t kAcidTint = 0x48B4F03C;
-static constexpr uint32_t kDarkText = 0xFF1E3A3E;
+// Graphite panel with acid-green notes, after the Acidus logo plate.
+static constexpr uint32_t kBg = 0xFF1C1F22;
+static constexpr uint32_t kPanelDark = 0xFF2C3034;
+static constexpr uint32_t kGridLine = 0xFF464B50;
+static constexpr uint32_t kLight = 0xFFD6DADE;        // labels and symbols
+static constexpr uint32_t kInk = 0xFF0E1A08;          // text on light and green fills
+static constexpr uint32_t kNoteBg = 0xFF6FE03A;       // a note
+static constexpr uint32_t kTieBg = 0xFF2F6A1C;        // a tie: the note's colour, dimmed
+static constexpr uint32_t kRestBg = 0xFF121416;       // a rest: darker than the panel
+static constexpr uint32_t kAccentMark = 0xFFFFB020;
+static constexpr uint32_t kInactiveShade = 0xB4000000;
+static constexpr uint32_t kAcid = 0xFF39FF14;         // playing pattern
+static constexpr uint32_t kPlayMark = 0xFFFFD21E;     // playing step
+static constexpr uint32_t kPlayTint = 0x40FFD21E;
+static constexpr uint32_t kDarkText = 0xFF0E1A08;
 
 static int rowTop(int row) {
     int y = kGridY;
@@ -271,44 +273,44 @@ void SequencerGui::draw(Graphics& g) {
     g.clear(kBg);
 
     // Title row.
-    g.drawText(font_, "ACIDUS SEQ", 14, kTitleY + 6, kWhite, 2);
+    g.drawText(font_, "ACIDUS SEQ", 14, kTitleY + 6, kLight, 2);
     std::snprintf(buf, sizeof(buf), "%d  %s", pattern + 1, bank.name(pattern).c_str());
-    g.drawText(font_, buf, 160, kTitleY + 6, kWhite, 2);
+    g.drawText(font_, buf, 160, kTitleY + 6, kLight, 2);
     int x, y, w, h;
     followBoxRect(x, y, w, h);
     const bool follow = plugin_->followPlaying();
-    drawBox(g, font_, x, y, w, h, "FOLLOW", follow ? kWhite : kPanelDark, follow ? kTeal : kWhite, 2);
+    drawBox(g, font_, x, y, w, h, "FOLLOW", follow ? kLight : kPanelDark, follow ? kInk : kLight, 2);
     lengthBoxRect(x, y, w, h);
-    g.drawText(font_, "LENGTH", x - 40, y + 10, kWhite, 1);
+    g.drawText(font_, "LENGTH", x - 40, y + 10, kLight, 1);
     std::snprintf(buf, sizeof(buf), "%d", length);
-    drawBox(g, font_, x, y, w, h, buf, kPanelDark, kWhite, 2);
+    drawBox(g, font_, x, y, w, h, buf, kPanelDark, kLight, 2);
     transposeBoxRect(x, y, w, h);
-    g.drawText(font_, "TRANSPOSE", x - 58, y + 10, kWhite, 1);
+    g.drawText(font_, "TRANSPOSE", x - 58, y + 10, kLight, 1);
     const int tr = bank.transpose(pattern);
     std::snprintf(buf, sizeof(buf), tr > 0 ? "+%d" : "%d", tr);
-    drawBox(g, font_, x, y, w, h, buf, kPanelDark, kWhite, 2);
+    drawBox(g, font_, x, y, w, h, buf, kPanelDark, kLight, 2);
 
     // Pattern buttons.
-    g.drawText(font_, "PATTERN", 14, kPatternY + 11, kWhite, 1);
+    g.drawText(font_, "PATTERN", 14, kPatternY + 11, kLight, 1);
     for (int p = 0; p < kNumPatterns; ++p) {
         patternButtonRect(p, x, y, w, h);
         const bool editing = p == pattern;
         const bool playing = p == playingPattern;
-        uint32_t bg = editing ? kWhite : kPanelDark;
-        uint32_t fg = editing ? kTeal : kWhite;
+        uint32_t bg = editing ? kLight : kPanelDark;
+        uint32_t fg = editing ? kInk : kLight;
         if (playing) { bg = kAcid; fg = kDarkText; }
         std::snprintf(buf, sizeof(buf), "%d", p + 1);
         drawBox(g, font_, x, y, w, h, buf, bg, fg, 2);
         if (playing && editing) {
-            g.drawRect(x + 2, y + 2, w - 4, h - 4, kWhite);
-            g.drawRect(x + 3, y + 3, w - 6, h - 6, kWhite);
+            g.drawRect(x + 2, y + 2, w - 4, h - 4, kLight);
+            g.drawRect(x + 3, y + 3, w - 6, h - 6, kLight);
         }
     }
 
     // Row labels.
     static const char* kLabels[kRowCount] = { "NOTE", "OCTAVE", "ACCENT", "SLIDE" };
     for (int r = 0; r < kRowCount; ++r) {
-        g.drawText(font_, kLabels[r], 14, rowTop(r) + (kRowH[r] - 7) / 2, kWhite, 1);
+        g.drawText(font_, kLabels[r], 14, rowTop(r) + (kRowH[r] - 7) / 2, kLight, 1);
     }
 
     // Grid cells.
@@ -319,30 +321,20 @@ void SequencerGui::draw(Graphics& g) {
             cellRect(row, s, x, y, w, h);
             if (row == Row::Note) {
                 if (st.isNote()) {
-                    g.fillRect(x, y, w, h, kWhite);
-                    drawCentered(g, font_, noteName(st.note), x, y, w, h, kTeal, 3);
-                } else if (st.note == kNoteTie) {
-                    // A tie: pale cell with a bar carrying the previous note in.
-                    g.fillRect(x, y, w, h, kTieBg);
-                    g.fillRect(x, y + h / 2 - 3, w / 2, 6, kTieText);
-                    drawCentered(g, font_, "T", x + w / 4, y, w - w / 4, h, kTeal, 3);
+                    g.fillRect(x, y, w, h, kNoteBg);
+                    drawCentered(g, font_, noteName(st.note), x, y, w, h, kDarkText, 3);
                 } else {
-                    // A rest: hatched.
-                    g.fillRect(x, y, w, h, kRestBg);
-                    for (int py = y; py < y + h; ++py) {
-                        for (int px = x; px < x + w; ++px) {
-                            if ((px + py) % 8 < 2) g.setPixel(px, py, kRestHatch);
-                        }
-                    }
+                    // Ties and rests are told apart by fill alone.
+                    g.fillRect(x, y, w, h, st.note == kNoteTie ? kTieBg : kRestBg);
                 }
             } else if (row == Row::Octave) {
                 if (st.octave != 0) {
-                    fillTriangle(g, x + w / 2, y + h / 2 - 7, 18, 14, st.octave > 0, kWhite);
+                    fillTriangle(g, x + w / 2, y + h / 2 - 7, 18, 14, st.octave > 0, kLight);
                 }
             } else if (row == Row::Accent) {
-                if (st.accent) drawCentered(g, font_, "A", x, y, w, h, kWhite, 3);
+                if (st.accent) drawCentered(g, font_, "A", x, y, w, h, kAccentMark, 3);
             } else {
-                if (st.slide) drawCentered(g, font_, "S", x, y, w, h, kWhite, 3);
+                if (st.slide) drawCentered(g, font_, "S", x, y, w, h, kLight, 3);
             }
         }
     }
@@ -367,17 +359,17 @@ void SequencerGui::draw(Graphics& g) {
     // The step playing now.
     if (highlightStep >= 0 && highlightStep < kMaxSteps) {
         const int sx = kGridX + highlightStep * kCellW;
-        g.fillRect(sx, kGridY, kCellW, gridBottom - kGridY, kAcidTint);
+        g.fillRect(sx, kGridY, kCellW, gridBottom - kGridY, kPlayTint);
         for (int t = 0; t < 3; ++t) {
-            g.drawRect(sx - 1 + t, kGridY - 1 + t, kCellW + 3 - 2 * t, gridBottom - kGridY + 3 - 2 * t, kAcid);
+            g.drawRect(sx - 1 + t, kGridY - 1 + t, kCellW + 3 - 2 * t, gridBottom - kGridY + 3 - 2 * t, kPlayMark);
         }
     }
 
     // Footer.
     std::snprintf(buf, sizeof(buf), "TRIGGER KEY %s  (PATTERNS 1-16 = C-1 TO D#0)",
                   keyName(kFirstTriggerKey + pattern).c_str());
-    g.drawText(font_, buf, 14, kFooterY, kWhite, 1);
-    g.drawText(font_, "CLICK +  RIGHT-CLICK -  DRAG UP/DOWN", gridRight - 211, kFooterY, kWhite, 1);
+    g.drawText(font_, buf, 14, kFooterY, kLight, 1);
+    g.drawText(font_, "CLICK +  RIGHT-CLICK -  DRAG UP/DOWN", gridRight - 211, kFooterY, kLight, 1);
 }
 
 std::string SequencerGui::signature() {
