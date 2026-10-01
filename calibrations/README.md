@@ -15,32 +15,46 @@ flavour, plus notes on where it came from.
 
 ## Scores
 
-Weighted error (all features; lower is better) of each profile on each
-reference set:
+Each profile scored on each reference set: weighted error over all
+features (harmonic levels, inter-harmonic energy, loudness envelope,
+1/3-octave spectrogram, resonant-peak shape; lower is better), and the
+schematic conformance test.
 
 | Profile | 400 x0x notes | 13 Acidvoice notes | Schematic conformance (`acidus_reference_test --fast`) |
 |---|---|---|---|
-| `x0x` | **2.61** | 7.12 | 24 / 34 |
-| `acidvoice` | 3.22 | **2.13** | 24 / 34 |
-| `factory` | 3.49 | 3.28 | **30 / 34** |
-| `hellfish` | - | - | 25 / 34 (by design, see below) |
+| `x0x` | **2.61** | 7.00 | 24 / 34 |
+| `acidvoice` | 3.36 | **2.07** | 24 / 34 |
+| `factory` | 3.87 | 3.54 | **30 / 34** |
+| `hellfish` | - | - | 22 / 34 (by design; not a model of a unit) |
 
-The `x0x` fit on the 400 notes, against earlier models:
+The two measured units are each best fitted by their own profile. The
+schematic `factory` profile lands between them: a new unit, trimmed per the
+service manual, is not expected to match either aged unit exactly. `x0x`
+in detail, on its 400 notes:
 
-| Metric | Old Acidvoice-only model | First x0x fit | `x0x` |
-|---|---|---|---|
-| weighted error | 5.53 | 3.25 | **2.61** |
-| harmonic level error | 7.97 dB | 3.21 dB | **2.31 dB** |
-| resonant-peak shape | 6.17 dB | 3.91 dB | **3.54 dB** |
-| resonant-peak sweep track | 7.52 st | 4.84 st | **3.34 st** |
-| RMS envelope | 3.85 dB | 3.38 dB | **2.93 dB** |
-| 1/3-octave spectrogram | 9.07 dB | 6.50 dB | **5.57 dB** |
-| note level (RMS over notes) | 2.78 dB | 1.69 dB | **1.29 dB** |
-| harmonics within 3 / 6 dB | 56 / 69 % | 71 / 86 % | **76 / 92 %** |
+| Metric | `x0x` |
+|---|---|
+| Harmonic levels, RMS error | 2.3 dB |
+| Harmonics within 1 / 3 / 6 dB | 34 / 76 / 92 % |
+| Note loudness, RMS error across notes | 1.3 dB |
+| Resonant-peak shape, RMS error | 3.5 dB |
+| Resonant-peak sweep track, RMS error | 3.2 semitones |
+| Loudness envelope, RMS error | 3.1 dB |
+| 1/3-octave spectrogram, RMS error | 5.6 dB |
+
+Scores are reproducible with the command in
+[`docs/CALIBRATION_COOKBOOK.md`](../docs/CALIBRATION_COOKBOOK.md) section 7
+(`--evaluate-only --no-sensitivity`, plus `--w-sweep 1` on the x0x set,
+which adds the resonant-peak sweep track to the score).
 
 `factory` fails four conformance checks: B4 (resonant peak height), B6
 (low-frequency shape), C5 (square edge ringing) and E9 (fast MEG term in
-the VCA). These are open model items, not calibration choices.
+the VCA). They come from the empirical coupling network around the filter,
+not from calibration choices. The measured units fail six more each, all
+where the unit differs from a new one: the cutoff trim (both), a slow VEG
+(both), the full-Env-Mod peak and a long held-note decay (x0x), and a
+weaker Env Mod bias shift and a stronger oscillator-side high-pass
+(Acidvoice).
 
 ## The profiles
 
@@ -75,12 +89,8 @@ difference is the **cutoff range**: the Acidvoice unit's settled cutoff at
 Resonance max sits ~0.25 octave higher at knob minimum (206 vs 165 Hz) and
 ~0.45 octave higher at maximum (1.8 vs 1.3 kHz). It also has a louder
 accent (VCA depth 2.3 vs 1.6), more resonance in the output (VCA tap 2.0 vs
-1.2) and a VEG of 1.9 s. With the old model the trim difference looked like
-a whole octave, but part of that was the Env Mod law, which the x0x fit now
-explains. The profile scores 2.13 on the 13 samples; the refit itself
-reached 1.97 with per-sample knob offsets and timing, which a profile does
-not carry. The old-model fit (`archive/acidvoice-2026-09-27-old-model.json`)
-scored 2.42.
+1.2) and a VEG of 1.9 s. Part of the apparent trim difference between the
+units is the Env Mod law, which the x0x sweeps pin down.
 
 ### `factory`: the schematic
 
@@ -224,9 +234,9 @@ without rebuilding:
 
 Clicking the preset display on the logo plate reloads a preset (see above).
 
-## Future work on presets
+## Possible extensions
 
 - per-part toggles (aged C13, trim high/low) that apply a subset of a
   profile;
 - the preset as an automatable CLAP parameter instead of only saved state;
-- for the Hell Fish, the Devil Fish's extra controls as real front-panel knobs.
+- for Hell Fish, the mods as real front-panel knobs (Devil Fish style).
