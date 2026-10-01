@@ -10,8 +10,8 @@ flavour, plus notes on where it came from.
 |---|---|---|
 | `x0x` | dinsync.info reference recordings (`test/resources/x0x-reference`, 400 notes, one ~40-year-old unit) | **Default.** Fitted with the resonant-peak sweep tracker, see `docs/X0X_CALIBRATION_2026-09-28.md`. |
 | `acidvoice` | Acidvoice single-note samples (`test/resources/303_saw-*.wav`, 13 notes, a second unit) | Fitted: the `x0x` model with the constants that differ between units refitted to Acidvoice. |
-| `factory` | None: `x0x` with ageing parts reset to the schematic and the service-manual cutoff trim | Best guess at a new unit. |
-| `hellfish` | None: `factory` with some Devil Fish ranges | Loose guess; no samples. |
+| `factory` | None: every value the schematic or service manual fixes, the rest from `x0x` | The schematic reference. |
+| `hellfish` | None: `factory` with Devil Fish ranges and community mods | The ultimate 303, tuned for sound. |
 
 ## Scores
 
@@ -82,22 +82,35 @@ reached 1.97 with per-sample knob offsets and timing, which a profile does
 not carry. The old-model fit (`archive/acidvoice-2026-09-27-old-model.json`)
 scored 2.42.
 
-### `factory`: best guess at a new unit
+### `factory`: the schematic
 
-`x0x` with the parts that drift or age reset to nominal:
+Every constant the schematic, parts list or service manual fixes is set to
+it, even where that costs fit score on the two recorded units (both are
+aged and trimmed differently, so a new unit is not expected to match them).
+The reasoning for each value is in
+[`docs/CALIBRATION_PARAMETERS.md`](../docs/CALIBRATION_PARAMETERS.md).
 
 | Part | Schematic / service manual | x0x unit (fitted) | `factory` |
 |---|---|---|---|
-| TM3 cutoff trim | service check rings at 2 ms +/- 0.5 ms (400-670 Hz) | 184 Hz base, check at ~350 Hz | 274 Hz base, check at ~525 Hz |
+| TM3 cutoff trim | service check rings at 2 ms +/- 0.5 ms (400-670 Hz) | 184 Hz base, check at ~350 Hz | 274 Hz base, check at ~530 Hz |
+| Ladder capacitors C19/C24/C26/C18 | 33 / 33 / 33 / 18 nF | scales 1.29 / 0.70 / 0.91 / 1.06 | 1.0 (schematic) |
+| Ladder orientation | input pair Q12 saturates on input - feedback, half capacitor on stage 1 (§10.3) | legacy mirrored | circuit orientation |
+| Oscillator -> VCF coupling | none (§7.2) | 47 Hz (Open303-style) | off (1 Hz floor) |
+| Filter -> VCA taps | R122 100 k, R121 220 k (§12) | ratio 1.25 | 2.2 (wiper on the 100 k) |
+| Post-filter high-pass | R122 100 k x C22 10 nF = 159 Hz (§15.4) | 199 Hz | 159 Hz |
+| Resonance law | linear VR4a loaded by Q18's ~50 k bias | skew -0.872 | -0.865 (derived) |
+| VCA onset | R134 22 k x C41 0.1 uF = 2.2 ms | 1.3 ms | 2.2 ms |
 | C13 1 uF (accent sweep) | R46 x C13 47 ms, VR4b x C13 50 ms | 31 / 44 ms, mix 145 ms | 47 / 50 ms, mix 100 ms |
 | C42 1 uF (VEG) | R123 x C42 = 1.5 s | 2.7 s | 1.5 s |
 | C62 1 uF (MEG) | 68 k / 1.068 M into 1 uF: 68 ms - 1.07 s | 65 ms - 0.98 s | 68 ms - 1.068 s |
 | Accented MEG (Decay pot shorted) | 68 ms | 73 ms | 68 ms |
 
-The pot laws, D24's drop, VCA attack and onset delay stay at the x0x
-values. They are properties of the circuit and the pots, not of ageing.
-The 200 Hz post-filter high-pass also stays. It models the x0x unit's weak
-C2 fundamental, and it is not yet known whether that is ageing or design.
+Kept from the x0x fit, because the schematic does not fix them: the A-pot
+curves of Cutoff, Env Mod and Decay (a real two-segment A pot, which the
+recordings measure, not the a = 81 estimate), the Env Mod scale and offset,
+D24's drop, the ladder drive, the feedback ceiling and resonance limit,
+Open303's empirical coupling network around the filter (in-loop high-pass,
+notch, all-pass, input coupling), the square shape and the VCA timing.
 
 Typical ageing of a small 1980s electrolytic is 10-30 % capacitance loss
 (end-of-life criterion -20 %), with drying accelerated by heat. Leakage and
@@ -107,27 +120,30 @@ So the aged `x0x` accent squelch peaks earlier and higher than
 `factory`'s. This is a model prediction; there is no recording of a new
 unit.
 
-### `hellfish`: a loose guess at a Devil Fish
+### `hellfish`: the ultimate 303
 
-Named Hell Fish because it is not a model of a real Devil Fish: no Devil
-Fish was measured, and only the control ranges come from a source. It takes
-Robin Whittle's Devil Fish mod
-([manual](https://www.firstpr.com.au/rwi/dfish/Devil-Fish-Manual.pdf)) on
-a `factory` unit, with its extra controls parked at a typical setting and
-mapped onto existing constants:
+Not a model of any unit: the schematic `factory` core with the mods the
+community keeps coming back to, set for sound rather than accuracy. Named
+Hell Fish because it is inspired by Robin Whittle's Devil Fish
+([manual](https://www.firstpr.com.au/rwi/dfish/Devil-Fish-Manual.pdf)) but
+no Devil Fish was measured.
 
-| Devil Fish control | DF range | Here |
+| Mod | Origin | Here |
 |---|---|---|
-| Normal Decay | 30 ms - 3 s | Decay knob spans 30 ms - 3 s |
-| Accent Decay | 30 ms - 3 s (stock: fixed ~68 ms) | 200 ms |
-| Soft Attack | 0.3 - 30 ms | 3 ms |
-| Overdrive (filter input level) | up to 66.6x | 2x |
+| Normal Decay 30 ms - 3 s | Devil Fish | Decay knob spans 30 ms - 3 s |
+| Accent Decay | Devil Fish (stock: fixed ~68 ms) | 200 ms |
+| Soft Attack | Devil Fish (0.3 - 30 ms) | 3 ms |
+| Overdrive into the filter | Devil Fish (up to 66.6x) | 2x; with the circuit-orientation input pair this growls |
+| Self-oscillating resonance | Devil Fish; x0xb0x R97 mod | screams from ~94 % of the Resonance knob (limit 1.12 x critical, ceiling 30) |
+| Wider Cutoff range | common mod | ~120 Hz - 2.9 kHz settled (4.6 octaves) |
+| Deeper Env Mod | Devil Fish | sweep depth x1.4 |
+| Bass mod | common mod | post-filter HP 40 Hz, oscillator coupling 20 Hz |
+| Harder accent with a tail | Open303-style accent tail | sweep depth 10 oct, VCA depth 2.3, 30 ms accent release |
 
 Not representable yet: Filter Tracking, Filter FM, the Muffler, the Accent
-Sweep speed switch, Slide Time, and live DF pots (these are fixed settings
-here). Its conformance failures (MEG and accent decay times, VEG onset,
-cutoff minimum) are the mod's intended departures from the stock
-schematic.
+Sweep speed switch, Slide Time, and live mod pots (these are fixed settings
+here). Its conformance failures are the mods' intended departures from the
+stock schematic.
 
 ## Adding a profile from a new source
 
