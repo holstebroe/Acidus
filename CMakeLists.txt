@@ -181,3 +181,52 @@ set_target_properties(acidus_calibration_render PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     PREFIX ""
 )
+
+# Acidus Seq: a separate TB-303 style pattern sequencer plugin
+# (acidus_seq.clap) that outputs notes for Acidus. Its own target: nothing
+# here is linked into acidus.clap. It reuses the GUI's Graphics/Font code.
+set(SEQ_SOURCES
+    src/sequencer/Pattern.cpp
+    src/sequencer/SequencerEngine.cpp
+)
+set(SEQ_PLUGIN_SOURCES
+    src/sequencer/SequencerClap.cpp
+    src/sequencer/SequencerGui.cpp
+    src/gui/Font.cpp
+    src/gui/Graphics.cpp
+)
+if(MSVC)
+    set_source_files_properties(${SEQ_SOURCES} ${SEQ_PLUGIN_SOURCES} PROPERTIES
+        COMPILE_OPTIONS "$<$<CONFIG:Release>:/O1>")
+else()
+    set_source_files_properties(${SEQ_SOURCES} ${SEQ_PLUGIN_SOURCES} PROPERTIES
+        COMPILE_OPTIONS "$<$<CONFIG:Release>:-Os>")
+endif()
+
+add_library(acidus_seq MODULE
+    ${SEQ_SOURCES}
+    ${SEQ_PLUGIN_SOURCES}
+)
+set_target_properties(acidus_seq PROPERTIES
+    PREFIX ""
+    SUFFIX ".clap"
+    OUTPUT_NAME "acidus_seq"
+)
+target_link_libraries(acidus_seq PRIVATE ${GUI_LIBS})
+
+add_custom_target(deploy_seq_clap
+    COMMAND ${CMAKE_COMMAND} -DCLAP_FILE=$<TARGET_FILE:acidus_seq>
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/DeployClap.cmake
+    COMMENT "Deploying acidus_seq.clap to %CLAPTEST%"
+    VERBATIM
+)
+add_dependencies(deploy_seq_clap acidus_seq)
+
+# Sequencer tests: step timing (gate, slide, tie, accent), host-position
+# sync, trigger handling, state round trip and GUI editing.
+add_executable(acidus_seq_test
+    ${SEQ_SOURCES}
+    ${SEQ_PLUGIN_SOURCES}
+    src/sequencer_test_main.cpp
+)
+target_link_libraries(acidus_seq_test PRIVATE ${GUI_LIBS})

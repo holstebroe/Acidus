@@ -12,6 +12,44 @@
 - **Custom Native Vector/Pixel GUI**: Lightweight pixel-rendered front panel featuring controls for Cutoff, Resonance, Env Mod, Decay, Accent, Waveform, Tuning, and Master Volume, plus a custom Acid Green logo with multi-layer glow.
 - **CLAP Standard Support**: Full support for CLAP parameter automation, state save/restore, and host event flushing.
 - **Cross-Platform Support**: Linux (X11), Windows (Win32), and macOS (Cocoa).
+- **Acidus Seq**: a separate TB-303-style pattern sequencer plugin (`acidus_seq.clap`) that sends Acidus the notes it needs for real 303 gate, slide, tie and accent timing. See [Acidus Seq](#acidus-seq).
+
+---
+
+## Acidus Seq
+
+`acidus_seq.clap` is a small note-output plugin, built separately so
+`acidus.clap` stays the same size. Put it before Acidus in the same chain (or
+route its note output to Acidus).
+
+- **16 patterns**, up to 16 steps each, triggered by MIDI keys **C-1 (pattern 1)
+  to D#0 (pattern 16)**. A pattern plays while its key is held; the newest
+  held key wins, and a change takes effect at the next step. Releasing the key
+  never cuts a step short: a started step plays out its gate, slide or tie.
+- **Locked to the host.** Steps are 16th notes at the host tempo, on the
+  host's grid: step *n* of the song plays pattern step *n mod length*, so
+  starting playback anywhere (or looping) gives the same notes as playing
+  through. Playback started mid-step begins at the next step. With the
+  transport stopped, a trigger key starts the pattern at once from step 1.
+- **303 timing** (`docs/TB-303 Reference/TB303_REFERENCE.md` §4):
+  - normal steps gate for half a step;
+  - **slide** holds the gate to the end of the step, and the next note-on is
+    sent *before* the previous note-off, so Acidus glides without
+    retriggering its envelopes. A slide on a tied note applies at the end of
+    the tie, and a slide on the last step wraps to the first;
+  - **tie** (`T`) extends the previous note's gate; a slide to the same pitch
+    is also a tie;
+  - **accent** is velocity 127, other notes 100 (Acidus accents at 102 and up).
+- **Pitch**: C..B with octave down / none / up spans C1-B3 (C2 = MIDI 36 is
+  the middle octave), plus a per-pattern **transpose** of ±12 semitones.
+- Other notes (above D#0) and MIDI (CCs etc.) pass straight through.
+
+**Editing.** Click a pattern number to edit it (FOLLOW makes the editor jump
+to the pattern that starts playing). In the grid, left-click a cell for the
+next value, right-click for the previous one, or left-drag up/down to cycle.
+Note cells go rest (hatched) -> C ... B -> T (tie). LENGTH and TRANSPOSE work
+the same way; steps past the length are shaded. Slots 1-5 hold factory
+patterns (Da Funk, Acid Tracks 2, Brain Tool, Overpowered 2, Raga Bhairav 1).
 
 ---
 
@@ -134,7 +172,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-The resulting CLAP plugin (`acidus.clap`) will be located in the `build/` directory.
+The resulting CLAP plugins (`acidus.clap` and the sequencer, `acidus_seq.clap`) will be located in the `build/` directory.
 
 ### Calibration build
 
@@ -224,6 +262,7 @@ Results go to `calibration_results/<timestamp>/`:
 ./build/acidus_filter_stability_test
 ./build/acidus_gui_test
 ./build/acidus_reference_test    # checks the DSP against docs/TB-303 Reference/TB303_REFERENCE.md
+./build/acidus_seq_test          # sequencer timing, host sync, state and GUI editing
 ```
 
 `acidus_reference_test` measures frequency response, resonance-loop
