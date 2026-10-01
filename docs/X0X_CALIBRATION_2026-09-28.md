@@ -319,4 +319,4 @@ check: the x0x unit rings at ~350 Hz with Cutoff centred, against the
 manual's 400-670 Hz, so its TM3 trim is low. `factory` trims it to ~525 Hz.
 
 The profiles derived from this fit (`x0x`, `acidvoice`, `factory`,
-`devilfish`) are described in `calibrations/README.md`.
+`hellfish`) are described in `calibrations/README.md`.

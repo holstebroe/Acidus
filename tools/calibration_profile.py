@@ -38,7 +38,7 @@ PRESET_HEADER = REPO / "src" / "core" / "CalibrationPresets.hpp"
 
 # The plugin's calibration presets, in cycling order: (profile, display name).
 # The first one is the plugin's startup calibration.
-PRESETS = [("x0x", "X0X"), ("acidvoice", "ACIDVOICE"), ("factory", "FACTORY"), ("devilfish", "DEVIL FISH")]
+PRESETS = [("x0x", "X0X"), ("acidvoice", "ACIDVOICE"), ("factory", "FACTORY"), ("hellfish", "HELL FISH")]
 
 # SynthParameters fields that are user controls, not calibration.
 NOT_CALIBRATION = {"cutoff", "resonance", "envMod", "decay", "accent", "masterVolume", "drive", "tuningCents"}

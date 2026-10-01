@@ -54,7 +54,7 @@ Two sources of truth drive the model:
   taper from the sweep decay times), it is measured rather than searched.
 - **Per-unit profiles.** Units differ (the two measured here differ in
   cutoff range, accent level and envelope times), so fitted constants are kept per source in
-  `calibrations/`, next to extrapolated "factory new" and Devil Fish
+  `calibrations/`, next to extrapolated "factory new" and Hell Fish (Devil Fish inspired)
   profiles (see below).
 
 ### Key results so far
@@ -104,7 +104,7 @@ changed after the preset was loaded.
 | `x0x` (default) | The dinsync.info unit as recorded: 40 years old, low cutoff trim, aged C13. |
 | `acidvoice` | The Acidvoice unit: the same circuit model refitted to its 13 samples; higher cutoff range, louder accent. |
 | `factory` | Best guess at a new TB-303: nominal component values and the service-manual cutoff trim. Passes 30 of 34 schematic conformance checks. |
-| `devilfish` | Best guess at a Devil Fish modded 303 (wider decay and accent ranges, more filter drive). No samples, so unverified. |
+| `hellfish` | Hell Fish: a loose guess at a Devil Fish modded 303 (the mod's wider decay and accent ranges, more filter drive). Only the control ranges are sourced (the Devil Fish manual); no samples, so not a model of a real Devil Fish. |
 
 This is ongoing work toward a very low reference error. Known gaps include:
 - resonance is too weak at note start on some high-resonance settings;
@@ -205,7 +205,7 @@ to name and place the files, the knob sheet and manifest
 into a plugin preset.
 
 Fitted constants are kept per source in `calibrations/` (`x0x`, `acidvoice`,
-`factory`, `devilfish`) and compiled into the plugin's presets with
+`factory`, `hellfish`) and compiled into the plugin's presets with
 `tools/calibration_profile.py presets`; `calibrations/README.md` explains
 what differs between them.
 

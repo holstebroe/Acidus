@@ -179,7 +179,7 @@ model is fitted to the *behaviour*, so a clone fits well if it is faithful, and 
 if it is not. The fit score tells you which (section 9). A mod that adds controls
 (Devil Fish) can only be captured with those controls parked: the profile then
 represents that one setting, and the extra controls do not become plugin knobs.
-See the `devilfish` profile in `calibrations/README.md` for what "mapped onto
+See the `hellfish` profile in `calibrations/README.md` for what "mapped onto
 existing constants" looks like.
 
 **A software plugin or emulation.** Use an **offline bounce** from a DAW, one note per
@@ -409,7 +409,7 @@ Score the four shipped profiles on the new set. The best one is the fit's starti
 point, and the set of numbers is what a new profile has to beat.
 
 ```bash
-for p in x0x acidvoice factory devilfish; do
+for p in x0x acidvoice factory hellfish; do
   echo "== $p"
   python3 tools/calibrate_reference.py --manifest $M --calibration calibrations/$p.json \
       --evaluate-only --no-sensitivity --out /tmp/base-$p | grep -E "weighted error"
@@ -752,11 +752,11 @@ Edit `PRESETS` in `tools/calibration_profile.py`. Two rules:
 - **Append at the end.** The preset index is saved in projects; inserting or reordering
   changes what existing projects load. The first entry is also the start-up preset.
 - The display name is shown on the logo plate: upper case, **10 characters or less**
-  (the plate is sized for `DEVIL FISH*`).
+  (the plate is sized for `HELL FISH*`).
 
 ```python
 PRESETS = [("x0x", "X0X"), ("acidvoice", "ACIDVOICE"), ("factory", "FACTORY"),
-           ("devilfish", "DEVIL FISH"), ("<source-id>", "<NAME>")]
+           ("hellfish", "HELL FISH"), ("<source-id>", "<NAME>")]
 ```
 
 ### 11.2 Regenerate and build
