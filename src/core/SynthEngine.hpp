@@ -15,7 +15,7 @@ struct SynthParameters {
     float decay{0.5f};         // Knob range 0.0 to 1.0
     float accent{0.5f};        // Knob range 0.0 to 1.0
     Waveform waveform{Waveform::Saw};
-    float masterVolume{0.8f};
+    float masterVolume{0.8f};  // Volume knob 0.0 to 1.0 (audio taper, ahead of the pedal)
     float drive{0.0f};         // MXR Distortion+ emulation; 0 = pedal bypassed
     float tuningCents{0.0f};   // Master tuning trim, ± cents (hardware range: approx. ±700 cents)
 

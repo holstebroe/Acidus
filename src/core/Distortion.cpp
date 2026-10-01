@@ -41,11 +41,13 @@ constexpr float kVHigh = 3.0f;
 constexpr float kVLow = 2.6f;
 
 // Calibration from the plugin's float domain into the circuit's volts. The
-// engine's output stage (SynthEngine.cpp, kOutputStageGain) puts a typical
-// note at ~0 dBFS peak, and a full-scale sample is a ~50 mV pedal input:
-// the diodes start clipping about a quarter of the way up the Distortion
-// travel and the 741 hits its rails from about two thirds (Section 6.1),
-// while the lowest settings stay a crunch. The output scale maps the diode clipper's
+// pedal sits after the 303's Volume knob and output stage (SynthEngine.cpp,
+// kOutputStageGain), which put a typical note near 0 dBFS peak at the default
+// Volume and ~+6 dBFS at full Volume; a full-scale sample is a ~50 mV pedal
+// input. At the default Volume the diodes start clipping about a quarter of
+// the way up the Distortion travel and the 741 hits its rails from about two
+// thirds (Section 6.1); full Volume reaches both sooner, while low Volume and
+// low Distortion stay a crunch. The output scale maps the diode clipper's
 // self-limited ceiling (~0.2-0.3 V, Section 6.1) to about +1 dBFS, so
 // engaging the pedal is never quieter than bypass.
 constexpr float kInputVoltScale = 0.05f;
