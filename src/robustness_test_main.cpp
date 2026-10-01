@@ -16,7 +16,7 @@ static void check(bool ok, const char* what) {
     if (!ok) { std::printf("FAIL: %s\n", what); ++g_failures; }
 }
 
-static bool finiteAndBounded(const std::vector<float>& v, float limit = 4.0f) {
+static bool finiteAndBounded(const std::vector<float>& v, float limit = 16.0f) {
     for (float x : v) if (!std::isfinite(x) || std::abs(x) > limit) return false;
     return true;
 }

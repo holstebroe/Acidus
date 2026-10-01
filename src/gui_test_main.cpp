@@ -133,6 +133,19 @@ int main() {
     assert(testCtx.types.back() == CLAP_EVENT_PARAM_VALUE);
     assert(testCtx.flags.back() == CLAP_EVENT_DONT_RECORD);
 
+    // Tuning CC: 64 is exactly centre, and both ends reach the full ±700.
+    midiCcEv.data[1] = acidus::MIDI_PARAM_TUNE;
+    const struct { uint8_t cc; double cents; } tuneCases[] = {
+        { 0, -700.0 }, { 32, -350.0 }, { 64, 0.0 }, { 127, 700.0 } };
+    for (const auto& tc : tuneCases) {
+        midiCcEv.data[2] = tc.cc;
+        plugin.paramsFlush(&mockInList, &mockOutList);
+        double tune = 1e9;
+        plugin.paramsValue(acidus::PARAM_TUNE, &tune);
+        std::cout << "Tuning after MIDI CC " << acidus::MIDI_PARAM_TUNE << " (" << int(tc.cc) << "): " << tune << std::endl;
+        assert(std::abs(tune - tc.cents) < 1e-9);
+    }
+
     acidus::Font customFont(6, 8);
     assert(customFont.getWidth() == 6);
     assert(customFont.getHeight() == 8);
@@ -219,7 +232,7 @@ int main() {
         }
         check(calPlugin.calibrationPresetIndex() == 0, "cycling wraps around to the first preset");
         calPlugin.selectCalibrationPreset(3, true);
-        check(std::string(calPlugin.calibrationPresetName()) == "DEVIL FISH", "DEVIL FISH preset");
+        check(std::string(calPlugin.calibrationPresetName()) == "HELL FISH", "HELL FISH preset");
         check(std::abs(calPlugin.getEngine().getParams().vcaAttackMs - presets[3].params.vcaAttackMs) < 1e-5f,
               "non-default constant applied");
 
@@ -232,9 +245,22 @@ int main() {
         for (clap_id id : presetEvents.paramIds) check(id >= acidus::PARAM_FRONT_PANEL_COUNT, "only calibration parameters sent");
         calPlugin.paramsValue(acidus::PARAM_VCA_ATTACK_MS, &v);
         check(std::abs(v - presets[3].params.vcaAttackMs) < 1e-6, "calibration parameter loaded from the preset");
+        // Every preset loads exactly: no calibration parameter is clamped to
+        // its range (which would play the preset wrong and show a star).
+        for (int i = 0; i < acidus::AcidusClap::calibrationPresetCount(); ++i) {
+            calPlugin.selectCalibrationPreset(i, true);
+            check(!calPlugin.isCalibrationModified(), "a freshly selected preset is not modified");
+            const auto& e = calPlugin.getEngine().getParams();
+            const auto& want = presets[i].params;
+            check(e.filterFeedbackGain == want.filterFeedbackGain && e.accentSweepDepthOct == want.accentSweepDepthOct &&
+                  e.oscCouplingHz == want.oscCouplingHz && e.vcfDecayMaxSec == want.vcfDecayMaxSec,
+                  "engine plays the preset's exact values");
+        }
+        calPlugin.paramsFlush(nullptr, &presetList);
+        calPlugin.selectCalibrationPreset(3, true);
         calPlugin.onParamValueFromGui(acidus::PARAM_CUTOFF_BASE_HZ, presets[3].params.cutoffBaseHz + 50.0);
         check(calPlugin.isCalibrationModified(), "edited calibration parameter marks the preset modified");
-        calGui.renderFrame();   // label now "DEVIL FISH*"
+        calGui.renderFrame();   // label now "HELL FISH*"
 #endif
 
         // State round trip: preset, calibration edits and knobs survive.
@@ -270,6 +296,21 @@ int main() {
 #endif
         check(std::abs(restored.getEngine().getParams().vcaAttackMs - presets[3].params.vcaAttackMs) < 1e-5f,
               "restored engine uses the preset");
+#ifdef ACIDUS_CALIBRATION_BUILD
+        {
+            // A loaded project keeps its edits (above); cycling presets resets them.
+            acidus::AcidusClap cycled(nullptr);
+            MemStream again;
+            again.data = mem.data;
+            clap_istream_t ais{&again, MemStream::read};
+            check(cycled.stateLoad(&ais) && cycled.isCalibrationModified(), "edit survives a project load");
+            cycled.cycleCalibrationPresetFromGui();
+            check(!cycled.isCalibrationModified(), "cycling presets resets the calibration");
+            for (int i = 1; i < acidus::AcidusClap::calibrationPresetCount(); ++i) cycled.cycleCalibrationPresetFromGui();
+            check(cycled.calibrationPresetIndex() == 3 && !cycled.isCalibrationModified(),
+                  "cycling back to the saved preset gives the preset, not the edit");
+        }
+#endif
 
         // Legacy state (bare doubles, before presets): the first preset.
         MemStream legacy;

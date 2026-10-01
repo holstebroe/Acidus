@@ -25,6 +25,7 @@
   "vcaGateOffAccentMs": 2.80367,
   "vcaResTapRatio": 1.95821,
   "vcaGainSaturationDrive": 0.0,
+  "vcoOctaveScale": 1.0,
   "cutoffBaseHz": 219.775,
   "cutoffSpanOct": 3.19598,
   "cutoffTaperExp": 2.26027,

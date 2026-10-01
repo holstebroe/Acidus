@@ -13,7 +13,8 @@ namespace acidus {
 // drive = 0 fully bypasses the stage (dry passthrough), like the pedal's
 // footswitch disengaged; drive in (0, 1] engages it, sweeping the reissue's
 // gain range from its minimum (~9.5 dB, 500 kohm pot) to its maximum
-// (~46.6 dB, 0 ohm pot).
+// (~46.6 dB, 0 ohm pot). An auto-output trim (not in the circuit, see
+// kAutoOutputAmount in Distortion.cpp) keeps the louder settings in check.
 class Distortion {
 public:
     Distortion();
@@ -43,6 +44,10 @@ private:
     // Dynamic antiparallel-diode shunt clipper node
     float diodeV_{0.0f};
     float diodeGPrev_{0.0f};
+
+    // Auto-output trim, recomputed only when the Distortion knob moves
+    float autoOutputDrive_{-1.0f};
+    float autoOutputGain_{1.0f};
 };
 
 } // namespace acidus

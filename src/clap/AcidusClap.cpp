@@ -49,6 +49,7 @@ static const CalibrationBinding kCalibrationBindings[] = {
     { PARAM_ACCENT_VCA_DEPTH, &SynthParameters::accentVcaDepth },
     { PARAM_ACCENT_SWEEP_DEPTH, &SynthParameters::accentSweepDepthOct },
     { PARAM_VCA_RES_TAP_RATIO, &SynthParameters::vcaResTapRatio },
+    { PARAM_VCO_OCTAVE_SCALE, &SynthParameters::vcoOctaveScale },
     { PARAM_FILTER_LADDER_TOPOLOGY, &SynthParameters::filterLadderTopology },
     { PARAM_CUTOFF_BASE_HZ, &SynthParameters::cutoffBaseHz },
     { PARAM_CUTOFF_SPAN_OCT, &SynthParameters::cutoffSpanOct },
@@ -359,7 +360,11 @@ void AcidusClap::handleEvent(const clap_event_header_t* header) {
                 if (paramId == PARAM_WAVEFORM) {
                     normVal = (data2 >= 64) ? 1.0 : 0.0;
                 } else if (paramId == PARAM_TUNE) {
-                    normVal = -700.0 + normVal * 1400.0;
+                    // CC 64 is exactly centre (0 cents): 0-64 spans the
+                    // lower half and 64-127 the upper, so the trim can be
+                    // returned to in tune from a hardware controller.
+                    normVal = (data2 <= 64) ? -700.0 + (data2 / 64.0) * 700.0
+                                            : ((data2 - 64) / 63.0) * 700.0;
                 }
                 setParam(paramId, normVal);
                 syncParamsToEngine();
@@ -728,6 +733,16 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->max_value = 3.0;
             paramInfo->default_value = kCalibrationDefaults.vcaResTapRatio;
             break;
+        case PARAM_VCO_OCTAVE_SCALE:
+            // VCO V/oct scale (TM5 width trim, TB303_REFERENCE.md §5.3):
+            // 1 = exact 2:1 octaves; measured units 0.99-1.03. Pivots on
+            // the A key at 110 Hz.
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "VCO Octave Scale");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Oscillator");
+            paramInfo->min_value = 0.95;
+            paramInfo->max_value = 1.05;
+            paramInfo->default_value = kCalibrationDefaults.vcoOctaveScale;
+            break;
         case PARAM_FILTER_LADDER_TOPOLOGY:
             // 0 = legacy mirrored ladder, 1 = circuit orientation (§10.3).
             snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Ladder Topology");
@@ -918,6 +933,22 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
         default:
             return false;
     }
+#ifdef ACIDUS_CALIBRATION_BUILD
+    // Calibration build only: here the presets' constants are loaded into
+    // these host parameters, which clamp to their range, and the engine
+    // reads the parameters. Widen each range to cover every preset's value
+    // so selecting a preset never clamps (which would play the preset wrong
+    // and mark it as edited). A Release build has no such parameters: the
+    // engine reads the preset's constants directly, so nothing is clamped.
+    for (const auto& b : kCalibrationBindings) {
+        if (b.id != paramIndex) continue;
+        for (int i = 0; i < kCalibrationPresetCount; ++i) {
+            const double v = static_cast<double>(calibrationPresets()[i].params.*(b.field));
+            paramInfo->min_value = std::min(paramInfo->min_value, v);
+            paramInfo->max_value = std::max(paramInfo->max_value, v);
+        }
+    }
+#endif
     return true;
 }
 

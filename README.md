@@ -9,7 +9,10 @@
 ## Key Features
 
 - **Pure C++ DSP Engine**: Faithful 8x oversampled coupled diode ladder filter solver with physical BJT thermal voltage scaling and nonlinear saturation.
-- **Custom Native Vector/Pixel GUI**: Lightweight pixel-rendered front panel featuring controls for Cutoff, Resonance, Env Mod, Decay, Accent, Waveform, Tuning, and Master Volume, plus a custom Acid Green logo with multi-layer glow.
+- **Calibrated against hardware**: fitted to 400 recorded notes of a real TB-303 and checked against the service-manual schematics (see below).
+- **Four calibration presets**: two measured units, the schematic, and Hell Fish, a modded "ultimate 303".
+- **MXR Distortion+ stage**: a circuit model of the pedal after the 303's audio-taper Volume knob, so Volume drives the pedal as on hardware, with an automatic output trim.
+- **Custom Native Vector/Pixel GUI**: Lightweight pixel-rendered front panel featuring controls for Cutoff, Resonance, Env Mod, Decay, Accent, Waveform, Tuning, Volume, and Drive, plus a custom Acid Green logo with multi-layer glow.
 - **CLAP Standard Support**: Full support for CLAP parameter automation, state save/restore, and host event flushing.
 - **Cross-Platform Support**: Linux (X11), Windows (Win32), and macOS (Cocoa).
 - **Burette**: a separate TB-303-style pattern sequencer plugin (`burette.clap`) that sends Acidus the notes it needs for real 303 gate, slide, tie and accent timing. See [Burette](#burette).
@@ -106,68 +109,100 @@ Two sources of truth drive the model:
   taper from the sweep decay times), it is measured rather than searched.
 - **Per-unit profiles.** Units differ (the two measured here differ in
   cutoff range, accent level and envelope times), so fitted constants are kept per source in
-  `calibrations/`, next to extrapolated "factory new" and Devil Fish
-  profiles (see below).
+  `calibrations/`, next to the schematic `factory` profile and Hell Fish
+  (see below).
 
-### Key results so far
+### Accuracy
 
-All figures are on the same 400 hardware notes; lower is better except
-the percentages.
+Every reference note is rendered through the plugin's own engine and
+compared with the hardware recording under a single recording gain for the
+whole set, so loudness differences count too. Each unit is matched by its
+own calibration profile:
 
-| | Previous fit (13 Acidvoice samples) | First x0x fit | `x0x` (current default) |
-|---|---|---|---|
-| Weighted error (all features) | 5.53 | 3.25 | **2.61** |
-| Harmonic level error (RMS) | 8.0 dB | 3.2 dB | **2.3 dB** |
-| Harmonics within 3 dB / 6 dB of the hardware | 56 % / 69 % | 71 % / 86 % | **76 % / 92 %** |
-| Note loudness error (RMS over notes) | 2.8 dB | 1.7 dB | **1.3 dB** |
-| Resonant-peak sweep error (RMS) | 7.5 semitones | 4.8 semitones | **3.3 semitones** |
-| 1/3-octave spectrogram error | 9.1 dB | 6.5 dB | **5.6 dB** |
+| Metric | dinsync.info unit, 400 notes (`x0x`) | Acidvoice unit, 13 notes (`acidvoice`) |
+|---|---|---|
+| Harmonic levels, RMS error | 2.3 dB | 1.9 dB |
+| Harmonics within 3 dB / 6 dB of the hardware | 76 % / 92 % | 77 % / 95 % |
+| Resonant-peak shape, RMS error | 3.5 dB | 1.9 dB |
+| Resonant-peak sweep, RMS error (Resonance >= 50 %) | 3.2 semitones | - |
+| Note loudness, RMS error across notes | 1.3 dB | 2.6 dB |
+| 1/3-octave spectrogram, RMS error | 5.6 dB | 5.0 dB |
 
-Every one of the 25 knob sets improved; the hardest remaining are E1, E3
-and D3 (high resonance with high Env Mod), at 4.7-6.1 against 0.9-2.7 for
-the rest.
+**A squelch in slow motion.** One accented note at full Cutoff, Env Mod,
+Decay and Accent with Resonance at 75 %: the spectrum of the hardware
+recording and of Acidus, 30 ms windows, the first 600 ms played back ten
+times slower.
 
-The recordings also revealed circuit behaviour that is now in the model:
-- the Env Mod pot's S-shaped depth curve (steepest around 68 % of travel)
-  and its bias shift;
-- the Decay pot's taper (much longer mid-travel decays than an ideal
-  audio taper);
+![Slow-motion spectrum of an accented squelch, hardware vs Acidus](docs/images/squelch_spectrum.gif)
+
+**Where the resonance is.** The resonant peak tracked every 5 ms through
+the envelope sweep, on four accented notes:
+
+![Resonant-peak frequency over time, hardware vs Acidus](docs/images/sweep_tracks.png)
+
+**The waveform.** The same squelch 20 ms into the accent, sample for
+sample:
+
+![Waveform of the accented squelch, hardware vs Acidus](docs/images/squelch_waveform.png)
+
+The figures are regenerated from the recordings and the current engine by
+`tools/make_readme_figures.py`.
+
+The `factory` profile passes 30 of the 34 schematic conformance checks in
+`acidus_reference_test`. Cross-unit scores and per-set results are in
+[`calibrations/README.md`](calibrations/README.md).
+
+### Circuit behaviour measured from the recordings
+
+Fitting against a systematic sweep pins down behaviour the schematic alone
+leaves open, and all of it is in the model:
+- the Env Mod pot's S-shaped depth curve (steepest around 69 % of travel)
+  and its bias shift, which lowers the settled cutoff by 0.35 x the added
+  sweep depth;
+- the Decay and Env Mod pots' real audio taper (about 15-20 % at
+  mid-travel, two-segment carbon pots, not an ideal exponential);
+- the Resonance pot's late build-up, which matches the linear VR4a loaded
+  by the Q18 buffer within 1 %;
 - the square's 53 % duty cycle at C2;
-- the accent diode's forward drop, which, with a moderately aged C13,
-  explains why this unit's accent squelch peaks 15-20 ms after note-on;
+- the accent diode D24's forward drop, which, with a moderately aged C13,
+  makes this unit's accent squelch peak 15-20 ms after note-on;
 - a ~4.5 ms delay before the VCA opens on unaccented notes;
 - a filter cutoff that reaches beyond 15 kHz at full Env Mod.
 
-For one heavy acid setting (all knobs at 100 % except Env Mod at 25 %),
-the resonant peak now follows the hardware within a few percent from
-note-on until it settles, with and without accent.
-
 ### Calibration profiles
 
-Units differ, so Acidus keeps fitted constants per source in
-`calibrations/` and builds them in as calibration presets. The current
-preset is shown on the logo plate; **click it to switch**. The knobs keep
-their positions, and the preset is saved with the project. In the
-calibration build, a star after the name means a calibration parameter was
-changed after the preset was loaded.
+No two TB-303s sound exactly alike: trimmers, ±20 % electrolytics, carbon
+pots and 40 years of ageing all leave their mark. Acidus keeps one circuit
+model and stores the constants that differ between units as profiles in
+`calibrations/`, built into the plugin as presets. The current preset is
+shown on the logo plate; **click it to switch**. The knobs keep their
+positions, and the preset is saved with the project. In the calibration
+build, a star after the name means a calibration parameter was changed
+after the preset was loaded.
 
 | Profile | What it is |
 |---|---|
-| `x0x` (default) | The dinsync.info unit as recorded: 40 years old, low cutoff trim, aged C13. |
-| `acidvoice` | The Acidvoice unit: the same circuit model refitted to its 13 samples; higher cutoff range, louder accent. |
-| `factory` | Best guess at a new TB-303: nominal component values and the service-manual cutoff trim. Passes 30 of 34 schematic conformance checks. |
-| `devilfish` | Best guess at a Devil Fish modded 303 (wider decay and accent ranges, more filter drive). No samples, so unverified. |
+| `x0x` (default) | The dinsync.info unit as recorded: 40 years old, low cutoff trim, aged C13. Best fit to its 400 notes. |
+| `acidvoice` | The Acidvoice unit: the same circuit model fitted to its 13 samples; higher cutoff range, louder accent. |
+| `factory` | The schematic: every value the schematic, parts list or service manual fixes (component values, trims, ladder capacitors and orientation, filter-to-VCA taps). Passes 30 of 34 conformance checks. |
+| `hellfish` | Hell Fish, the ultimate 303: the schematic core with Devil Fish ranges and popular community mods (self-oscillating resonance, wider cutoff, deeper Env Mod, bass mod, harder accent, filter overdrive). Tuned for sound, not modelled on a unit. |
 
-This is ongoing work toward a very low reference error. Known gaps include:
-- resonance is too weak at note start on some high-resonance settings;
-- the x0x unit's weak C2 fundamental is modelled by a 200 Hz high-pass
-  rather than by an identified circuit element;
-- the x0x set is all C2, so nothing yet constrains key tracking;
-- several reference-conformance checks conflict with this particular unit
-  (cutoff trim, VEG decay), and the `factory` profile passes them.
+Every knob law and calibration constant, its circuit part, schematic value,
+measurements, per-profile value and audible effect is explained in
+[`docs/CALIBRATION_PARAMETERS.md`](docs/CALIBRATION_PARAMETERS.md). The x0x
+fit's procedure and per-set results are in
+`docs/X0X_CALIBRATION_2026-09-28.md`.
 
-They are tracked in `docs/X0X_CALIBRATION_2026-09-28.md`, together with the
-full procedure, per-set results and every parameter change.
+### Known limits
+
+- High Resonance with high Env Mod: the resonance is slightly weak in the
+  attack.
+- The x0x set is all C2, so key tracking is constrained by the circuit, not
+  by recordings.
+- The coupling network around the filter follows Open303's empirical
+  topology rather than Stinchcombe's full network, which accounts for the
+  four conformance checks `factory` does not pass (resonant-peak height,
+  low-frequency shape, square edge ringing, fast MEG term in the VCA).
 
 ---
 
@@ -198,7 +233,7 @@ matching the real hardware's user-facing surface. A separate build
 configuration additionally exposes every hidden circuit-topology constant
 (ladder coupling-pole corners, VCA saturation drive, etc.) as automatable
 CLAP parameters under `Experimental/...` module paths, each spanning the
-full plausible range documented in `TB303_PARAMETER_CONFIDENCE.md`, so an
+full plausible range documented in `docs/CALIBRATION_PARAMETERS.md`, so an
 external fitting/optimization tool -- or a human A/B-ing against a reference
 hardware recording -- can push every free constant in the model to its
 documented extremes:
@@ -211,7 +246,7 @@ cmake --build build-calibration
 Nothing in the DSP core depends on which configuration is used -- the
 calibration build is the exact same signal path, just with more of its
 constants exposed as host-automatable parameters instead of compiled-in
-defaults. See `TB303_PARAMETER_CONFIDENCE.md` for what each one backs.
+defaults. See `docs/CALIBRATION_PARAMETERS.md` for what each one backs.
 
 ### Calibrating against hardware reference samples
 
@@ -257,7 +292,7 @@ to name and place the files, the knob sheet and manifest
 into a plugin preset.
 
 Fitted constants are kept per source in `calibrations/` (`x0x`, `acidvoice`,
-`factory`, `devilfish`) and compiled into the plugin's presets with
+`factory`, `hellfish`) and compiled into the plugin's presets with
 `tools/calibration_profile.py presets`; `calibrations/README.md` explains
 what differs between them.
 
@@ -282,8 +317,8 @@ Results go to `calibration_results/<timestamp>/`:
 `acidus_reference_test` measures frequency response, resonance-loop
 stability margin, envelope/slide time constants and control laws against the
 sourced claims in the consolidated reference, and exits with the number of
-failed checks. See `docs/TB303_REFERENCE_AUDIT_2026-09-27.md` for the current
-results and the corrective plan.
+failed checks. `docs/TB303_REFERENCE_AUDIT_2026-09-27.md` describes each
+check and its source.
 
 ---
 

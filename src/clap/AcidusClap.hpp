@@ -122,7 +122,9 @@ enum ParamId : clap_id {
     PARAM_VCA_NORMAL_DELAY_MS = 54,            // VCA onset delay on unaccented notes
     PARAM_VCA_ATTACK_MS = 55,                  // VEG onset time constant (Devil Fish: Soft Attack)
 
-    PARAM_EXPERIMENTAL_COUNT = 56,
+    PARAM_VCO_OCTAVE_SCALE = 56,               // VCO V/oct scale (TM5 width), 1 = exact 2:1 octaves
+
+    PARAM_EXPERIMENTAL_COUNT = 57,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

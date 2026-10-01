@@ -52,14 +52,15 @@ void GuiWindow::initControls() {
     // reference recording that's itself slightly off-pitch.
     controls_.push_back({ PARAM_TUNE, "TUNING", ControlType::Knob, 610, 100, 20, -700.0, 700.0, 0.0, false });
 
-    // MXR Distortion+ drive, set apart with a "hot" accent color. Fully
-    // counter-clockwise (0.0) bypasses the pedal entirely.
-    controls_.push_back({ PARAM_DRIVE, "DRIVE", ControlType::Knob, 710, 100, 20, 0.0, 1.0, 0.0, false });
-    controls_.back().accentColor = 0xFF7A2418; // rust red, marks the distortion stage
-
-    // Master Volume Knob, set apart with its own accent color.
-    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 810, 100, 20, 0.0, 1.0, 0.8, false });
+    // Panel order follows the signal: the 303's Volume, then the pedal it
+    // drives. Master Volume Knob, set apart with its own accent color.
+    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 710, 100, 20, 0.0, 1.0, 0.8, false });
     controls_.back().accentColor = 0xFF6B4A22; // warm amber, distinct from the graphite knobs
+
+    // MXR Distortion+ drive, capped in the pedal's yellow. Fully
+    // counter-clockwise (0.0) bypasses the pedal entirely.
+    controls_.push_back({ PARAM_DRIVE, "DRIVE", ControlType::Knob, 810, 100, 20, 0.0, 1.0, 0.0, false });
+    controls_.back().accentColor = 0xFFF5C21B; // MXR Distortion+ yellow, marks the pedal
 
     updateKnobValuesFromPlugin();
 }
@@ -216,7 +217,7 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY, unsigned pa
         std::snprintf(label, sizeof(label), "%s", "X0X");
     }
     const int labelTextW = font_.getTextWidth(label, 1);
-    presetLabelW_ = std::max(labelTextW, font_.getTextWidth("DEVIL FISH*", 1)) + 12;
+    presetLabelW_ = std::max(labelTextW, font_.getTextWidth("HELL FISH*", 1)) + 12;
     presetLabelH_ = 11;
     presetLabelX_ = startX + (logoW - presetLabelW_) / 2;
     presetLabelY_ = subtitleY + subtitleH + 27;

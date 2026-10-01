@@ -179,7 +179,7 @@ model is fitted to the *behaviour*, so a clone fits well if it is faithful, and 
 if it is not. The fit score tells you which (section 9). A mod that adds controls
 (Devil Fish) can only be captured with those controls parked: the profile then
 represents that one setting, and the extra controls do not become plugin knobs.
-See the `devilfish` profile in `calibrations/README.md` for what "mapped onto
+See the `hellfish` profile in `calibrations/README.md` for what "mapped onto
 existing constants" looks like.
 
 **A software plugin or emulation.** Use an **offline bounce** from a DAW, one note per
@@ -409,10 +409,10 @@ Score the four shipped profiles on the new set. The best one is the fit's starti
 point, and the set of numbers is what a new profile has to beat.
 
 ```bash
-for p in x0x acidvoice factory devilfish; do
+for p in x0x acidvoice factory hellfish; do
   echo "== $p"
   python3 tools/calibrate_reference.py --manifest $M --calibration calibrations/$p.json \
-      --evaluate-only --no-sensitivity --out /tmp/base-$p | grep -E "weighted error"
+      --evaluate-only --no-sensitivity --out /tmp/base-$p | grep -E "weighted error"   # add --w-sweep 1 if the set has sweeps
 done
 ```
 
@@ -420,13 +420,15 @@ For reference, on the existing sets:
 
 | Profile | 400 x0x notes | 13 Acidvoice notes |
 |---|---|---|
-| `x0x` | 2.61 | 7.12 |
-| `acidvoice` | 3.22 | 2.13 |
-| `factory` | 3.49 | 3.28 |
+| `x0x` | 2.61 | 7.00 |
+| `acidvoice` | 3.36 | 2.07 |
+| `factory` | 3.87 | 3.54 |
 
-So a generic best guess on a *new* unit lands at about 3.3-3.5, and a profile fitted to a
-different unit can be worse than that (7.1). The new profile has to beat `factory`
-on its own set by a clear margin (section 9), or it is not worth a preset.
+A unit's own fitted profile scores about 2-3 on its set. The schematic
+`factory` profile, a new unit, lands at about 3.5-3.9 on aged units, and a
+profile fitted to a different unit can be worse than that. The new profile
+has to beat `factory` on its own set by a clear margin (section 9), or it is
+not worth a preset.
 
 Start the fit from the closest one. If they are all similar, start from `factory`.
 
@@ -549,14 +551,14 @@ is better). Benchmarks from this repository:
 
 | Metric | `x0x` on its 400 notes | `acidvoice` on its 13 notes | What it tells you |
 |---|---|---|---|
-| Weighted error | 2.61 | 2.13 | The headline: a weighted mean of everything below |
-| Harmonic error | 2.31 | 1.86 | Level of each harmonic: the overall timbre |
-| Harmonics within 3 dB | 76 % | - | How much of the spectrum is close |
-| Resonant-peak shape | 3.54 | 1.96 | Height and width of the squelch |
-| Resonant-peak sweep track | 3.34 st | - | Where the peak is over time (needs `--w-sweep`): Env Mod, Decay, Accent laws |
-| RMS envelope | 2.93 | - | Amplitude over time |
-| 1/3-octave spectrogram | 5.57 | - | Filter motion over time, the noisiest metric |
-| Note level (RMS over notes) | 1.29 | - | Loudness: the one global gain holds for all notes |
+| Weighted error | 2.61 | 2.07 | The headline: a weighted mean of everything below |
+| Harmonic error | 2.32 | 1.86 | Level of each harmonic: the overall timbre |
+| Harmonics within 3 dB | 76 % | 77 % | How much of the spectrum is close |
+| Resonant-peak shape | 3.55 | 1.87 | Height and width of the squelch |
+| Resonant-peak sweep track | 3.19 st | - | Where the peak is over time (needs `--w-sweep`): Env Mod, Decay, Accent laws |
+| RMS envelope | 3.11 | 2.80 | Amplitude over time |
+| 1/3-octave spectrogram | 5.60 | 5.03 | Filter motion over time, the noisiest metric |
+| Note level (RMS over notes) | 1.28 | 2.59 | Loudness: the one global gain holds for all notes |
 
 How to judge the **weighted error** (these bands are this project's experience, not a
 theory; compare like with like, i.e. a similar note mix):
@@ -752,11 +754,11 @@ Edit `PRESETS` in `tools/calibration_profile.py`. Two rules:
 - **Append at the end.** The preset index is saved in projects; inserting or reordering
   changes what existing projects load. The first entry is also the start-up preset.
 - The display name is shown on the logo plate: upper case, **10 characters or less**
-  (the plate is sized for `DEVIL FISH*`).
+  (the plate is sized for `HELL FISH*`).
 
 ```python
 PRESETS = [("x0x", "X0X"), ("acidvoice", "ACIDVOICE"), ("factory", "FACTORY"),
-           ("devilfish", "DEVIL FISH"), ("<source-id>", "<NAME>")]
+           ("hellfish", "HELL FISH"), ("<source-id>", "<NAME>")]
 ```
 
 ### 11.2 Regenerate and build

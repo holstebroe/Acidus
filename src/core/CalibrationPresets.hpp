@@ -37,6 +37,7 @@ inline SynthParameters makeCalibrationPreset_x0x() {
     p.vcaGateOffAccentMs = 2.80367f;
     p.vcaResTapRatio = 1.24556f;
     p.vcaGainSaturationDrive = 0.0f;
+    p.vcoOctaveScale = 1.0f;
     p.cutoffBaseHz = 184.076f;
     p.cutoffSpanOct = 3.09108f;
     p.cutoffMaxHz = 23723.3f;
@@ -94,6 +95,7 @@ inline SynthParameters makeCalibrationPreset_acidvoice() {
     p.vcaGateOffAccentMs = 2.80367f;
     p.vcaResTapRatio = 1.95821f;
     p.vcaGainSaturationDrive = 0.0f;
+    p.vcoOctaveScale = 1.0f;
     p.cutoffBaseHz = 219.775f;
     p.cutoffSpanOct = 3.19598f;
     p.cutoffMaxHz = 23723.3f;
@@ -131,26 +133,27 @@ inline SynthParameters makeCalibrationPreset_acidvoice() {
 
 inline SynthParameters makeCalibrationPreset_factory() {
     SynthParameters p;
-    p.oscCouplingHz = 47.2397f;
+    p.oscCouplingHz = 1.0f;
     p.resCouplingHz = 104.291f;
     p.filterFeedbackGain = 19.2915f;
-    p.filterPostHpHz = 198.892f;
+    p.filterPostHpHz = 159.15f;
     p.filterNotchHz = 7.5164f;
     p.filterNotchBandwidthHz = 4.7f;
     p.filterAllpassHz = 14.008f;
     p.filterInputCouplingHz = 6.01647f;
     p.filterOutputCouplingHz = 20000.0f;
-    p.filterCapScale1 = 1.28949f;
-    p.filterCapScale2 = 0.697635f;
-    p.filterCapScale3 = 0.912745f;
-    p.filterCapScale4 = 1.06305f;
+    p.filterCapScale1 = 1.0f;
+    p.filterCapScale2 = 1.0f;
+    p.filterCapScale3 = 1.0f;
+    p.filterCapScale4 = 1.0f;
     p.filterLadderInputScale = 0.0352243f;
-    p.filterLadderTopology = 0.0f;
+    p.filterLadderTopology = 1.0f;
     p.vegDecaySec = 1.5f;
     p.vcaGateOffMs = 0.811348f;
     p.vcaGateOffAccentMs = 2.80367f;
-    p.vcaResTapRatio = 1.24556f;
+    p.vcaResTapRatio = 2.2f;
     p.vcaGainSaturationDrive = 0.0f;
+    p.vcoOctaveScale = 1.0f;
     p.cutoffBaseHz = 273.55f;
     p.cutoffSpanOct = 3.09108f;
     p.cutoffMaxHz = 23723.3f;
@@ -176,53 +179,54 @@ inline SynthParameters makeCalibrationPreset_factory() {
     p.oscSquareLevel = 0.598235f;
     p.vcfAttackMs = 0.1f;
     p.vcaNormalDelayMs = 4.50396f;
-    p.vcaAttackMs = 1.30112f;
+    p.vcaAttackMs = 2.2f;
     p.vcfDecayMinSec = 0.068f;
     p.vcfDecayMaxSec = 1.068f;
     p.vcfDecayTaper = 17.9825f;
     p.accentDecaySec = 0.068f;
-    p.filterResonanceSkew = -0.871804f;
+    p.filterResonanceSkew = -0.865f;
     p.filterResonanceLimit = 0.999842f;
     return p;
 }
 
-inline SynthParameters makeCalibrationPreset_devilfish() {
+inline SynthParameters makeCalibrationPreset_hellfish() {
     SynthParameters p;
-    p.oscCouplingHz = 47.2397f;
+    p.oscCouplingHz = 20.0f;
     p.resCouplingHz = 104.291f;
-    p.filterFeedbackGain = 19.2915f;
-    p.filterPostHpHz = 198.892f;
+    p.filterFeedbackGain = 30.0f;
+    p.filterPostHpHz = 40.0f;
     p.filterNotchHz = 7.5164f;
     p.filterNotchBandwidthHz = 4.7f;
     p.filterAllpassHz = 14.008f;
     p.filterInputCouplingHz = 6.01647f;
     p.filterOutputCouplingHz = 20000.0f;
-    p.filterCapScale1 = 1.28949f;
-    p.filterCapScale2 = 0.697635f;
-    p.filterCapScale3 = 0.912745f;
-    p.filterCapScale4 = 1.06305f;
+    p.filterCapScale1 = 1.0f;
+    p.filterCapScale2 = 1.0f;
+    p.filterCapScale3 = 1.0f;
+    p.filterCapScale4 = 1.0f;
     p.filterLadderInputScale = 0.07045f;
-    p.filterLadderTopology = 0.0f;
+    p.filterLadderTopology = 1.0f;
     p.vegDecaySec = 1.5f;
     p.vcaGateOffMs = 0.811348f;
-    p.vcaGateOffAccentMs = 2.80367f;
-    p.vcaResTapRatio = 1.24556f;
+    p.vcaGateOffAccentMs = 30.0f;
+    p.vcaResTapRatio = 2.2f;
     p.vcaGainSaturationDrive = 0.0f;
-    p.cutoffBaseHz = 273.55f;
-    p.cutoffSpanOct = 3.09108f;
+    p.vcoOctaveScale = 1.0f;
+    p.cutoffBaseHz = 120.0f;
+    p.cutoffSpanOct = 4.6f;
     p.cutoffMaxHz = 23723.3f;
     p.cutoffTaperExp = 1.42889f;
     p.envModScaleC0 = 0.761449f;
-    p.envModScaleC0Slope = 3.9723f;
+    p.envModScaleC0Slope = 5.56122f;
     p.envModScaleC1 = 0.777939f;
-    p.envModScaleC1Slope = 4.53338f;
+    p.envModScaleC1Slope = 6.34673f;
     p.envModOffset = 0.334723f;
     p.envModTaperExp = 2.0f;
     p.envModTaperMid = 0.686116f;
     p.envModTaperWidth = 0.121931f;
     p.envModOffsetCutSlope = -0.0238615f;
-    p.accentSweepDepthOct = 8.60691f;
-    p.accentVcaDepth = 1.62417f;
+    p.accentSweepDepthOct = 10.0f;
+    p.accentVcaDepth = 2.3f;
     p.accentChargeBaseSec = 0.047f;
     p.accentChargePotSec = 0.05f;
     p.accentDiodeDrop = 0.300332f;
@@ -238,8 +242,8 @@ inline SynthParameters makeCalibrationPreset_devilfish() {
     p.vcfDecayMaxSec = 3.0f;
     p.vcfDecayTaper = 17.9825f;
     p.accentDecaySec = 0.2f;
-    p.filterResonanceSkew = -0.871804f;
-    p.filterResonanceLimit = 0.999842f;
+    p.filterResonanceSkew = -0.865f;
+    p.filterResonanceLimit = 1.12f;
     return p;
 }
 
@@ -248,7 +252,7 @@ inline const CalibrationPreset* calibrationPresets() {
         {"x0x", "X0X", makeCalibrationPreset_x0x()},
         {"acidvoice", "ACIDVOICE", makeCalibrationPreset_acidvoice()},
         {"factory", "FACTORY", makeCalibrationPreset_factory()},
-        {"devilfish", "DEVIL FISH", makeCalibrationPreset_devilfish()},
+        {"hellfish", "HELL FISH", makeCalibrationPreset_hellfish()},
     };
     return presets;
 }

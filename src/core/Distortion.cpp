@@ -41,15 +41,50 @@ constexpr float kVHigh = 3.0f;
 constexpr float kVLow = 2.6f;
 
 // Calibration from the plugin's float domain into the circuit's volts. The
-// engine's output stage (SynthEngine.cpp, kOutputStageGain) puts a typical
-// note at ~0 dBFS peak, and a full-scale sample is a ~50 mV pedal input:
-// the diodes start clipping about a quarter of the way up the Distortion
-// travel and the 741 hits its rails from about two thirds (Section 6.1),
-// while the lowest settings stay a crunch. The output scale maps the diode clipper's
-// self-limited ceiling (~0.2-0.3 V, Section 6.1) to about +1 dBFS, so
-// engaging the pedal is never quieter than bypass.
+// pedal sits after the 303's Volume knob and output stage (SynthEngine.cpp,
+// kOutputStageGain), which put a typical note near 0 dBFS peak at the default
+// Volume and ~+6 dBFS at full Volume; a full-scale sample is a ~50 mV pedal
+// input. At the default Volume the diodes start clipping about a quarter of
+// the way up the Distortion travel and the 741 hits its rails from about two
+// thirds (Section 6.1); full Volume reaches both sooner, while low Volume and
+// low Distortion stay a crunch.
+//
+// The output scale is set so that, below clipping, the pedal at minimum
+// Distortion has the same level as bypass: its small-signal gain there is
+// the gain stage's 9.5 dB plateau times the R5/volume-pot divider (about
+// 1.5x, i.e. +3.5 dB on the real pedal with Output at full), so dividing by
+// that brings engaging the pedal at 1 % in at the bypass level. Turning
+// Distortion up then only adds level until the diodes take over and hold
+// the peaks at their ~0.2-0.3 V ceiling (Section 6.1).
 constexpr float kInputVoltScale = 0.05f;
-constexpr float kOutputVoltScale = 0.2f;
+constexpr float kGainMinLinear = 2.985f;   // 10^(kGainMinDb / 20)
+constexpr float kOutputVoltScale = kInputVoltScale * kGainMinLinear * (kRvol / (kR5 + kRvol));
+
+// --- Auto output (not part of the circuit) ----------------------------------
+// With the pedal's Output knob at full, turning Distortion up adds a lot of
+// level (up to ~20 dB RMS over bypass at the default 303 Volume) on top of
+// the grit. Auto output stands in for a player riding the Output knob: a
+// static gain slope, set by the Distortion knob alone (no compressor, no
+// pumping), that trims off a fixed fraction of that extra level.
+//
+// The slope follows the extra level of the hottest signal the 303 makes
+// (a saw at full Volume), ~15 dB * tanh(37.1 dB * drive / 15 dB). That
+// signal's level stops rising first as the diodes take over, and cooler
+// signals keep rising at least as fast, so trimming a fraction of its curve
+// keeps every 303 signal getting louder (never quieter) as Distortion rises.
+//
+// TUNE BY EAR: fraction of the drive's extra level trimmed off, 0..1.
+// 0 = off (the real pedal, Output at full: full Distortion ~+20 dB RMS at
+// the default Volume). 0.8 = full Distortion ~+8.5 dB at the default Volume,
+// ~+4 dB at full Volume. 0.6 = ~+11.5 dB / ~+7 dB. Keep it at or below ~0.9:
+// at 1 the first fifth of the travel dips ~0.2 dB at full Volume.
+constexpr float kAutoOutputAmount = 0.8f;
+
+constexpr float kHotExtraLevelCeilingDb = 15.0f;
+inline float hotExtraLevelDb(float drive) {
+    return kHotExtraLevelCeilingDb *
+           std::tanh(drive * (kGainMaxDb - kGainMinDb) / kHotExtraLevelCeilingDb);
+}
 
 constexpr int kOversample = 8;
 constexpr int kDiodeNewtonIters = 5;
@@ -84,6 +119,12 @@ float Distortion::processSample(float input, float drive) {
     }
 
     const float dt = 1.0f / static_cast<float>(oversampledRate_);
+
+    if (drive != autoOutputDrive_) {
+        const float trimDb = -kAutoOutputAmount * hotExtraLevelDb(drive);
+        autoOutputGain_ = std::pow(10.0f, trimDb / 20.0f);
+        autoOutputDrive_ = drive;
+    }
 
     // --- Distortion-knob-dependent gain stage (Section 5.2) -----------------
     // Map drive linearly in dB across the reissue's gain range, then solve
@@ -172,7 +213,7 @@ float Distortion::processSample(float input, float drive) {
         out += stageOut / static_cast<float>(kOversample);
     }
 
-    return out;
+    return out * autoOutputGain_;
 }
 
 } // namespace acidus

@@ -15,7 +15,7 @@ struct SynthParameters {
     float decay{0.5f};         // Knob range 0.0 to 1.0
     float accent{0.5f};        // Knob range 0.0 to 1.0
     Waveform waveform{Waveform::Saw};
-    float masterVolume{0.8f};
+    float masterVolume{0.8f};  // Volume knob 0.0 to 1.0 (audio taper, ahead of the pedal)
     float drive{0.0f};         // MXR Distortion+ emulation; 0 = pedal bypassed
     float tuningCents{0.0f};   // Master tuning trim, ± cents (hardware range: approx. ±700 cents)
 
@@ -48,6 +48,7 @@ struct SynthParameters {
     float vcaGateOffAccentMs{2.80367f};    // Envelope.hpp - VCA release tau at gate-off on accented notes; Open303 50 ms, neither measured unit shows a long accent tail (fitted 2026-09-29 to the x0x set, sweep-tracked)
     float vcaResTapRatio{1.24556f};       // SynthEngine.cpp - filter->VCA wiper tap relative to the fixed tap (§12 trace: 100k/220k = 0.45, reversed 2.2) (fitted 2026-09-29 to the x0x set, sweep-tracked)
     float vcaGainSaturationDrive{0.0f};   // SynthEngine.cpp - control-to-gain tanh ceiling; 0 = linear control law (§15.3). Old default 6.9 left accents no headroom
+    float vcoOctaveScale{1.0f};   // Oscillator.hpp - VCO V/oct scale (TM5 width): 1 = exact 2:1 octaves; measured units 0.99-1.03 (TB303_REFERENCE.md §5.3)
 
     // --- Offline-calibration constants -----------------------------------
     // Previously hard-coded in the DSP; hoisted here so the reference-sample

@@ -57,7 +57,7 @@ void Oscillator::resetFilterStates() {
 
 void Oscillator::noteOn(int noteNumber, bool slide) {
     heldNote_ = noteNumber;
-    targetPitch_ = noteNumber + tuningCents_ / 100.0;
+    targetPitch_ = pitchForNote(noteNumber);
 
     if (!slide) {
         // Slide off: C35 is driven straight from the op-amp, effectively
