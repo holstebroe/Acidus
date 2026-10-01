@@ -133,6 +133,19 @@ int main() {
     assert(testCtx.types.back() == CLAP_EVENT_PARAM_VALUE);
     assert(testCtx.flags.back() == CLAP_EVENT_DONT_RECORD);
 
+    // Tuning CC: 64 is exactly centre, and both ends reach the full ±700.
+    midiCcEv.data[1] = acidus::MIDI_PARAM_TUNE;
+    const struct { uint8_t cc; double cents; } tuneCases[] = {
+        { 0, -700.0 }, { 32, -350.0 }, { 64, 0.0 }, { 127, 700.0 } };
+    for (const auto& tc : tuneCases) {
+        midiCcEv.data[2] = tc.cc;
+        plugin.paramsFlush(&mockInList, &mockOutList);
+        double tune = 1e9;
+        plugin.paramsValue(acidus::PARAM_TUNE, &tune);
+        std::cout << "Tuning after MIDI CC " << acidus::MIDI_PARAM_TUNE << " (" << int(tc.cc) << "): " << tune << std::endl;
+        assert(std::abs(tune - tc.cents) < 1e-9);
+    }
+
     acidus::Font customFont(6, 8);
     assert(customFont.getWidth() == 6);
     assert(customFont.getHeight() == 8);

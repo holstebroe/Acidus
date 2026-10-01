@@ -75,6 +75,7 @@ SynthParameters sanitizeParams(const SynthParameters& in) {
     fix(p.vcaGateOffAccentMs, 0.05f, 1000.0f, d.vcaGateOffAccentMs);
     fix(p.vcaResTapRatio, 0.0f, 10.0f, d.vcaResTapRatio);
     fix(p.vcaGainSaturationDrive, 0.0f, 50.0f, d.vcaGainSaturationDrive);
+    fix(p.vcoOctaveScale, 0.5f, 2.0f, d.vcoOctaveScale);
 
     fix(p.cutoffBaseHz, 10.0f, 2000.0f, d.cutoffBaseHz);
     fix(p.cutoffSpanOct, 0.0f, 8.0f, d.cutoffSpanOct);
@@ -174,6 +175,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     env_.setDecay(p.decay);
 
     osc_.setTuningCents(p.tuningCents);
+    osc_.setOctaveScale(p.vcoOctaveScale);
     osc_.setCouplingHz(p.oscCouplingHz);
     filter_.setResCouplingHz(p.resCouplingHz);
     filter_.setFeedbackGainCeiling(p.filterFeedbackGain);

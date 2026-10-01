@@ -37,6 +37,7 @@ inline SynthParameters makeCalibrationPreset_x0x() {
     p.vcaGateOffAccentMs = 2.80367f;
     p.vcaResTapRatio = 1.24556f;
     p.vcaGainSaturationDrive = 0.0f;
+    p.vcoOctaveScale = 1.0f;
     p.cutoffBaseHz = 184.076f;
     p.cutoffSpanOct = 3.09108f;
     p.cutoffMaxHz = 23723.3f;
@@ -94,6 +95,7 @@ inline SynthParameters makeCalibrationPreset_acidvoice() {
     p.vcaGateOffAccentMs = 2.80367f;
     p.vcaResTapRatio = 1.95821f;
     p.vcaGainSaturationDrive = 0.0f;
+    p.vcoOctaveScale = 1.0f;
     p.cutoffBaseHz = 219.775f;
     p.cutoffSpanOct = 3.19598f;
     p.cutoffMaxHz = 23723.3f;
@@ -151,6 +153,7 @@ inline SynthParameters makeCalibrationPreset_factory() {
     p.vcaGateOffAccentMs = 2.80367f;
     p.vcaResTapRatio = 1.24556f;
     p.vcaGainSaturationDrive = 0.0f;
+    p.vcoOctaveScale = 1.0f;
     p.cutoffBaseHz = 273.55f;
     p.cutoffSpanOct = 3.09108f;
     p.cutoffMaxHz = 23723.3f;
@@ -208,6 +211,7 @@ inline SynthParameters makeCalibrationPreset_devilfish() {
     p.vcaGateOffAccentMs = 2.80367f;
     p.vcaResTapRatio = 1.24556f;
     p.vcaGainSaturationDrive = 0.0f;
+    p.vcoOctaveScale = 1.0f;
     p.cutoffBaseHz = 273.55f;
     p.cutoffSpanOct = 3.09108f;
     p.cutoffMaxHz = 23723.3f;
