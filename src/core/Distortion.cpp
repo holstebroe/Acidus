@@ -61,26 +61,29 @@ constexpr float kGainMinLinear = 2.985f;   // 10^(kGainMinDb / 20)
 constexpr float kOutputVoltScale = kInputVoltScale * kGainMinLinear * (kRvol / (kR5 + kRvol));
 
 // --- Auto output (not part of the circuit) ----------------------------------
-// The real pedal's Output knob is left at full above, which makes full
-// Distortion ~20 dB louder (RMS) than bypass. Auto output stands in for a
-// player riding that knob: a static trim, set by the Distortion knob alone,
-// that leaves the bottom of the travel at the bypass level and scales the
-// extra loudness down so that full Distortion ends up kAutoOutputMaxBoostDb
-// louder than bypass. Static, so the pedal's own compression and dynamics
-// are untouched (no pumping).
+// With the pedal's Output knob at full, turning Distortion up adds a lot of
+// level (up to ~20 dB RMS over bypass at the default 303 Volume) on top of
+// the grit. Auto output stands in for a player riding the Output knob: a
+// static gain slope, set by the Distortion knob alone (no compressor, no
+// pumping), that trims off a fixed fraction of that extra level.
 //
-// TUNE BY EAR: how much louder (RMS, dB) full Distortion is than bypass.
-// 0 = level-matched across the whole travel; ~20 = auto output off.
-constexpr float kAutoOutputMaxBoostDb = 6.0f;
+// The slope follows the extra level of the hottest signal the 303 makes
+// (a saw at full Volume), ~15 dB * tanh(37.1 dB * drive / 15 dB). That
+// signal's level stops rising first as the diodes take over, and cooler
+// signals keep rising at least as fast, so trimming a fraction of its curve
+// keeps every 303 signal getting louder (never quieter) as Distortion rises.
+//
+// TUNE BY EAR: fraction of the drive's extra level trimmed off, 0..1.
+// 0 = off (the real pedal, Output at full: full Distortion ~+20 dB RMS at
+// the default Volume). 0.8 = full Distortion ~+8.5 dB at the default Volume,
+// ~+4 dB at full Volume. 0.6 = ~+11.5 dB / ~+7 dB. Keep it at or below ~0.9:
+// at 1 the first fifth of the travel dips ~0.2 dB at full Volume.
+constexpr float kAutoOutputAmount = 0.8f;
 
-// Model of the pedal's extra loudness over bypass at a given Distortion
-// setting (Output at full): it rises with the gain stage's dB-linear sweep,
-// then levels off as the diodes take over. Fitted to renders of a typical
-// saw patch at the default 303 Volume (within ~0.6 dB across the travel).
-constexpr float kExtraLoudnessCeilingDb = 22.0f;
-inline float extraLoudnessDb(float drive) {
-    return kExtraLoudnessCeilingDb *
-           std::tanh(drive * (kGainMaxDb - kGainMinDb) / kExtraLoudnessCeilingDb);
+constexpr float kHotExtraLevelCeilingDb = 15.0f;
+inline float hotExtraLevelDb(float drive) {
+    return kHotExtraLevelCeilingDb *
+           std::tanh(drive * (kGainMaxDb - kGainMinDb) / kHotExtraLevelCeilingDb);
 }
 
 constexpr int kOversample = 8;
@@ -118,10 +121,7 @@ float Distortion::processSample(float input, float drive) {
     const float dt = 1.0f / static_cast<float>(oversampledRate_);
 
     if (drive != autoOutputDrive_) {
-        // Scale the modelled extra loudness so full Distortion lands at
-        // kAutoOutputMaxBoostDb; trim off the rest.
-        const float keep = std::min(kAutoOutputMaxBoostDb / extraLoudnessDb(1.0f), 1.0f);
-        const float trimDb = -(1.0f - keep) * extraLoudnessDb(drive);
+        const float trimDb = -kAutoOutputAmount * hotExtraLevelDb(drive);
         autoOutputGain_ = std::pow(10.0f, trimDb / 20.0f);
         autoOutputDrive_ = drive;
     }

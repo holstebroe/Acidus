@@ -14,7 +14,7 @@ namespace acidus {
 // footswitch disengaged; drive in (0, 1] engages it, sweeping the reissue's
 // gain range from its minimum (~9.5 dB, 500 kohm pot) to its maximum
 // (~46.6 dB, 0 ohm pot). An auto-output trim (not in the circuit, see
-// kAutoOutputMaxBoostDb in Distortion.cpp) keeps the louder settings in check.
+// kAutoOutputAmount in Distortion.cpp) keeps the louder settings in check.
 class Distortion {
 public:
     Distortion();

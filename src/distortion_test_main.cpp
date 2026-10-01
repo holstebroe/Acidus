@@ -100,22 +100,31 @@ int main() {
         }
     }
 
-    // 4. More drive should mean more level/compression, not less, at a
-    // moderate playing level (monotonic RMS growth as gain climbs). The
-    // auto-output trim is a static fit to a saw patch, so near the top of the
-    // travel, where loudness has levelled off, a signal that saturates sooner
-    // (this sine) may dip slightly: allow up to 1 dB there.
+    // 4. More drive should mean more level, never less, at 303 playing
+    // levels: the auto-output trim slope must never outrun the pedal's own
+    // level growth. Swept finely across the whole Distortion travel.
     {
-        float testAmp = 0.4f;
-        double rmsLow = rmsAtDrive(sr, 220.0f, testAmp, 0.05f);
-        double rmsMid = rmsAtDrive(sr, 220.0f, testAmp, 0.5f);
-        double rmsHigh = rmsAtDrive(sr, 220.0f, testAmp, 1.0f);
-        std::printf("RMS @ drive 0.05/0.5/1.0: %.4f / %.4f / %.4f\n", rmsLow, rmsMid, rmsHigh);
-        if (!(rmsLow < rmsMid && rmsMid <= rmsHigh * 1.122)) {
-            std::printf("FAIL: RMS did not increase monotonically with drive\n");
-            failures++;
+        bool monotonic = true;
+        for (float testAmp : {0.1f, 0.4f}) {
+            double prev = rmsAtDrive(sr, 220.0f, testAmp, 0.01f);
+            for (int step = 1; step <= 20; ++step) {
+                float drive = 0.05f * static_cast<float>(step);
+                double rms = rmsAtDrive(sr, 220.0f, testAmp, drive);
+                if (rms < prev * 0.999) {   // allow 0.01 dB of numerical noise
+                    std::printf("FAIL: amp %.1f: RMS fell from %.4f to %.4f at drive %.2f\n",
+                                testAmp, prev, rms, drive);
+                    monotonic = false;
+                }
+                prev = rms;
+            }
+        }
+        std::printf("RMS @ drive 0.05/0.5/1.0 (amp 0.4): %.4f / %.4f / %.4f\n",
+                    rmsAtDrive(sr, 220.0f, 0.4f, 0.05f), rmsAtDrive(sr, 220.0f, 0.4f, 0.5f),
+                    rmsAtDrive(sr, 220.0f, 0.4f, 1.0f));
+        if (monotonic) {
+            std::printf("PASS: RMS never falls as drive rises\n");
         } else {
-            std::printf("PASS: RMS increases with drive\n");
+            failures++;
         }
     }
 
