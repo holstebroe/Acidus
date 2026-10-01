@@ -934,9 +934,12 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             return false;
     }
 #ifdef ACIDUS_CALIBRATION_BUILD
-    // Every preset must load exactly: widen a calibration parameter's range
-    // to cover every preset's value, so selecting a preset never clamps
-    // (which would play the preset wrong and mark it as edited).
+    // Calibration build only: here the presets' constants are loaded into
+    // these host parameters, which clamp to their range, and the engine
+    // reads the parameters. Widen each range to cover every preset's value
+    // so selecting a preset never clamps (which would play the preset wrong
+    // and mark it as edited). A Release build has no such parameters: the
+    // engine reads the preset's constants directly, so nothing is clamped.
     for (const auto& b : kCalibrationBindings) {
         if (b.id != paramIndex) continue;
         for (int i = 0; i < kCalibrationPresetCount; ++i) {
