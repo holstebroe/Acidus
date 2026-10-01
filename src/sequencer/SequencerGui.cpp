@@ -4,11 +4,22 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
 
 #if defined(__linux__) && !defined(__APPLE__)
+#include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/keysym.h>
+#include <cctype>
+#include <csignal>
+#include <fcntl.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
+extern char** environ;
 #endif
 
 #if defined(_WIN32)
@@ -16,6 +27,9 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include <commdlg.h>
+#include <ole2.h>
+#include <shlobj.h>
 #endif
 
 namespace acidus {
@@ -31,7 +45,9 @@ static constexpr int kGridY = 88;
 static constexpr int kRowH[SequencerGui::kRowCount] = { 52, 36, 36, 36 };
 static constexpr int kSetupY = 258, kSetupH = 26;
 static constexpr int kFooterY = 298;
+static constexpr int kHintX = 736, kHintValueX = 814;
 static constexpr int kDragPixelsPerValue = 12;
+static constexpr int kMidiDragPixels = 4;    // movement that turns a press on MIDI into a drag
 
 // --- Colours (ARGB) -----------------------------------------------------------
 
@@ -40,6 +56,7 @@ static constexpr uint32_t kBg = 0xFF1C1F22;
 static constexpr uint32_t kPanelDark = 0xFF2C3034;
 static constexpr uint32_t kGridLine = 0xFF464B50;
 static constexpr uint32_t kLight = 0xFFD6DADE;        // labels and symbols
+static constexpr uint32_t kDim = 0xFF7D848A;          // secondary text
 static constexpr uint32_t kInk = 0xFF0E1A08;          // text on light and green fills
 static constexpr uint32_t kNoteBg = 0xFF6FE03A;       // a note, and a tie
 static constexpr uint32_t kChainMark = 0xFF2F6A1C;    // underline of chained pattern buttons
@@ -50,6 +67,7 @@ static constexpr uint32_t kAcid = 0xFF39FF14;         // playing pattern
 static constexpr uint32_t kPlayMark = 0xFFFFD21E;     // playing step
 static constexpr uint32_t kPlayTint = 0x40FFD21E;
 static constexpr uint32_t kDarkText = 0xFF0E1A08;
+static constexpr uint32_t kMidiBg = 0xFF3EC6FF;       // the MIDI drag button: unlike anything else
 
 static int rowTop(int row) {
     int y = kGridY;
@@ -72,8 +90,17 @@ void SequencerGui::patternButtonRect(int pattern, int& x, int& y, int& w, int& h
     h = kPatternH;
 }
 
-void SequencerGui::followBoxRect(int& x, int& y, int& w, int& h) {
-    x = 660; y = kTitleY; w = 76; h = kTitleH;
+void SequencerGui::buttonRect(Button button, int& x, int& y, int& w, int& h) {
+    y = kTitleY; h = kTitleH;
+    switch (button) {
+        case Button::Play:   x = 104; w = 34; break;
+        case Button::Name:   x = 178; w = 290; break;
+        case Button::Init:   x = 476; w = 66; break;
+        case Button::Load:   x = 588; w = 40; break;
+        case Button::Save:   x = 632; w = 40; break;
+        case Button::Midi:   x = 684; w = 72; break;
+        case Button::Follow: x = 10; y = kPatternY + 15; w = 70; h = 15; break;   // under the PATTERN label
+    }
 }
 
 void SequencerGui::boxRect(Box box, int& x, int& y, int& w, int& h) {
@@ -88,6 +115,12 @@ void SequencerGui::boxRect(Box box, int& x, int& y, int& w, int& h) {
 
 static bool inside(int px, int py, int x, int y, int w, int h) {
     return px >= x && px < x + w && py >= y && py < y + h;
+}
+
+static bool insideButton(int px, int py, SequencerGui::Button b) {
+    int x, y, w, h;
+    SequencerGui::buttonRect(b, x, y, w, h);
+    return inside(px, py, x, y, w, h);
 }
 
 // --- Construction -------------------------------------------------------------
@@ -173,73 +206,118 @@ void SequencerGui::setBoxValue(Box box, int value) {
     plugin_->markStateDirty();
 }
 
+// Something is playing: the play button shows pause.
+bool SequencerGui::playing() const {
+    return plugin_->previewPattern() >= 0 || plugin_->engine().playingPattern() >= 0;
+}
+
 // --- Input ------------------------------------------------------------------------
 
 void SequencerGui::mouseDown(int x, int y, bool rightButton) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     dragTarget_ = Target::Idle;
     dragMoved_ = false;
+    dragStartX_ = x;
     dragStartY_ = y;
     int bx, by, bw, bh;
 
-    for (int p = 0; p < kNumPatterns; ++p) {
-        patternButtonRect(p, bx, by, bw, bh);
-        if (inside(x, y, bx, by, bw, bh)) {
-            plugin_->setEditPattern(p);
-            renderFrame();
-            return;
+    // A click anywhere else ends name editing (keeping the name) and disarms INIT.
+    if (editingName_ && !insideButton(x, y, Button::Name)) {
+        commitName();
+        actions_ |= kActionReleaseFocus;
+    }
+    const bool armed = initArmed_;
+    initArmed_ = false;
+
+    if (insideButton(x, y, Button::Play)) {
+        // Pause lets go of the play button's trigger; it cannot stop the host's.
+        plugin_->setPreviewPattern(playing() ? -1 : plugin_->editPattern());
+    } else if (insideButton(x, y, Button::Name)) {
+        if (!editingName_) {
+            editingName_ = true;
+            nameDraft_ = plugin_->bank().name(plugin_->editPattern());
+            actions_ |= kActionTakeFocus;
+            status_ = "TYPE A NAME:  ENTER KEEPS IT, ESC CANCELS";
         }
-    }
-    followBoxRect(bx, by, bw, bh);
-    if (inside(x, y, bx, by, bw, bh)) {
-        plugin_->setFollowPlaying(!plugin_->followPlaying());
-        renderFrame();
-        return;
-    }
-    for (int b = 0; b < kBoxCount; ++b) {
-        const Box box = static_cast<Box>(b);
-        boxRect(box, bx, by, bw, bh);
-        if (!inside(x, y, bx, by, bw, bh)) continue;
-        if (box == Box::Key) plugin_->beginTransposeEdit();
-        if (rightButton) {
-            // No release follows a right-click: it is a whole edit.
-            setBoxValue(box, boxValue(box) - 1);
-            if (box == Box::Key) plugin_->endTransposeEdit();
+    } else if (insideButton(x, y, Button::Init)) {
+        if (armed) {
+            plugin_->bank().clearPattern(plugin_->editPattern());
+            plugin_->markStateDirty();
+            status_ = "PATTERN " + std::to_string(plugin_->editPattern() + 1) + " CLEARED";
         } else {
-            // Left button, as for grid cells: +1 on release unless it
-            // turns into a drag. The Key gesture ends on release.
-            dragTarget_ = Target::Box;
-            dragBox_ = box;
-            dragStartValue_ = boxValue(box);
+            initArmed_ = true;
         }
-        renderFrame();
-        return;
-    }
-    for (int r = 0; r < kRowCount; ++r) {
-        for (int s = 0; s < kMaxSteps; ++s) {
-            cellRect(static_cast<Row>(r), s, bx, by, bw, bh);
+    } else if (insideButton(x, y, Button::Load)) {
+        actions_ |= kActionLoadBank;
+    } else if (insideButton(x, y, Button::Save)) {
+        actions_ |= kActionSaveBank;
+    } else if (insideButton(x, y, Button::Midi)) {
+        dragTarget_ = Target::Midi;   // a drag, not a click
+    } else if (insideButton(x, y, Button::Follow)) {
+        plugin_->setFollowPlaying(!plugin_->followPlaying());
+    } else {
+        for (int p = 0; p < kNumPatterns; ++p) {
+            patternButtonRect(p, bx, by, bw, bh);
+            if (inside(x, y, bx, by, bw, bh)) {
+                plugin_->setEditPattern(p);
+                // The play button plays the pattern being edited.
+                if (plugin_->previewPattern() >= 0) plugin_->setPreviewPattern(p);
+                renderFrame();
+                return;
+            }
+        }
+        for (int b = 0; b < kBoxCount; ++b) {
+            const Box box = static_cast<Box>(b);
+            boxRect(box, bx, by, bw, bh);
             if (!inside(x, y, bx, by, bw, bh)) continue;
-            const Row row = static_cast<Row>(r);
+            if (box == Box::Key) plugin_->beginTransposeEdit();
             if (rightButton) {
-                setCellValue(row, s, cellValue(row, s) - 1);
+                // No release follows a right-click: it is a whole edit.
+                setBoxValue(box, boxValue(box) - 1);
+                if (box == Box::Key) plugin_->endTransposeEdit();
             } else {
-                // Left button: the value steps up on release, unless the
-                // press turns into a drag.
-                dragTarget_ = Target::Cell;
-                dragRow_ = row;
-                dragStep_ = s;
-                dragStartValue_ = cellValue(row, s);
+                // Left button, as for grid cells: +1 on release unless it
+                // turns into a drag. The Key gesture ends on release.
+                dragTarget_ = Target::Box;
+                dragBox_ = box;
+                dragStartValue_ = boxValue(box);
             }
             renderFrame();
             return;
         }
+        for (int r = 0; r < kRowCount; ++r) {
+            for (int s = 0; s < kMaxSteps; ++s) {
+                cellRect(static_cast<Row>(r), s, bx, by, bw, bh);
+                if (!inside(x, y, bx, by, bw, bh)) continue;
+                const Row row = static_cast<Row>(r);
+                if (rightButton) {
+                    setCellValue(row, s, cellValue(row, s) - 1);
+                } else {
+                    // Left button: the value steps up on release, unless the
+                    // press turns into a drag.
+                    dragTarget_ = Target::Cell;
+                    dragRow_ = row;
+                    dragStep_ = s;
+                    dragStartValue_ = cellValue(row, s);
+                }
+                renderFrame();
+                return;
+            }
+        }
     }
+    renderFrame();
 }
 
 void SequencerGui::mouseDrag(int x, int y) {
-    (void)x;
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (dragTarget_ == Target::Idle) return;
+    if (dragTarget_ == Target::Midi) {
+        if (!dragMoved_ && std::abs(x - dragStartX_) + std::abs(y - dragStartY_) >= kMidiDragPixels) {
+            dragMoved_ = true;
+            actions_ |= kActionDragMidi;
+        }
+        return;
+    }
     const int steps = (dragStartY_ - y) / kDragPixelsPerValue;
     if (steps != 0) dragMoved_ = true;
     if (!dragMoved_) return;
@@ -255,10 +333,99 @@ void SequencerGui::mouseUp(int x, int y) {
         setCellValue(dragRow_, dragStep_, dragStartValue_ + 1);
     } else if (dragTarget_ == Target::Box && !dragMoved_) {
         setBoxValue(dragBox_, dragStartValue_ + 1);
+    } else if (dragTarget_ == Target::Midi && !dragMoved_) {
+        status_ = "DRAG THE MIDI BUTTON ONTO A DAW TRACK";
     }
     if (dragTarget_ == Target::Box && dragBox_ == Box::Key) plugin_->endTransposeEdit();
     dragTarget_ = Target::Idle;
     renderFrame();
+}
+
+void SequencerGui::commitName() {
+    if (!editingName_) return;
+    editingName_ = false;
+    const int pattern = plugin_->editPattern();
+    if (nameDraft_ != plugin_->bank().name(pattern)) {
+        plugin_->bank().setName(pattern, nameDraft_);
+        plugin_->markStateDirty();
+    }
+    status_.clear();
+}
+
+void SequencerGui::keyText(const char* text) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (!editingName_ || !text) return;
+    for (const char* p = text; *p; ++p) {
+        char c = *p;
+        if (c >= 'a' && c <= 'z') c = static_cast<char>(c - 'a' + 'A');   // the panel font is upper case
+        if (c < 32 || c > 95) continue;
+        if (static_cast<int>(nameDraft_.size()) < kMaxNameLength) nameDraft_ += c;
+    }
+    renderFrame();
+}
+
+void SequencerGui::keyPress(Key key) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (!editingName_) return;
+    switch (key) {
+        case Key::Enter:
+            commitName();
+            actions_ |= kActionReleaseFocus;
+            break;
+        case Key::Escape:
+            editingName_ = false;
+            status_.clear();
+            actions_ |= kActionReleaseFocus;
+            break;
+        case Key::Backspace:
+            if (!nameDraft_.empty()) nameDraft_.pop_back();
+            break;
+    }
+    renderFrame();
+}
+
+void SequencerGui::focusLost() {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (!editingName_) return;
+    commitName();
+    renderFrame();
+}
+
+uint32_t SequencerGui::takeActions() {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    const uint32_t a = actions_;
+    actions_ = 0;
+    return a;
+}
+
+void SequencerGui::setStatus(const std::string& text) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    status_ = text;
+    renderFrame();
+}
+
+static std::string upperFileName(const std::string& utf8Path) {
+    const size_t slash = utf8Path.find_last_of("/\\");
+    std::string name = slash == std::string::npos ? utf8Path : utf8Path.substr(slash + 1);
+    for (char& c : name) {
+        if (c >= 'a' && c <= 'z') c = static_cast<char>(c - 'a' + 'A');
+        else if (static_cast<unsigned char>(c) > 95) c = '?';
+    }
+    return name;
+}
+
+void SequencerGui::loadBankFrom(const std::string& utf8Path) {
+    const bool ok = plugin_->loadBankFile(std::filesystem::u8path(utf8Path));
+    setStatus(ok ? "LOADED " + upperFileName(utf8Path)
+                 : "NOT LOADED: " + upperFileName(utf8Path) + " IS NOT A BURETTE BANK");
+}
+
+void SequencerGui::saveBankTo(const std::string& utf8Path) {
+    std::string path = utf8Path;
+    const std::string ext = ".burette";
+    if (path.size() < ext.size() || path.compare(path.size() - ext.size(), ext.size(), ext) != 0) path += ext;
+    const bool ok = plugin_->saveBankFile(std::filesystem::u8path(path));
+    setStatus(ok ? "SAVED " + upperFileName(path) : "COULD NOT SAVE " + upperFileName(path));
 }
 
 // --- Drawing ----------------------------------------------------------------------
@@ -269,6 +436,25 @@ static void fillTriangle(Graphics& g, int cx, int top, int w, int h, bool up, ui
         const int rw = std::max(1, (rowFromApex * w) / std::max(1, h - 1));
         g.fillRect(cx - rw / 2, top + r, rw, 1, color);
     }
+}
+
+// A triangle pointing right, `w` wide and `h` high, apex at the right.
+static void fillTriangleRight(Graphics& g, int left, int cy, int w, int h, uint32_t color) {
+    for (int c = 0; c < w; ++c) {
+        const int ch = std::max(1, ((w - c) * h) / w);
+        g.fillRect(left + c, cy - ch / 2, 1, ch, color);
+    }
+}
+
+// A 16x16 floppy disk at (x, y), drawn in `color` on `bg`.
+static void drawFloppy(Graphics& g, int x, int y, uint32_t color, uint32_t bg) {
+    g.fillRect(x, y, 16, 16, color);
+    g.fillRect(x + 13, y, 3, 3, bg);            // the cut corner
+    g.fillRect(x + 4, y, 8, 6, bg);             // metal shutter
+    g.fillRect(x + 9, y + 1, 2, 4, color);      // its window
+    g.fillRect(x + 3, y + 9, 10, 7, bg);        // label
+    g.fillRect(x + 5, y + 11, 6, 1, color);
+    g.fillRect(x + 5, y + 13, 6, 1, color);
 }
 
 static void drawCentered(Graphics& g, const Font& f, const char* text, int x, int y, int w, int h,
@@ -293,17 +479,62 @@ void SequencerGui::draw(Graphics& g) {
     const int playingStep = plugin_->engine().playingStep();
     const int highlightStep = (playingPattern == pattern) ? playingStep : -1;
     char buf[64];
+    int x, y, w, h;
 
     g.clear(kBg);
 
-    // Title row.
+    // Title row: name, play, pattern name, INIT, load/save, MIDI drag, key.
     g.drawText(font_, "BURETTE", 14, kTitleY + 6, kAcid, 2);
-    std::snprintf(buf, sizeof(buf), "%d  %s", pattern + 1, bank.name(pattern).c_str());
-    g.drawText(font_, buf, 160, kTitleY + 6, kLight, 2);
-    int x, y, w, h;
-    followBoxRect(x, y, w, h);
-    const bool follow = plugin_->followPlaying();
-    drawBox(g, font_, x, y, w, h, "FOLLOW", follow ? kLight : kPanelDark, follow ? kInk : kLight, 2);
+
+    buttonRect(Button::Play, x, y, w, h);
+    const bool isPlaying = playing();
+    g.fillRect(x, y, w, h, isPlaying ? kAcid : kPanelDark);
+    g.drawRect(x, y, w, h, kGridLine);
+    if (isPlaying) {
+        g.fillRect(x + w / 2 - 6, y + 7, 4, 12, kInk);   // pause
+        g.fillRect(x + w / 2 + 2, y + 7, 4, 12, kInk);
+    } else {
+        fillTriangleRight(g, x + w / 2 - 5, y + h / 2, 12, 14, kLight);
+    }
+
+    std::snprintf(buf, sizeof(buf), "%d", pattern + 1);
+    g.drawText(font_, buf, 148, kTitleY + 6, kLight, 2);
+    buttonRect(Button::Name, x, y, w, h);
+    g.fillRect(x, y, w, h, editingName_ ? kRestBg : kBg);
+    g.drawRect(x, y, w, h, editingName_ ? kAcid : kGridLine);
+    const std::string shownName = editingName_ ? nameDraft_ : bank.name(pattern);
+    g.drawText(font_, shownName.c_str(), x + 8, y + 6, kLight, 2);
+    if (editingName_) {
+        const int cx = x + 8 + font_.getTextWidth(shownName.c_str(), 2);
+        g.fillRect(cx, y + 5, 2, 16, kAcid);   // caret
+    }
+
+    buttonRect(Button::Init, x, y, w, h);
+    if (initArmed_) drawBox(g, font_, x, y, w, h, "SURE?", kAccentMark, kInk, 2);
+    else drawBox(g, font_, x, y, w, h, "INIT", kPanelDark, kLight, 2);
+
+    // Load: a floppy with an arrow out of it; save: an arrow into it.
+    buttonRect(Button::Load, x, y, w, h);
+    g.fillRect(x, y, w, h, kPanelDark);
+    g.drawRect(x, y, w, h, kGridLine);
+    drawFloppy(g, x + 6, y + 5, kLight, kPanelDark);
+    g.fillRect(x + 28, y + 11, 3, 9, kLight);
+    fillTriangle(g, x + 29, y + 5, 9, 6, true, kLight);
+    buttonRect(Button::Save, x, y, w, h);
+    g.fillRect(x, y, w, h, kPanelDark);
+    g.drawRect(x, y, w, h, kGridLine);
+    drawFloppy(g, x + 6, y + 5, kLight, kPanelDark);
+    g.fillRect(x + 28, y + 5, 3, 9, kLight);
+    fillTriangle(g, x + 29, y + 14, 9, 6, false, kLight);
+
+    // MIDI: a coloured tab with a grip, to drag onto a DAW track.
+    buttonRect(Button::Midi, x, y, w, h);
+    g.fillRect(x, y, w, h, kMidiBg);
+    for (int gy = 0; gy < 3; ++gy) {
+        for (int gx = 0; gx < 2; ++gx) g.fillRect(x + 6 + gx * 4, y + 8 + gy * 4, 2, 2, kInk);
+    }
+    drawCentered(g, font_, "MIDI", x + 10, y, w - 10, h, kInk, 2);
+
     boxRect(Box::Key, x, y, w, h);
     g.drawText(font_, "KEY", x - 22, y + 10, kLight, 1);
     const int key = plugin_->globalTranspose();
@@ -315,18 +546,24 @@ void SequencerGui::draw(Graphics& g) {
     const int chainCount = SequencerEngine::chainOf(bank, pattern, chain);
     bool inChain[kNumPatterns] = {};
     for (int i = 0; i < chainCount; ++i) inChain[chain[i]] = true;
-    g.drawText(font_, "PATTERN", 14, kPatternY + 11, kLight, 1);
+    g.drawText(font_, "PATTERN", 14, kPatternY + 4, kLight, 1);
+    // FOLLOW: a small LED toggle under the label.
+    buttonRect(Button::Follow, x, y, w, h);
+    const bool follow = plugin_->followPlaying();
+    g.fillRect(x + 4, y + 4, 7, 7, follow ? kAcid : kRestBg);
+    g.drawRect(x + 4, y + 4, 7, 7, follow ? kAcid : kGridLine);
+    g.drawText(font_, "FOLLOW", x + 16, y + 4, follow ? kLight : kDim, 1);
     for (int p = 0; p < kNumPatterns; ++p) {
         patternButtonRect(p, x, y, w, h);
         const bool editing = p == pattern;
-        const bool playing = p == playingPattern;
+        const bool playingThis = p == playingPattern;
         uint32_t bg = editing ? kLight : kPanelDark;
         uint32_t fg = editing ? kInk : kLight;
-        if (playing) { bg = kAcid; fg = kDarkText; }
+        if (playingThis) { bg = kAcid; fg = kDarkText; }
         std::snprintf(buf, sizeof(buf), "%d", p + 1);
         drawBox(g, font_, x, y, w, h, buf, bg, fg, 2);
         if (inChain[p] && !editing) g.fillRect(x + 6, y + h - 5, w - 12, 3, kChainMark);
-        if (playing && editing) {
+        if (playingThis && editing) {
             g.drawRect(x + 2, y + 2, w - 4, h - 4, kLight);
             g.drawRect(x + 3, y + 3, w - 6, h - 6, kLight);
         }
@@ -412,11 +649,20 @@ void SequencerGui::draw(Graphics& g) {
     chainText += chainCount > 1 ? "  THEN LOOPS" : "  (LOOPS)";
     g.drawText(font_, chainText.c_str(), x + w + 16, y + 10, kLight, 1);
 
-    // Footer.
-    std::snprintf(buf, sizeof(buf), "TRIGGER KEY %s  (PATTERNS 1-16 = C-1 TO D#0)",
-                  keyName(kFirstTriggerKey + pattern).c_str());
+    // Footer: the trigger key and a status line; the mouse legend at the right.
+    const int triggerKey = kFirstTriggerKey + pattern;
+    std::snprintf(buf, sizeof(buf), "TRIGGER KEY %s (MIDI %d)    PATTERNS 1-16 = %s TO %s",
+                  keyName(triggerKey).c_str(), triggerKey, keyName(kFirstTriggerKey).c_str(),
+                  keyName(kFirstTriggerKey + kNumPatterns - 1).c_str());
     g.drawText(font_, buf, 14, kFooterY, kLight, 1);
-    g.drawText(font_, "CLICK +  RIGHT-CLICK -  DRAG UP/DOWN", gridRight - 211, kFooterY, kLight, 1);
+    if (!status_.empty()) g.drawText(font_, status_.c_str(), 14, kFooterY + 14, kAccentMark, 1);
+    static const char* kHints[3][2] = {
+        { "CLICK", "NEXT" }, { "RIGHT-CLICK", "PREVIOUS" }, { "DRAG UP/DOWN", "SCROLL" },
+    };
+    for (int i = 0; i < 3; ++i) {
+        g.drawText(font_, kHints[i][0], kHintX, kFooterY + 11 * i, kDim, 1);
+        g.drawText(font_, kHints[i][1], kHintValueX, kFooterY + 11 * i, kLight, 1);
+    }
 }
 
 std::string SequencerGui::signature() {
@@ -426,6 +672,9 @@ std::string SequencerGui::signature() {
     s += static_cast<char>(pattern);
     s += static_cast<char>(plugin_->followPlaying());
     s += static_cast<char>(plugin_->globalTranspose());
+    s += static_cast<char>(playing());
+    s += static_cast<char>(initArmed_);
+    s += static_cast<char>(editingName_);
     for (int p = 0; p < kNumPatterns; ++p) s += static_cast<char>(bank.next(p));   // the chain shown
     s += static_cast<char>(bank.length(pattern));
     s += static_cast<char>(bank.transpose(pattern));
@@ -433,15 +682,19 @@ std::string SequencerGui::signature() {
     s += static_cast<char>(plugin_->engine().playingStep());
     for (int i = 0; i < kMaxSteps; ++i) s += static_cast<char>(bank.step(pattern, i).pack());
     s += bank.name(pattern);
+    s += '\n';
+    s += nameDraft_;
+    s += '\n';
+    s += status_;
     return s;
 }
 
 void SequencerGui::followPlayingPattern() {
-    const int playing = plugin_->engine().playingPattern();
-    if (playing != lastPlayingPattern_) {
-        lastPlayingPattern_ = playing;
-        if (playing >= 0 && plugin_->followPlaying() && dragTarget_ == Target::Idle) {
-            plugin_->setEditPattern(playing);
+    const int playingNow = plugin_->engine().playingPattern();
+    if (playingNow != lastPlayingPattern_) {
+        lastPlayingPattern_ = playingNow;
+        if (playingNow >= 0 && plugin_->followPlaying() && dragTarget_ == Target::Idle && !editingName_) {
+            plugin_->setEditPattern(playingNow);
         }
     }
 }
@@ -461,6 +714,291 @@ void SequencerGui::renderFrame() {
 
 #if defined(__linux__) && !defined(__APPLE__)
 
+// --- Linux: file dialogs -------------------------------------------------------
+//
+// Plain X11 has no file dialog, so load/save run zenity or kdialog as a child
+// process whose output (the chosen path) the event loop polls: the GUI keeps
+// running while the dialog is open.
+
+static bool onPath(const char* program) {
+    const char* path = std::getenv("PATH");
+    if (!path) return false;
+    std::string dirs(path);
+    size_t start = 0;
+    while (start <= dirs.size()) {
+        const size_t end = std::min(dirs.find(':', start), dirs.size());
+        const std::string file = dirs.substr(start, end - start) + "/" + program;
+        if (end > start && access(file.c_str(), X_OK) == 0) return true;
+        start = end + 1;
+    }
+    return false;
+}
+
+class DialogProcess {
+public:
+    ~DialogProcess() { cancel(); }
+    bool running() const { return pid_ > 0; }
+
+    // False if neither zenity nor kdialog is installed or it could not start.
+    bool start(bool save, const std::string& startPath) {
+        if (running()) return true;
+        std::vector<std::string> args;
+        if (onPath("zenity")) {
+            args = { "zenity", "--file-selection", "--title=" + std::string(save ? "Save pattern bank" : "Load pattern bank"),
+                     "--file-filter=Burette banks (*.burette) | *.burette", "--file-filter=All files | *",
+                     "--filename=" + startPath };
+            if (save) { args.push_back("--save"); args.push_back("--confirm-overwrite"); }
+        } else if (onPath("kdialog")) {
+            args = { "kdialog", save ? "--getsavefilename" : "--getopenfilename", startPath,
+                     "*.burette|Burette banks (*.burette)" };
+        } else {
+            return false;
+        }
+        int fds[2];
+        if (pipe(fds) != 0) return false;
+        posix_spawn_file_actions_t actions;
+        posix_spawn_file_actions_init(&actions);
+        posix_spawn_file_actions_adddup2(&actions, fds[1], 1);
+        posix_spawn_file_actions_addclose(&actions, fds[0]);
+        posix_spawn_file_actions_addclose(&actions, fds[1]);
+        posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0);
+        posix_spawn_file_actions_addopen(&actions, 2, "/dev/null", O_WRONLY, 0);
+        std::vector<char*> argv;
+        for (auto& a : args) argv.push_back(&a[0]);
+        argv.push_back(nullptr);
+        pid_t pid = 0;
+        const int err = posix_spawnp(&pid, argv[0], &actions, nullptr, argv.data(), environ);
+        posix_spawn_file_actions_destroy(&actions);
+        close(fds[1]);
+        if (err != 0) { close(fds[0]); return false; }
+        fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL) | O_NONBLOCK);
+        pid_ = pid;
+        fd_ = fds[0];
+        output_.clear();
+        save_ = save;
+        return true;
+    }
+
+    // True once the dialog has closed: `path` is the chosen file, or empty.
+    bool poll(std::string& path, bool& save) {
+        if (!running()) return false;
+        char buf[512];
+        ssize_t n;
+        while ((n = read(fd_, buf, sizeof(buf))) > 0) output_.append(buf, static_cast<size_t>(n));
+        int status = 0;
+        if (waitpid(pid_, &status, WNOHANG) != pid_) return false;
+        while ((n = read(fd_, buf, sizeof(buf))) > 0) output_.append(buf, static_cast<size_t>(n));
+        close(fd_);
+        pid_ = 0;
+        fd_ = -1;
+        path.clear();
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            path = output_.substr(0, output_.find('\n'));
+        }
+        save = save_;
+        return true;
+    }
+
+    void cancel() {
+        if (!running()) return;
+        kill(pid_, SIGTERM);
+        waitpid(pid_, nullptr, 0);
+        close(fd_);
+        pid_ = 0;
+        fd_ = -1;
+    }
+
+private:
+    pid_t pid_{0};
+    int fd_{-1};
+    bool save_{false};
+    std::string output_;
+};
+
+// --- Linux: drag-and-drop source (XDND) ----------------------------------------
+//
+// Drags a file to another application by the XDND protocol
+// (freedesktop.org XDND, version 5): the file is offered as a text/uri-list
+// on the XdndSelection, which the drop target fetches after XdndDrop.
+
+class XdndSource {
+public:
+    void init(Display* d, Window w) {
+        display_ = d;
+        window_ = w;
+        const char* names[] = { "XdndAware", "XdndEnter", "XdndPosition", "XdndStatus", "XdndLeave",
+                                "XdndDrop", "XdndFinished", "XdndSelection", "XdndActionCopy",
+                                "text/uri-list", "TARGETS" };
+        XInternAtoms(d, const_cast<char**>(names), 11, False, atoms_);
+    }
+    bool dragging() const { return dragging_; }
+
+    void begin(const std::string& uriList, int rootX, int rootY, Time time) {
+        uriList_ = uriList;
+        dragging_ = true;
+        target_ = None;
+        accepted_ = false;
+        statusPending_ = false;
+        XSetSelectionOwner(display_, atoms_[kSelection], window_, time);
+        XGrabPointer(display_, window_, False, ButtonReleaseMask | PointerMotionMask, GrabModeAsync,
+                     GrabModeAsync, None, None, time);
+        motion(rootX, rootY, time);
+    }
+
+    void motion(int rootX, int rootY, Time time) {
+        if (!dragging_) return;
+        int version = 0;
+        const Window target = targetAt(rootX, rootY, version);
+        if (target != target_) {
+            if (target_ != None) send(target_, kLeave, 0, 0, 0, 0);
+            target_ = target;
+            accepted_ = false;
+            statusPending_ = false;
+            if (target_ != None) {
+                version_ = std::min(version, 5);
+                send(target_, kEnter, static_cast<long>(version_) << 24, static_cast<long>(atoms_[kUriList]), 0, 0);
+            }
+        }
+        if (target_ == None) return;
+        lastX_ = rootX; lastY_ = rootY; lastTime_ = time;
+        if (statusPending_) { positionPending_ = true; return; }   // one position per status
+        sendPosition();
+    }
+
+    void release(Time time) {
+        if (!dragging_) return;
+        dragging_ = false;
+        XUngrabPointer(display_, time);
+        if (target_ == None) return;
+        if (accepted_) send(target_, kDrop, 0, version_ >= 1 ? static_cast<long>(time) : 0, 0, 0);
+        else send(target_, kLeave, 0, 0, 0, 0);
+        target_ = None;
+    }
+
+    void cancel() {
+        if (dragging_) release(CurrentTime);
+    }
+
+    // XdndStatus and the drop target's request for the data.
+    bool handleEvent(const XEvent& ev) {
+        if (ev.type == ClientMessage && ev.xclient.message_type == atoms_[kStatus]) {
+            if (static_cast<Window>(ev.xclient.data.l[0]) == target_) {
+                accepted_ = (ev.xclient.data.l[1] & 1) != 0;
+                statusPending_ = false;
+                if (positionPending_) { positionPending_ = false; sendPosition(); }
+            }
+            return true;
+        }
+        if (ev.type == ClientMessage && ev.xclient.message_type == atoms_[kFinished]) return true;
+        if (ev.type == SelectionRequest && ev.xselectionrequest.selection == atoms_[kSelection]) {
+            const XSelectionRequestEvent& req = ev.xselectionrequest;
+            XEvent reply{};
+            reply.xselection.type = SelectionNotify;
+            reply.xselection.display = req.display;
+            reply.xselection.requestor = req.requestor;
+            reply.xselection.selection = req.selection;
+            reply.xselection.target = req.target;
+            reply.xselection.time = req.time;
+            reply.xselection.property = None;
+            const Atom property = req.property != None ? req.property : req.target;
+            if (req.target == atoms_[kUriList]) {
+                XChangeProperty(display_, req.requestor, property, req.target, 8, PropModeReplace,
+                                reinterpret_cast<const unsigned char*>(uriList_.data()),
+                                static_cast<int>(uriList_.size()));
+                reply.xselection.property = property;
+            } else if (req.target == atoms_[kTargets]) {
+                const Atom targets[2] = { atoms_[kTargets], atoms_[kUriList] };
+                XChangeProperty(display_, req.requestor, property, XA_ATOM, 32, PropModeReplace,
+                                reinterpret_cast<const unsigned char*>(targets), 2);
+                reply.xselection.property = property;
+            }
+            XSendEvent(display_, req.requestor, False, NoEventMask, &reply);
+            XFlush(display_);
+            return true;
+        }
+        return false;
+    }
+
+private:
+    enum { kAware, kEnter, kPosition, kStatus, kLeave, kDrop, kFinished, kSelection, kActionCopy, kUriList, kTargets };
+    Display* display_{nullptr};
+    Window window_{0};
+    Atom atoms_[11]{};
+    std::string uriList_;
+    bool dragging_{false};
+    Window target_{None};
+    int version_{5};
+    bool accepted_{false};
+    bool statusPending_{false};
+    bool positionPending_{false};
+    int lastX_{0}, lastY_{0};
+    Time lastTime_{CurrentTime};
+
+    void send(Window to, int type, long l1, long l2, long l3, long l4) {
+        XEvent ev{};
+        ev.xclient.type = ClientMessage;
+        ev.xclient.display = display_;
+        ev.xclient.window = to;
+        ev.xclient.message_type = atoms_[type];
+        ev.xclient.format = 32;
+        ev.xclient.data.l[0] = static_cast<long>(window_);
+        ev.xclient.data.l[1] = l1;
+        ev.xclient.data.l[2] = l2;
+        ev.xclient.data.l[3] = l3;
+        ev.xclient.data.l[4] = l4;
+        XSendEvent(display_, to, False, NoEventMask, &ev);
+        XFlush(display_);
+    }
+
+    void sendPosition() {
+        send(target_, kPosition, 0, (static_cast<long>(lastX_) << 16) | (lastY_ & 0xFFFF),
+             static_cast<long>(lastTime_), static_cast<long>(atoms_[kActionCopy]));
+        statusPending_ = true;
+    }
+
+    // The XDND-aware window under the root position, or None.
+    Window targetAt(int rootX, int rootY, int& version) {
+        const Window root = DefaultRootWindow(display_);
+        Window w = root;
+        for (int depth = 0; depth < 32; ++depth) {
+            if (w != root && w != window_) {
+                Atom type; int format; unsigned long count, after; unsigned char* data = nullptr;
+                if (XGetWindowProperty(display_, w, atoms_[kAware], 0, 1, False, XA_ATOM, &type, &format,
+                                       &count, &after, &data) == Success && data) {
+                    const bool aware = type == XA_ATOM && count == 1;
+                    if (aware) version = static_cast<int>(*reinterpret_cast<Atom*>(data));
+                    XFree(data);
+                    if (aware && version >= 3) return w;
+                } else if (data) {
+                    XFree(data);
+                }
+            }
+            int x, y;
+            Window child = None;
+            if (!XTranslateCoordinates(display_, root, w, rootX, rootY, &x, &y, &child) || child == None) break;
+            w = child;
+        }
+        return None;
+    }
+};
+
+struct SequencerGui::X11Extras {
+    DialogProcess dialog;
+    XdndSource drag;
+    std::string lastDir;
+};
+
+// A file:// URI (RFC 8089) for a local path.
+static std::string fileUri(const std::string& path) {
+    static const char* hex = "0123456789ABCDEF";
+    std::string uri = "file://";
+    for (unsigned char c : path) {
+        if (std::isalnum(c) || std::strchr("/-_.~", c)) uri += static_cast<char>(c);
+        else { uri += '%'; uri += hex[c >> 4]; uri += hex[c & 15]; }
+    }
+    return uri;
+}
+
 bool SequencerGui::setParent(const clap_window_t* window) {
     if (!window || !window->api || std::strcmp(window->api, CLAP_WINDOW_API_X11) != 0) return false;
     std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -470,16 +1008,48 @@ bool SequencerGui::setParent(const clap_window_t* window) {
     display_ = display;
     const int screen = DefaultScreen(display);
     const Window parent = window->x11 ? static_cast<Window>(window->x11) : RootWindow(display, screen);
+    parent_ = parent;
     window_ = XCreateSimpleWindow(display, parent, 0, 0, kWidth, kHeight, 0,
                                   BlackPixel(display, screen), WhitePixel(display, screen));
-    XSelectInput(display, window_, ExposureMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
+    XSelectInput(display, window_, ExposureMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask
+                                   | KeyPressMask | FocusChangeMask);
     XMapWindow(display, window_);
     XFlush(display);
+    x11_ = std::make_unique<X11Extras>();
+    x11_->drag.init(display, window_);
     lastSignature_.clear();
     renderFrame();
     running_ = true;
     eventThread_ = std::thread(&SequencerGui::eventLoopX11, this);
     return true;
+}
+
+void SequencerGui::performActionsX11(uint32_t actions, int rootX, int rootY, unsigned long time) {
+    Display* display = static_cast<Display*>(display_);
+    if (actions & kActionTakeFocus) XSetInputFocus(display, window_, RevertToParent, CurrentTime);
+    if (actions & kActionReleaseFocus) {
+        Window focus; int revert;
+        XGetInputFocus(display, &focus, &revert);
+        if (focus == window_) XSetInputFocus(display, parent_, RevertToParent, CurrentTime);
+    }
+    if (actions & (kActionLoadBank | kActionSaveBank)) {
+        const bool save = (actions & kActionSaveBank) != 0;
+        if (x11_->lastDir.empty()) {
+            const char* home = std::getenv("HOME");
+            x11_->lastDir = home ? home : "/";
+        }
+        std::string start = x11_->lastDir + "/";
+        if (save) start += "BURETTE BANK.burette";
+        if (!x11_->dialog.start(save, start)) {
+            setStatus("NO FILE DIALOG: INSTALL ZENITY OR KDIALOG");
+        }
+    }
+    if (actions & kActionDragMidi) {
+        const std::filesystem::path file = plugin_->writePatternMidi(plugin_->editPattern());
+        if (file.empty()) setStatus("COULD NOT WRITE THE MIDI FILE");
+        else x11_->drag.begin(fileUri(file.string()) + "\r\n", rootX, rootY, static_cast<Time>(time));
+    }
+    XFlush(display);
 }
 
 void SequencerGui::eventLoopX11() {
@@ -489,16 +1059,48 @@ void SequencerGui::eventLoopX11() {
         while (XPending(display) > 0) {
             XEvent ev;
             XNextEvent(display, &ev);
+            if (x11_->drag.handleEvent(ev)) continue;
+            int rootX = 0, rootY = 0;
+            Time time = CurrentTime;
             if (ev.type == Expose) {
                 std::lock_guard<std::recursive_mutex> lock(mutex_);
                 present();
             } else if (ev.type == ButtonPress && (ev.xbutton.button == Button1 || ev.xbutton.button == Button3)) {
                 mouseDown(ev.xbutton.x, ev.xbutton.y, ev.xbutton.button == Button3);
+                rootX = ev.xbutton.x_root; rootY = ev.xbutton.y_root; time = ev.xbutton.time;
             } else if (ev.type == MotionNotify && (ev.xmotion.state & Button1Mask)) {
-                mouseDrag(ev.xmotion.x, ev.xmotion.y);
+                if (x11_->drag.dragging()) {
+                    x11_->drag.motion(ev.xmotion.x_root, ev.xmotion.y_root, ev.xmotion.time);
+                } else {
+                    mouseDrag(ev.xmotion.x, ev.xmotion.y);
+                }
+                rootX = ev.xmotion.x_root; rootY = ev.xmotion.y_root; time = ev.xmotion.time;
             } else if (ev.type == ButtonRelease && ev.xbutton.button == Button1) {
+                x11_->drag.release(ev.xbutton.time);
                 mouseUp(ev.xbutton.x, ev.xbutton.y);
+            } else if (ev.type == KeyPress) {
+                char text[16] = {};
+                KeySym sym = NoSymbol;
+                const int n = XLookupString(&ev.xkey, text, sizeof(text) - 1, &sym, nullptr);
+                if (sym == XK_Return || sym == XK_KP_Enter) keyPress(Key::Enter);
+                else if (sym == XK_Escape) keyPress(Key::Escape);
+                else if (sym == XK_BackSpace) keyPress(Key::Backspace);
+                else if (n > 0) { text[n] = 0; keyText(text); }
+            } else if (ev.type == FocusOut && ev.xfocus.mode == NotifyNormal
+                       && ev.xfocus.detail != NotifyPointer && ev.xfocus.detail != NotifyInferior) {
+                // Not the pointer-window notices taking the focus itself
+                // causes, nor a grab's: the keyboard really went elsewhere.
+                focusLost();
             }
+            const uint32_t actions = takeActions();
+            if (actions) performActionsX11(actions, rootX, rootY, time);
+        }
+        std::string path;
+        bool save = false;
+        if (x11_->dialog.poll(path, save) && !path.empty()) {
+            x11_->lastDir = std::filesystem::path(path).parent_path().string();
+            if (save) saveBankTo(path);
+            else loadBankFrom(path);
         }
         if (visible_) renderFrame();   // follows the playing step
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
@@ -527,6 +1129,9 @@ void SequencerGui::destroy() {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (display_) {
         Display* display = static_cast<Display*>(display_);
+        x11_->drag.cancel();
+        x11_->dialog.cancel();
+        x11_.reset();
         XDestroyWindow(display, window_);
         XCloseDisplay(display);
         display_ = nullptr;
@@ -536,6 +1141,108 @@ void SequencerGui::destroy() {
 #elif defined(_WIN32)
 
 static const wchar_t* kClassName = L"BuretteWindowClass";
+
+// The drag source half of OLE drag-and-drop: drop on release, cancel on Escape.
+class DropSource : public IDropSource {
+public:
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppv) override {
+        if (!ppv) return E_POINTER;
+        if (riid == IID_IUnknown || riid == IID_IDropSource) {
+            *ppv = static_cast<IDropSource*>(this);
+            AddRef();
+            return S_OK;
+        }
+        *ppv = nullptr;
+        return E_NOINTERFACE;
+    }
+    ULONG STDMETHODCALLTYPE AddRef() override { return static_cast<ULONG>(InterlockedIncrement(&refs_)); }
+    ULONG STDMETHODCALLTYPE Release() override {
+        const LONG r = InterlockedDecrement(&refs_);
+        if (r == 0) delete this;
+        return static_cast<ULONG>(r);
+    }
+    HRESULT STDMETHODCALLTYPE QueryContinueDrag(BOOL escape, DWORD keys) override {
+        if (escape) return DRAGDROP_S_CANCEL;
+        if (!(keys & MK_LBUTTON)) return DRAGDROP_S_DROP;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GiveFeedback(DWORD) override { return DRAGDROP_S_USEDEFAULTCURSORS; }
+
+private:
+    LONG refs_{1};
+};
+
+// Drags a file as the Explorer does (CF_HDROP and the shell formats), which
+// is what DAWs accept for MIDI files. Modal until the drop.
+static bool dragFile(HWND hwnd, const std::filesystem::path& file) {
+    const HRESULT ole = OleInitialize(nullptr);   // S_FALSE: already initialised on this thread
+    bool ok = false;
+    PIDLIST_ABSOLUTE pidl = ILCreateFromPathW(file.wstring().c_str());
+    if (pidl) {
+        IShellFolder* folder = nullptr;
+        PCUITEMID_CHILD child = nullptr;
+        if (SUCCEEDED(SHBindToParent(pidl, IID_IShellFolder, reinterpret_cast<void**>(&folder), &child))) {
+            IDataObject* data = nullptr;
+            if (SUCCEEDED(folder->GetUIObjectOf(hwnd, 1, &child, IID_IDataObject, nullptr,
+                                                reinterpret_cast<void**>(&data)))) {
+                auto* source = new DropSource();
+                DWORD effect = DROPEFFECT_NONE;
+                ok = DoDragDrop(data, source, DROPEFFECT_COPY, &effect) == DRAGDROP_S_DROP;
+                source->Release();
+                data->Release();
+            }
+            folder->Release();
+        }
+        ILFree(pidl);
+    }
+    if (SUCCEEDED(ole)) OleUninitialize();
+    return ok;
+}
+
+// The common open / save dialog for .burette files. Empty if cancelled.
+static std::filesystem::path bankFileDialog(HWND hwnd, bool save) {
+    wchar_t file[MAX_PATH] = L"";
+    if (save) wcscpy_s(file, L"Burette bank.burette");
+    OPENFILENAMEW ofn = {};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = hwnd;
+    ofn.lpstrFilter = L"Burette banks (*.burette)\0*.burette\0All files (*.*)\0*.*\0";
+    ofn.lpstrFile = file;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrDefExt = L"burette";
+    ofn.lpstrTitle = save ? L"Save pattern bank" : L"Load pattern bank";
+    ofn.Flags = OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | (save ? OFN_OVERWRITEPROMPT : OFN_FILEMUSTEXIST);
+    const BOOL ok = save ? GetSaveFileNameW(&ofn) : GetOpenFileNameW(&ofn);
+    return ok ? std::filesystem::path(file) : std::filesystem::path();
+}
+
+void SequencerGui::performActionsWin32(uint32_t actions) {
+    HWND hwnd = static_cast<HWND>(hwnd_);
+    if (!hwnd) return;
+    if (actions & kActionTakeFocus) SetFocus(hwnd);
+    if ((actions & kActionReleaseFocus) && GetFocus() == hwnd) {
+        if (HWND parent = GetParent(hwnd)) SetFocus(parent);
+    }
+    if (actions & kActionDragMidi) {
+        const std::filesystem::path file = plugin_->writePatternMidi(plugin_->editPattern());
+        if (file.empty()) {
+            setStatus("COULD NOT WRITE THE MIDI FILE");
+        } else {
+            ReleaseCapture();
+            dragFile(hwnd, file);
+            mouseUp(0, 0);   // the drag loop took the button release
+        }
+    }
+    if (actions & (kActionLoadBank | kActionSaveBank)) {
+        const bool save = (actions & kActionSaveBank) != 0;
+        const std::filesystem::path file = bankFileDialog(hwnd, save);
+        if (!file.empty()) {
+            const std::string utf8 = file.u8string();
+            if (save) saveBankTo(utf8);
+            else loadBankFrom(utf8);
+        }
+    }
+}
 
 static LRESULT CALLBACK seqWndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     auto* gui = reinterpret_cast<SequencerGui*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -563,15 +1270,42 @@ static LRESULT CALLBACK seqWndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARA
             if (gui) {
                 SetCapture(hwnd);
                 gui->mouseDown(x, y, msg == WM_RBUTTONDOWN);
+                gui->performActionsWin32(gui->takeActions());
             }
             return 0;
         case WM_MOUSEMOVE:
-            if (gui && (wParam & MK_LBUTTON)) gui->mouseDrag(x, y);
+            if (gui && (wParam & MK_LBUTTON)) {
+                gui->mouseDrag(x, y);
+                gui->performActionsWin32(gui->takeActions());
+            }
             return 0;
         case WM_LBUTTONUP:
         case WM_RBUTTONUP:
             ReleaseCapture();
             if (gui && msg == WM_LBUTTONUP) gui->mouseUp(x, y);
+            return 0;
+        case WM_KEYDOWN:
+            if (gui && gui->editingName()) {
+                if (wParam == VK_RETURN) gui->keyPress(SequencerGui::Key::Enter);
+                else if (wParam == VK_ESCAPE) gui->keyPress(SequencerGui::Key::Escape);
+                else if (wParam == VK_BACK) gui->keyPress(SequencerGui::Key::Backspace);
+                gui->performActionsWin32(gui->takeActions());
+                return 0;
+            }
+            break;
+        case WM_CHAR:
+            if (gui && gui->editingName()) {
+                if (wParam >= 32 && wParam < 127) {
+                    const char text[2] = { static_cast<char>(wParam), 0 };
+                    gui->keyText(text);
+                }
+                return 0;
+            }
+            break;
+        case WM_GETDLGCODE:
+            return DLGC_WANTALLKEYS | DLGC_WANTCHARS;   // Enter and Escape are ours while typing
+        case WM_KILLFOCUS:
+            if (gui) gui->focusLost();
             return 0;
         case WM_CONTEXTMENU:
             return 0;   // right-click is ours

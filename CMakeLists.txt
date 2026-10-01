@@ -188,6 +188,7 @@ set_target_properties(acidus_calibration_render PROPERTIES
 set(SEQ_SOURCES
     src/sequencer/Pattern.cpp
     src/sequencer/SequencerEngine.cpp
+    src/sequencer/MidiExport.cpp
 )
 set(SEQ_PLUGIN_SOURCES
     src/sequencer/SequencerClap.cpp
@@ -212,7 +213,13 @@ set_target_properties(burette PROPERTIES
     SUFFIX ".clap"
     OUTPUT_NAME "burette"
 )
-target_link_libraries(burette PRIVATE ${GUI_LIBS})
+# Windows: file dialogs (comdlg32) and dragging MIDI files out (ole32, shell32).
+if(WIN32)
+    set(SEQ_GUI_LIBS ${GUI_LIBS} comdlg32 ole32 shell32 uuid)
+else()
+    set(SEQ_GUI_LIBS ${GUI_LIBS})
+endif()
+target_link_libraries(burette PRIVATE ${SEQ_GUI_LIBS})
 
 add_custom_target(deploy_burette_clap
     COMMAND ${CMAKE_COMMAND} -DCLAP_FILE=$<TARGET_FILE:burette>
@@ -229,4 +236,4 @@ add_executable(burette_test
     ${SEQ_PLUGIN_SOURCES}
     src/sequencer_test_main.cpp
 )
-target_link_libraries(burette_test PRIVATE ${GUI_LIBS})
+target_link_libraries(burette_test PRIVATE ${SEQ_GUI_LIBS})

@@ -1,11 +1,14 @@
 #include "SequencerClap.hpp"
 #include "SequencerGui.hpp"
+#include "MidiExport.hpp"
 #include <clap/ext/state.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 
 namespace acidus {
 namespace seq {
@@ -118,11 +121,13 @@ SequencerClap::~SequencerClap() {
 bool SequencerClap::activate(double sampleRate) {
     engine_.setSampleRate(sampleRate);
     engine_.reset();
+    previewHeld_ = -1;
     return true;
 }
 
 void SequencerClap::reset() {
     engine_.reset();
+    previewHeld_ = -1;   // re-sent by the next process() if still wanted
 }
 
 void SequencerClap::createGui() {
@@ -131,6 +136,49 @@ void SequencerClap::createGui() {
 
 void SequencerClap::destroyGui() {
     gui_.reset();
+    previewPattern_.store(-1);   // no play button left to stop it with
+}
+
+void SequencerClap::setPreviewPattern(int pattern) {
+    previewPattern_.store(pattern >= 0 && pattern < kNumPatterns ? pattern : -1);
+    if (host_ && host_->request_process) host_->request_process(host_);   // wake a sleeping plugin
+}
+
+bool SequencerClap::saveBankFile(const std::filesystem::path& path) const {
+    const std::string data = bank_.serialize();
+    std::ofstream f(path, std::ios::binary | std::ios::trunc);
+    if (!f) return false;
+    f.write(data.data(), static_cast<std::streamsize>(data.size()));
+    return static_cast<bool>(f);
+}
+
+bool SequencerClap::loadBankFile(const std::filesystem::path& path) {
+    std::ifstream f(path, std::ios::binary);
+    if (!f) return false;
+    std::vector<uint8_t> data;
+    char chunk[4096];
+    while (f && data.size() < (1u << 16)) {
+        f.read(chunk, sizeof(chunk));
+        data.insert(data.end(), chunk, chunk + f.gcount());
+    }
+    if (bank_.deserialize(data.data(), data.size()) == 0) return false;
+    markStateDirty();
+    return true;
+}
+
+std::filesystem::path SequencerClap::writePatternMidi(int pattern) const {
+    std::error_code ec;
+    std::filesystem::path dir = std::filesystem::temp_directory_path(ec);
+    if (ec) return {};
+    dir /= "Burette";
+    std::filesystem::create_directories(dir, ec);
+    if (ec) return {};
+    const std::filesystem::path path = dir / std::filesystem::u8path(midiFileName(bank_.name(pattern)));
+    const std::string data = patternMidiFile(bank_, pattern, globalTranspose());
+    std::ofstream f(path, std::ios::binary | std::ios::trunc);
+    if (!f) return {};
+    f.write(data.data(), static_cast<std::streamsize>(data.size()));
+    return f ? path : std::filesystem::path();
 }
 
 void SequencerClap::markStateDirty() {
@@ -219,6 +267,15 @@ clap_process_status SequencerClap::process(const clap_process_t* process) {
     const int pendingTranspose = globalTranspose();
     if (pendingTranspose != engine_.globalTranspose()) {
         triggers_.push_back({ 0, false, -1, true, pendingTranspose });
+    }
+    // The play button: hold or let go of its trigger. A new pattern is
+    // pressed before the old one is let go, so it takes over at the next
+    // step like a played key change.
+    const int preview = previewPattern();
+    if (preview != previewHeld_) {
+        if (preview >= 0) triggers_.push_back({ 0, true, kFirstTriggerKey + preview });
+        if (previewHeld_ >= 0) triggers_.push_back({ 0, false, kFirstTriggerKey + previewHeld_ });
+        previewHeld_ = preview;
     }
     for (uint32_t i = 0; i < inCount; ++i) {
         const clap_event_header_t* h = in->get(in, i);

@@ -23,8 +23,9 @@ constexpr int kNoteValueCount = 15;
 // With the octave flags that spans C1..C4 (high C with octave up), plus
 // transpose -- the 303's range (TB303_REFERENCE.md §4.5).
 constexpr int kBaseKey = 36;
-// Pattern n (0-based) is triggered by MIDI key kFirstTriggerKey + n (C-1 = 0).
-constexpr int kFirstTriggerKey = 0;
+// Pattern n (0-based) is triggered by MIDI key kFirstTriggerKey + n: C2..D#3
+// (C4 = 60), the lowest keys of a standard 61-key keyboard.
+constexpr int kFirstTriggerKey = 36;
 
 constexpr int kMinTranspose = -12;
 constexpr int kMaxTranspose = 12;
@@ -74,7 +75,7 @@ public:
     int keyFor(int pattern, const Step& s, int extraTranspose = 0) const;
 
     void clearPattern(int pattern);
-    // Loads the factory patterns (original demos in slots 1-7, the rest empty).
+    // Loads the factory patterns (original demos, one in every slot).
     void loadFactory();
 
     // Serialised form: see Pattern.cpp. deserialize returns the bytes used,
@@ -93,7 +94,7 @@ private:
 
 // "C", "C#", ... for 1..12, "C'" for high C, "T" for a tie, "" for a rest.
 const char* noteName(int note);
-// MIDI key name with C4 = 60, e.g. "C-1" for key 0.
+// MIDI key name with C4 = 60, e.g. "C2" for key 36.
 std::string keyName(int key);
 
 } // namespace seq
