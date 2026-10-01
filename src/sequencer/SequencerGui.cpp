@@ -297,7 +297,7 @@ void SequencerGui::draw(Graphics& g) {
     g.clear(kBg);
 
     // Title row.
-    g.drawText(font_, "ACIDUS SEQ", 14, kTitleY + 6, kLight, 2);
+    g.drawText(font_, "BURETTE", 14, kTitleY + 6, kAcid, 2);
     std::snprintf(buf, sizeof(buf), "%d  %s", pattern + 1, bank.name(pattern).c_str());
     g.drawText(font_, buf, 160, kTitleY + 6, kLight, 2);
     int x, y, w, h;
@@ -534,7 +534,7 @@ void SequencerGui::destroy() {
 
 #elif defined(_WIN32)
 
-static const wchar_t* kClassName = L"AcidusSeqWindowClass";
+static const wchar_t* kClassName = L"BuretteWindowClass";
 
 static LRESULT CALLBACK seqWndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     auto* gui = reinterpret_cast<SequencerGui*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -603,7 +603,7 @@ bool SequencerGui::setParent(const clap_window_t* window) {
         RegisterClassW(&wc);
         registered = true;
     }
-    hwnd_ = CreateWindowExW(0, kClassName, L"Acidus Seq", WS_CHILD | WS_VISIBLE, 0, 0, kWidth, kHeight,
+    hwnd_ = CreateWindowExW(0, kClassName, L"Burette", WS_CHILD | WS_VISIBLE, 0, 0, kWidth, kHeight,
                             static_cast<HWND>(window->win32), NULL, instance, this);
     lastSignature_.clear();
     renderFrame();

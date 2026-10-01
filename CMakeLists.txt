@@ -182,8 +182,8 @@ set_target_properties(acidus_calibration_render PROPERTIES
     PREFIX ""
 )
 
-# Acidus Seq: a separate TB-303 style pattern sequencer plugin
-# (acidus_seq.clap) that outputs notes for Acidus. Its own target: nothing
+# Burette: a separate TB-303 style pattern sequencer plugin
+# (burette.clap) that outputs notes for Acidus. Its own target: nothing
 # here is linked into acidus.clap. It reuses the GUI's Graphics/Font code.
 set(SEQ_SOURCES
     src/sequencer/Pattern.cpp
@@ -203,30 +203,30 @@ else()
         COMPILE_OPTIONS "$<$<CONFIG:Release>:-Os>")
 endif()
 
-add_library(acidus_seq MODULE
+add_library(burette MODULE
     ${SEQ_SOURCES}
     ${SEQ_PLUGIN_SOURCES}
 )
-set_target_properties(acidus_seq PROPERTIES
+set_target_properties(burette PROPERTIES
     PREFIX ""
     SUFFIX ".clap"
-    OUTPUT_NAME "acidus_seq"
+    OUTPUT_NAME "burette"
 )
-target_link_libraries(acidus_seq PRIVATE ${GUI_LIBS})
+target_link_libraries(burette PRIVATE ${GUI_LIBS})
 
-add_custom_target(deploy_seq_clap
-    COMMAND ${CMAKE_COMMAND} -DCLAP_FILE=$<TARGET_FILE:acidus_seq>
+add_custom_target(deploy_burette_clap
+    COMMAND ${CMAKE_COMMAND} -DCLAP_FILE=$<TARGET_FILE:burette>
             -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/DeployClap.cmake
-    COMMENT "Deploying acidus_seq.clap to %CLAPTEST%"
+    COMMENT "Deploying burette.clap to %CLAPTEST%"
     VERBATIM
 )
-add_dependencies(deploy_seq_clap acidus_seq)
+add_dependencies(deploy_burette_clap burette)
 
 # Sequencer tests: step timing (gate, slide, tie, accent), host-position
 # sync, trigger handling, state round trip and GUI editing.
-add_executable(acidus_seq_test
+add_executable(burette_test
     ${SEQ_SOURCES}
     ${SEQ_PLUGIN_SOURCES}
     src/sequencer_test_main.cpp
 )
-target_link_libraries(acidus_seq_test PRIVATE ${GUI_LIBS})
+target_link_libraries(burette_test PRIVATE ${GUI_LIBS})

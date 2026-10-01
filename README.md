@@ -12,13 +12,16 @@
 - **Custom Native Vector/Pixel GUI**: Lightweight pixel-rendered front panel featuring controls for Cutoff, Resonance, Env Mod, Decay, Accent, Waveform, Tuning, and Master Volume, plus a custom Acid Green logo with multi-layer glow.
 - **CLAP Standard Support**: Full support for CLAP parameter automation, state save/restore, and host event flushing.
 - **Cross-Platform Support**: Linux (X11), Windows (Win32), and macOS (Cocoa).
-- **Acidus Seq**: a separate TB-303-style pattern sequencer plugin (`acidus_seq.clap`) that sends Acidus the notes it needs for real 303 gate, slide, tie and accent timing. See [Acidus Seq](#acidus-seq).
+- **Burette**: a separate TB-303-style pattern sequencer plugin (`burette.clap`) that sends Acidus the notes it needs for real 303 gate, slide, tie and accent timing. See [Burette](#burette).
 
 ---
 
-## Acidus Seq
+## Burette
 
-`acidus_seq.clap` is a small note-output plugin, built separately so
+*A burette is the lab tube that releases acid in measured drops; this one
+releases it a 16th note at a time.*
+
+`burette.clap` is a small note-output plugin, built separately so
 `acidus.clap` stays the same size. Put it before Acidus in the same chain (or
 route its note output to Acidus).
 
@@ -183,7 +186,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-The resulting CLAP plugins (`acidus.clap` and the sequencer, `acidus_seq.clap`) will be located in the `build/` directory.
+The resulting CLAP plugins (`acidus.clap` and the sequencer, `burette.clap`) will be located in the `build/` directory.
 
 ### Calibration build
 
@@ -273,7 +276,7 @@ Results go to `calibration_results/<timestamp>/`:
 ./build/acidus_filter_stability_test
 ./build/acidus_gui_test
 ./build/acidus_reference_test    # checks the DSP against docs/TB-303 Reference/TB303_REFERENCE.md
-./build/acidus_seq_test          # sequencer timing, host sync, state and GUI editing
+./build/burette_test             # sequencer timing, host sync, state and GUI editing
 ```
 
 `acidus_reference_test` measures frequency response, resonance-loop

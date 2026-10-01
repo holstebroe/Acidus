@@ -1,4 +1,4 @@
-// Acidus Seq tests: 303 step timing (gate, slide, tie, accent), host-position
+// Burette tests: 303 step timing (gate, slide, tie, accent), host-position
 // sync, trigger handling, state round trip, CLAP event routing and GUI editing.
 #include "sequencer/Pattern.hpp"
 #include "sequencer/SequencerEngine.hpp"

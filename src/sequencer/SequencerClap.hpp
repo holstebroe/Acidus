@@ -15,7 +15,7 @@ namespace seq {
 
 class SequencerGui;
 
-// Acidus Seq: a separate CLAP plugin (acidus_seq.clap) that turns held
+// Burette: a separate CLAP plugin (burette.clap) that turns held
 // pattern-trigger keys (C-1 = pattern 1 ... D#0 = pattern 16) into a
 // TB-303-timed note stream on its note output, for Acidus (or any mono synth
 // that slides on overlapping notes) chained after it. Notes and MIDI outside

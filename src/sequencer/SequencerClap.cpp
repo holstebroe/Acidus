@@ -445,8 +445,8 @@ static const char* g_features[] = {
 
 static const clap_plugin_descriptor_t g_descriptor = {
     CLAP_VERSION,
-    "com.acidus.seq",
-    "Acidus Seq",
+    "com.acidus.burette",
+    "Burette",
     "Acidus",
     "https://github.com/holstebroe/Acidus",
     "",
