@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <cstdlib>
 
 void writeWav(const std::string& filename, const std::vector<float>& samples, int sampleRate = 44100) {
     std::ofstream file(filename, std::ios::binary);
@@ -43,7 +44,58 @@ void writeWav(const std::string& filename, const std::vector<float>& samples, in
     std::cout << "Wrote " << filename << " (" << samples.size() << " samples)\n";
 }
 
+// Oscillator frequency from the saw's reset edges (the falling ramp jumps up
+// once per cycle), over 10 s: within ~0.05 % at 50-250 Hz.
+static double measureOscHz(float octaveScale, float tuningCents, int note) {
+    const double sr = 44100.0;
+    acidus::Oscillator osc;
+    osc.setSampleRate(sr);
+    osc.setWaveform(acidus::Waveform::Saw);
+    osc.setOctaveScale(octaveScale);
+    osc.setTuningCents(tuningCents);
+    osc.noteOn(note, false);
+    // The band-limited reset spreads the jump over a couple of samples:
+    // count the start of each rising run (the ramp itself only falls).
+    float prev = osc.processNextSample();
+    bool rising = false;
+    int edges = 0;
+    long first = -1, last = -1;
+    for (long i = 1; i < static_cast<long>(sr * 10.0); ++i) {
+        float x = osc.processNextSample();
+        bool up = (x - prev) > 0.1f;
+        if (up && !rising) {
+            if (first < 0) first = i;
+            last = i;
+            ++edges;
+        }
+        rising = up;
+        prev = x;
+    }
+    return (edges > 1) ? (edges - 1) * sr / static_cast<double>(last - first) : 0.0;
+}
+
+static void testOctaveScale() {
+    struct Case { float scale; float cents; int note; double expectHz; const char* what; };
+    const Case cases[] = {
+        { 1.0f, 0.0f, 45, 110.0, "scale 1: A2 = 110 Hz" },
+        { 1.0f, 0.0f, 57, 220.0, "scale 1: A3 = 2 x A2" },
+        { 1.03f, 0.0f, 45, 110.0, "scale 1.03: A2 stays at the 110 Hz pivot" },
+        { 1.03f, 0.0f, 57, 110.0 * std::pow(2.0, 1.03), "scale 1.03: A3 = 2^1.03 x A2" },
+        { 1.03f, 0.0f, 33, 110.0 * std::pow(2.0, -1.03), "scale 1.03: A1 = 2^-1.03 x A2" },
+        { 1.03f, 700.0f, 45, 110.0 * std::pow(2.0, 1.03 * 7.0 / 12.0), "scale 1.03 scales Tuning too" },
+    };
+    for (const auto& c : cases) {
+        double hz = measureOscHz(c.scale, c.cents, c.note);
+        double errPct = 100.0 * (hz / c.expectHz - 1.0);
+        std::cout << (std::abs(errPct) < 0.15 ? "PASS: " : "FAIL: ") << c.what
+                  << " (" << hz << " Hz, expected " << c.expectHz << ")\n";
+        if (std::abs(errPct) >= 0.15) std::exit(1);
+    }
+}
+
 int main() {
+    testOctaveScale();
+
     acidus::SynthEngine engine;
     engine.setSampleRate(44100.0);
 

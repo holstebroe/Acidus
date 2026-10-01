@@ -51,10 +51,18 @@ public:
     void setTuningCents(float cents) {
         if (cents == tuningCents_) return;
         tuningCents_ = cents;
-        if (heldNote_ >= 0) {
-            targetPitch_ = heldNote_ + tuningCents_ / 100.0;
-            if (!isSliding_) currentPitch_ = targetPitch_;
-        }
+        retargetHeldNote();
+    }
+
+    // VCO V/oct scale (the TM5 width trim): 1 = exact 2:1 octaves. Real
+    // units measure 0.99-1.03 (TB303_REFERENCE.md §5.3). The scale acts on
+    // the whole expo-converter input (note CV + Tuning) and pivots on the
+    // TM4 calibration point, the A key at 110 Hz with Tuning centred, so a
+    // mis-scaled unit is still in tune there and drifts away from it.
+    void setOctaveScale(float scale) {
+        if (scale == octaveScale_) return;
+        octaveScale_ = scale;
+        retargetHeldNote();
     }
 
 private:
@@ -73,6 +81,22 @@ private:
 
     int heldNote_{-1};
     float tuningCents_{0.0f};
+    float octaveScale_{1.0f};
+
+    // TM4 calibration point: the A key (A2, MIDI 45) at 110 Hz.
+    static constexpr double kScalePivotNote = 45.0;
+
+    double pitchForNote(int noteNumber) const {
+        return kScalePivotNote +
+               (noteNumber - kScalePivotNote + tuningCents_ / 100.0) * octaveScale_;
+    }
+
+    void retargetHeldNote() {
+        if (heldNote_ >= 0) {
+            targetPitch_ = pitchForNote(heldNote_);
+            if (!isSliding_) currentPitch_ = targetPitch_;
+        }
+    }
 
 
     double lpfSawCoeff_{0.0};

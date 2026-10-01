@@ -7,17 +7,28 @@ namespace acidus {
 namespace {
 
 // Hard limit on the plugin's output: only reached by a numerical blow-up, well
-// above anything the model produces in normal use.
-constexpr float kOutputSafetyLimit = 4.0f;
+// above anything the model produces in normal use (the bypassed path tops out
+// at the VCA's unity tanh ceiling times kOutputStageGain = 8).
+constexpr float kOutputSafetyLimit = 16.0f;
 
-// Output amplifier after the VCA (the 303's output buffer), a fixed linear
-// gain. The VCA's tanh ceiling is unity, but a typical note only reaches a
-// quarter of it, which left the plugin peaking around -14 dBFS at full
-// Volume and fed the Distortion+ a signal too small to reach its op-amp
-// rails. Linear, so the clean timbre (and the calibration fits, which solve
-// one global gain) are unchanged; it sets the level everything downstream
-// sees: ~0 dBFS peaks at full Volume, and a hotter pedal input.
-constexpr float kOutputStageGain = 4.0f;
+// Output stage: VCA -> VR8 Volume (50 kOhm "A" taper) -> output amplifier
+// (the Q33/Q34 mixer) -> OUTPUT jack -> pedal (TB303_REFERENCE.md §17). The
+// pot is a passive divider, so it only attenuates; all of the stage's gain
+// is in this one fixed amplifier after it. The VCA's tanh ceiling is unity
+// and a typical note reaches about a quarter of it, so full Volume puts
+// typical peaks near +6 dBFS: a hot line level that drives the Distortion+
+// hard. Volume 0.8 (the default) sits about 8 dB down the taper, near 0 dBFS.
+// Linear, so the clean timbre (and the calibration fits, which solve one
+// global gain) are unchanged.
+constexpr float kOutputStageGain = 8.0f;
+
+// Audio ("A") pot law, the same one TB303_REFERENCE.md §14.1 gives for every
+// A pot on the panel: 10 % of the travel's resistance at mid-rotation
+// (-20 dB), 0 at fully CCW, 1 at fully CW.
+constexpr float kAudioTaperBase = 81.0f;
+inline float audioTaper(float knob) {
+    return (std::pow(kAudioTaperBase, knob) - 1.0f) / (kAudioTaperBase - 1.0f);
+}
 
 inline float clampParam(float v, float lo, float hi, float fallback) {
     if (!std::isfinite(v)) return fallback;
@@ -39,7 +50,7 @@ SynthParameters sanitizeParams(const SynthParameters& in) {
     fix(p.envMod, 0.0f, 1.0f, d.envMod);
     fix(p.decay, 0.0f, 1.0f, d.decay);
     fix(p.accent, 0.0f, 1.0f, d.accent);
-    fix(p.masterVolume, 0.0f, 4.0f, d.masterVolume);
+    fix(p.masterVolume, 0.0f, 1.0f, d.masterVolume);
     fix(p.drive, 0.0f, 1.0f, d.drive);
     fix(p.tuningCents, -1200.0f, 1200.0f, d.tuningCents);
     if (p.waveform != Waveform::Saw && p.waveform != Waveform::Square) p.waveform = Waveform::Saw;
@@ -64,6 +75,7 @@ SynthParameters sanitizeParams(const SynthParameters& in) {
     fix(p.vcaGateOffAccentMs, 0.05f, 1000.0f, d.vcaGateOffAccentMs);
     fix(p.vcaResTapRatio, 0.0f, 10.0f, d.vcaResTapRatio);
     fix(p.vcaGainSaturationDrive, 0.0f, 50.0f, d.vcaGainSaturationDrive);
+    fix(p.vcoOctaveScale, 0.5f, 2.0f, d.vcoOctaveScale);
 
     fix(p.cutoffBaseHz, 10.0f, 2000.0f, d.cutoffBaseHz);
     fix(p.cutoffSpanOct, 0.0f, 8.0f, d.cutoffSpanOct);
@@ -163,6 +175,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     env_.setDecay(p.decay);
 
     osc_.setTuningCents(p.tuningCents);
+    osc_.setOctaveScale(p.vcoOctaveScale);
     osc_.setCouplingHz(p.oscCouplingHz);
     filter_.setResCouplingHz(p.resCouplingHz);
     filter_.setFeedbackGainCeiling(p.filterFeedbackGain);
@@ -194,6 +207,7 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     osc_.setSquareShaping(p.oscSquareDutyDepth, p.oscSquareLevel);
     filter_.setResonanceSkew(p.filterResonanceSkew);
     filter_.setResonanceLimit(p.filterResonanceLimit);
+    const float volumeGain = audioTaper(p.masterVolume);
 
     for (int i = 0; i < numFrames; ++i) {
         if (!env_.isActive() && !isNoteActive_) {
@@ -308,10 +322,12 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         // c0r1, where the ladder alone gives ~7 dB.
         float tapGain = (1.0f + p.vcaResTapRatio * resNorm) / (1.0f + p.vcaResTapRatio);
         float xVal = filterOut * tapGain * vcaGain;
-        float vcaSignal = std::tanh(xVal) * kOutputStageGain;
+        float vcaSignal = std::tanh(xVal);
 
-        float drivenSignal = distortion_.processSample(vcaSignal, p.drive);
-        float finalSample = drivenSignal * p.masterVolume;
+        // Volume comes before the pedal, as with a real 303 plugged into
+        // one: turning it up drives the Distortion+ harder.
+        float lineOut = vcaSignal * volumeGain * kOutputStageGain;
+        float finalSample = distortion_.processSample(lineOut, p.drive);
 
         // A numerical blow-up (NaN/Inf in a filter or pedal state) would
         // otherwise latch forever and poison the host's mix bus: silence this
