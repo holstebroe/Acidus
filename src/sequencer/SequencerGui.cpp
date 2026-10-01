@@ -41,8 +41,8 @@ static constexpr uint32_t kPanelDark = 0xFF2C3034;
 static constexpr uint32_t kGridLine = 0xFF464B50;
 static constexpr uint32_t kLight = 0xFFD6DADE;        // labels and symbols
 static constexpr uint32_t kInk = 0xFF0E1A08;          // text on light and green fills
-static constexpr uint32_t kNoteBg = 0xFF6FE03A;       // a note
-static constexpr uint32_t kTieBg = 0xFF2F6A1C;        // a tie: the note's colour, dimmed
+static constexpr uint32_t kNoteBg = 0xFF6FE03A;       // a note, and a tie
+static constexpr uint32_t kChainMark = 0xFF2F6A1C;    // underline of chained pattern buttons
 static constexpr uint32_t kRestBg = 0xFF121416;       // a rest: darker than the panel
 static constexpr uint32_t kAccentMark = 0xFFFFB020;
 static constexpr uint32_t kInactiveShade = 0xB4000000;
@@ -325,7 +325,7 @@ void SequencerGui::draw(Graphics& g) {
         if (playing) { bg = kAcid; fg = kDarkText; }
         std::snprintf(buf, sizeof(buf), "%d", p + 1);
         drawBox(g, font_, x, y, w, h, buf, bg, fg, 2);
-        if (inChain[p] && !editing) g.fillRect(x + 6, y + h - 5, w - 12, 3, kTieBg);
+        if (inChain[p] && !editing) g.fillRect(x + 6, y + h - 5, w - 12, 3, kChainMark);
         if (playing && editing) {
             g.drawRect(x + 2, y + 2, w - 4, h - 4, kLight);
             g.drawRect(x + 3, y + 3, w - 6, h - 6, kLight);
@@ -349,8 +349,9 @@ void SequencerGui::draw(Graphics& g) {
                     g.fillRect(x, y, w, h, kNoteBg);
                     drawCentered(g, font_, noteName(st.note), x, y, w, h, kDarkText, 3);
                 } else {
-                    // Ties and rests are told apart by fill alone.
-                    g.fillRect(x, y, w, h, st.note == kNoteTie ? kTieBg : kRestBg);
+                    // A tie: the note fill without a name, so it reads as the note
+                    // carrying on. A rest: a dark empty cell.
+                    g.fillRect(x, y, w, h, st.note == kNoteTie ? kNoteBg : kRestBg);
                 }
             } else if (row == Row::Octave) {
                 if (st.octave != 0) {

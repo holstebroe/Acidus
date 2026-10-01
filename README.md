@@ -62,8 +62,8 @@ route its note output to Acidus).
 **Editing.** Click a pattern number to edit it (FOLLOW makes the editor jump
 to the pattern that starts playing). In the grid, left-click a cell for the
 next value, right-click for the previous one, or left-drag up/down to cycle.
-Note cells go rest -> C ... B -> C' -> tie; a tie is shown as a dimmed note
-fill, a rest as a dark empty cell. The LENGTH, TRANSPOSE, NEXT and KEY boxes
+Note cells go rest -> C ... B -> C' -> tie; a tie is shown as a note cell
+without a name, a rest as a dark empty cell. The LENGTH, TRANSPOSE, NEXT and KEY boxes
 work the same way; steps past the length are shaded, and the pattern
 buttons of the edited pattern's chain are underlined. Slots 1-7 hold
 original demo patterns, 6 and 7 chained.
