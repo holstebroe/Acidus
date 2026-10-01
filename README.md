@@ -15,6 +15,58 @@
 - **Custom Native Vector/Pixel GUI**: Lightweight pixel-rendered front panel featuring controls for Cutoff, Resonance, Env Mod, Decay, Accent, Waveform, Tuning, Volume, and Drive, plus a custom Acid Green logo with multi-layer glow.
 - **CLAP Standard Support**: Full support for CLAP parameter automation, state save/restore, and host event flushing.
 - **Cross-Platform Support**: Linux (X11), Windows (Win32), and macOS (Cocoa).
+- **Burette**: a separate TB-303-style pattern sequencer plugin (`burette.clap`) that sends Acidus the notes it needs for real 303 gate, slide, tie and accent timing. See [Burette](#burette).
+
+---
+
+## Burette
+
+*A burette is the lab tube that releases acid in measured drops; this one
+releases it a 16th note at a time.*
+
+`burette.clap` is a small note-output plugin, built separately so
+`acidus.clap` stays the same size. Put it before Acidus in the same chain (or
+route its note output to Acidus).
+
+- **16 patterns**, up to 16 steps each, triggered by MIDI keys **C-1 (pattern 1)
+  to D#0 (pattern 16)**. A pattern plays while its key is held; the newest
+  held key wins, and a change takes effect at the next step. Releasing the key
+  never cuts a step short: a started step plays out its gate, slide or tie.
+- **Locked to the host.** Steps are 16th notes at the host tempo, on the
+  host's grid: step *n* of the song plays pattern step *n mod length*, so
+  starting playback anywhere (or looping) gives the same notes as playing
+  through. Playback started mid-step begins at the next step. With the
+  transport stopped, a trigger key starts the pattern at once from step 1.
+- **303 timing** (`docs/TB-303 Reference/TB303_REFERENCE.md` §4):
+  - normal steps gate for half a step;
+  - **slide** holds the gate to the end of the step, and the next note-on is
+    sent *before* the previous note-off, so Acidus glides without
+    retriggering its envelopes. A slide on a tied note applies at the end of
+    the tie, and a slide on the last step wraps to the first;
+  - **tie** (`T`) extends the previous note's gate; a slide to the same pitch
+    is also a tie;
+  - **accent** is velocity 127, other notes 100 (Acidus accents at 102 and up).
+- **Pitch**: C..B and high C (C') with octave down / none / up spans C1-C4,
+  the 303's range (C2 = MIDI 36 is the middle octave). On top come a
+  per-pattern **transpose** and a global **KEY** transpose (both ±12
+  semitones). KEY is an automatable host parameter, applied sample-accurately
+  from the next note, like the 303's track transpose; editing it in the GUI
+  records automation.
+- **Pattern chaining** (the 303's track mode): each pattern's **NEXT** names
+  the pattern played after it. Triggering A plays A > NEXT(A) > ... until a
+  link is unset or points back into the chain, then loops from A. The chain
+  counts as one long pattern on the host grid, and slides and ties carry
+  across pattern boundaries.
+- Other notes (above D#0) and MIDI (CCs etc.) pass straight through.
+
+**Editing.** Click a pattern number to edit it (FOLLOW makes the editor jump
+to the pattern that starts playing). In the grid, left-click a cell for the
+next value, right-click for the previous one, or left-drag up/down to cycle.
+Note cells go rest -> C ... B -> C' -> tie; a tie is shown as a note cell
+without a name, a rest as a dark empty cell. The LENGTH, TRANSPOSE, NEXT and KEY boxes
+work the same way; steps past the length are shaded, and the pattern
+buttons of the edited pattern's chain are underlined. Slots 1-7 hold
+original demo patterns, 6 and 7 chained.
 
 ---
 
@@ -169,7 +221,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-The resulting CLAP plugin (`acidus.clap`) will be located in the `build/` directory.
+The resulting CLAP plugins (`acidus.clap` and the sequencer, `burette.clap`) will be located in the `build/` directory.
 
 ### Calibration build
 
@@ -259,6 +311,7 @@ Results go to `calibration_results/<timestamp>/`:
 ./build/acidus_filter_stability_test
 ./build/acidus_gui_test
 ./build/acidus_reference_test    # checks the DSP against docs/TB-303 Reference/TB303_REFERENCE.md
+./build/burette_test             # sequencer timing, host sync, state and GUI editing
 ```
 
 `acidus_reference_test` measures frequency response, resonance-loop

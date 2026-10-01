@@ -38,6 +38,8 @@ jobs:
         path: |
           build/acidus.clap
           build/Release/acidus.clap
+          build/burette.clap
+          build/Release/burette.clap
           build/acidus.vst3
           build/Release/acidus.vst3
         if-no-files-found: ignore
