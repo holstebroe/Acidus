@@ -60,6 +60,29 @@ constexpr float kInputVoltScale = 0.05f;
 constexpr float kGainMinLinear = 2.985f;   // 10^(kGainMinDb / 20)
 constexpr float kOutputVoltScale = kInputVoltScale * kGainMinLinear * (kRvol / (kR5 + kRvol));
 
+// --- Auto output (not part of the circuit) ----------------------------------
+// The real pedal's Output knob is left at full above, which makes full
+// Distortion ~20 dB louder (RMS) than bypass. Auto output stands in for a
+// player riding that knob: a static trim, set by the Distortion knob alone,
+// that leaves the bottom of the travel at the bypass level and scales the
+// extra loudness down so that full Distortion ends up kAutoOutputMaxBoostDb
+// louder than bypass. Static, so the pedal's own compression and dynamics
+// are untouched (no pumping).
+//
+// TUNE BY EAR: how much louder (RMS, dB) full Distortion is than bypass.
+// 0 = level-matched across the whole travel; ~20 = auto output off.
+constexpr float kAutoOutputMaxBoostDb = 6.0f;
+
+// Model of the pedal's extra loudness over bypass at a given Distortion
+// setting (Output at full): it rises with the gain stage's dB-linear sweep,
+// then levels off as the diodes take over. Fitted to renders of a typical
+// saw patch at the default 303 Volume (within ~0.6 dB across the travel).
+constexpr float kExtraLoudnessCeilingDb = 22.0f;
+inline float extraLoudnessDb(float drive) {
+    return kExtraLoudnessCeilingDb *
+           std::tanh(drive * (kGainMaxDb - kGainMinDb) / kExtraLoudnessCeilingDb);
+}
+
 constexpr int kOversample = 8;
 constexpr int kDiodeNewtonIters = 5;
 } // namespace
@@ -93,6 +116,15 @@ float Distortion::processSample(float input, float drive) {
     }
 
     const float dt = 1.0f / static_cast<float>(oversampledRate_);
+
+    if (drive != autoOutputDrive_) {
+        // Scale the modelled extra loudness so full Distortion lands at
+        // kAutoOutputMaxBoostDb; trim off the rest.
+        const float keep = std::min(kAutoOutputMaxBoostDb / extraLoudnessDb(1.0f), 1.0f);
+        const float trimDb = -(1.0f - keep) * extraLoudnessDb(drive);
+        autoOutputGain_ = std::pow(10.0f, trimDb / 20.0f);
+        autoOutputDrive_ = drive;
+    }
 
     // --- Distortion-knob-dependent gain stage (Section 5.2) -----------------
     // Map drive linearly in dB across the reissue's gain range, then solve
@@ -181,7 +213,7 @@ float Distortion::processSample(float input, float drive) {
         out += stageOut / static_cast<float>(kOversample);
     }
 
-    return out;
+    return out * autoOutputGain_;
 }
 
 } // namespace acidus
