@@ -1,9 +1,9 @@
 {
- "source": "Best guess at a Devil Fish modded TB-303 (Robin Whittle); no samples",
+ "source": "Hell Fish: a loose guess at a Devil Fish modded TB-303 (Robin Whittle's mod); no samples",
  "fitted": "2026-09-29",
  "reference_set": "none; Devil Fish manual ranges (https://www.firstpr.com.au/rwi/dfish/Devil-Fish-Manual.pdf)",
  "component_state": "factory unit with Devil Fish controls parked at a typical setting",
- "notes": "factory.json with Devil Fish ranges mapped onto the existing constants: Normal Decay 30 ms - 3 s on the Decay knob, Accent Decay 200 ms (the DF pot spans 30 ms - 3 s), Soft Attack 3 ms (DF 0.3 - 30 ms, stock ~1-2 ms), Overdrive 2x filter input level (DF 0 - 66.6x). Not representable yet: Filter Tracking, Filter FM, the Muffler, the Accent Sweep speed switch, and live DF pots (these are fixed settings here). A guess, not a calibration.",
+ "notes": "factory.json with Devil Fish ranges mapped onto the existing constants: Normal Decay 30 ms - 3 s on the Decay knob, Accent Decay 200 ms (the DF pot spans 30 ms - 3 s), Soft Attack 3 ms (DF 0.3 - 30 ms, stock ~1-2 ms), Overdrive 2x filter input level (DF 0 - 66.6x). Not representable yet: Filter Tracking, Filter FM, the Muffler, the Accent Sweep speed switch, and live DF pots (these are fixed settings here). A guess, not a calibration, hence the name: inspired by the Devil Fish, not a model of one.",
  "parameters": {
   "oscCouplingHz": 47.2397,
   "resCouplingHz": 104.291,

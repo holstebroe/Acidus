@@ -11,7 +11,7 @@ flavour, plus notes on where it came from.
 | `x0x` | dinsync.info reference recordings (`test/resources/x0x-reference`, 400 notes, one ~40-year-old unit) | **Default.** Fitted with the resonant-peak sweep tracker, see `docs/X0X_CALIBRATION_2026-09-28.md`. |
 | `acidvoice` | Acidvoice single-note samples (`test/resources/303_saw-*.wav`, 13 notes, a second unit) | Fitted: the `x0x` model with the constants that differ between units refitted to Acidvoice. |
 | `factory` | None: `x0x` with ageing parts reset to the schematic and the service-manual cutoff trim | Best guess at a new unit. |
-| `devilfish` | None: `factory` with Devil Fish ranges | Best guess; no samples. |
+| `hellfish` | None: `factory` with some Devil Fish ranges | Loose guess; no samples. |
 
 ## Scores
 
@@ -23,7 +23,7 @@ reference set:
 | `x0x` | **2.61** | 7.12 | 24 / 34 |
 | `acidvoice` | 3.22 | **2.13** | 24 / 34 |
 | `factory` | 3.49 | 3.28 | **30 / 34** |
-| `devilfish` | - | - | 25 / 34 (by design, see below) |
+| `hellfish` | - | - | 25 / 34 (by design, see below) |
 
 The `x0x` fit on the 400 notes, against earlier models:
 
@@ -107,8 +107,10 @@ So the aged `x0x` accent squelch peaks earlier and higher than
 `factory`'s. This is a model prediction; there is no recording of a new
 unit.
 
-### `devilfish`: best guess at a Devil Fish
+### `hellfish`: a loose guess at a Devil Fish
 
+Named Hell Fish because it is not a model of a real Devil Fish: no Devil
+Fish was measured, and only the control ranges come from a source. It takes
 Robin Whittle's Devil Fish mod
 ([manual](https://www.firstpr.com.au/rwi/dfish/Devil-Fish-Manual.pdf)) on
 a `factory` unit, with its extra controls parked at a typical setting and
@@ -137,7 +139,7 @@ judging the score, capturing the profile and adding it as a preset) is in
 
 The four profiles are built into the plugin as calibration presets. The
 logo plate shows the current one in a small display under the smiley.
-**Click it to load the next preset** (X0X -> ACIDVOICE -> FACTORY -> DEVIL
+**Click it to load the next preset** (X0X -> ACIDVOICE -> FACTORY -> HELL
 FISH -> X0X). Loading a preset replaces every calibration constant. The
 front-panel knobs keep their positions. The preset is saved with the
 project, and projects saved before presets existed load as X0X.
@@ -211,4 +213,4 @@ Clicking the preset display on the logo plate reloads a preset (see above).
 - per-part toggles (aged C13, trim high/low) that apply a subset of a
   profile;
 - the preset as an automatable CLAP parameter instead of only saved state;
-- for the Devil Fish, its extra controls as real front-panel knobs.
+- for the Hell Fish, the Devil Fish's extra controls as real front-panel knobs.

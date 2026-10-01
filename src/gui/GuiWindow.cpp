@@ -216,7 +216,7 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY, unsigned pa
         std::snprintf(label, sizeof(label), "%s", "X0X");
     }
     const int labelTextW = font_.getTextWidth(label, 1);
-    presetLabelW_ = std::max(labelTextW, font_.getTextWidth("DEVIL FISH*", 1)) + 12;
+    presetLabelW_ = std::max(labelTextW, font_.getTextWidth("HELL FISH*", 1)) + 12;
     presetLabelH_ = 11;
     presetLabelX_ = startX + (logoW - presetLabelW_) / 2;
     presetLabelY_ = subtitleY + subtitleH + 27;
