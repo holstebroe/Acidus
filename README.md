@@ -14,6 +14,7 @@
 - **MXR Distortion+ stage**: a circuit model of the pedal after the 303's audio-taper Volume knob, so Volume drives the pedal as on hardware, with an automatic output trim.
 - **Custom Native Vector/Pixel GUI**: Lightweight pixel-rendered front panel featuring controls for Cutoff, Resonance, Env Mod, Decay, Accent, Waveform, Tuning, Volume, and Drive, plus a custom Acid Green logo with multi-layer glow.
 - **CLAP Standard Support**: Full support for CLAP parameter automation, state save/restore, and host event flushing.
+- **VST3 too**: both plugins are also built as VST3 (`acidus.vst3`, `burette.vst3`) by wrapping the same CLAP code with [clap-wrapper](https://github.com/free-audio/clap-wrapper).
 - **Cross-Platform Support**: Linux (X11), Windows (Win32), and macOS (Cocoa).
 - **Burette**: a separate TB-303-style pattern sequencer plugin (`burette.clap`) that sends Acidus the notes it needs for real 303 gate, slide, tie and accent timing. See [Burette](#burette).
 
@@ -58,6 +59,10 @@ route its note output to Acidus).
   counts as one long pattern on the host grid, and slides and ties carry
   across pattern boundaries.
 - Other notes (above D#0) and MIDI (CCs etc.) pass straight through.
+
+**VST3.** `burette.vst3` is the same plugin; it shows up as an instrument
+with an event (MIDI) output. Route that output to Acidus; how depends on the
+host (Reaper and Bitwig route VST3 note output, some hosts do not).
 
 **Editing.** Click a pattern number to edit it (FOLLOW makes the editor jump
 to the pattern that starts playing). In the grid, left-click a cell for the
@@ -210,18 +215,30 @@ fit's procedure and per-set results are in
 
 ### Prerequisites
 
-- CMake (>= 3.15)
+- CMake (>= 3.15; >= 3.21 for the VST3s)
 - C++17 compliant compiler (`GCC`, `Clang`, or `MSVC`)
 - Linux: `libx11-dev`
 
 ### Build Steps
 
 ```bash
+git submodule update --init
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
 The resulting CLAP plugins (`acidus.clap` and the sequencer, `burette.clap`) will be located in the `build/` directory.
+
+The VST3 plugins, `acidus.vst3` and `burette.vst3`, are built next to them
+(on Linux and with multi-config generators such as Visual Studio, under
+`build/Release/`). They are self-contained: the CLAP code is linked in, no
+`.clap` file is needed. On Linux and macOS a `.vst3` is a folder (bundle);
+copy the whole folder to your VST3 directory.
+
+The VST3s are made with the `clap-wrapper` submodule. Configuring downloads
+the VST3 SDK (MIT licensed) from GitHub; to use a local copy instead, pass
+`-DVST3_SDK_ROOT=/path/to/vst3sdk`. To build only the CLAPs, pass
+`-DACIDUS_BUILD_VST3=OFF`.
 
 ### Calibration build
 
@@ -357,6 +374,8 @@ calibration references.
 
 **Tools**
 - [CLAP](https://github.com/free-audio/clap) by the free-audio community.
+- [clap-wrapper](https://github.com/free-audio/clap-wrapper) by the free-audio community, for the VST3 builds.
+- The [VST3 SDK](https://github.com/steinbergmedia/vst3sdk) by Steinberg Media Technologies. VST is a registered trademark of Steinberg Media Technologies GmbH.
 
 Roland and TB-303 are trademarks of Roland Corporation; MXR is a trademark
 of Dunlop Manufacturing. Acidus is an independent project and is not

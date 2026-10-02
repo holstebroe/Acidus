@@ -2,3 +2,6 @@
 	path = clap
 	url = https://github.com/free-audio/clap.git
 	branch = next
+[submodule "clap-wrapper"]
+	path = clap-wrapper
+	url = https://github.com/free-audio/clap-wrapper.git

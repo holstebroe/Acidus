@@ -15,6 +15,11 @@ if(ACIDUS_CALIBRATION_BUILD)
     add_compile_definitions(ACIDUS_CALIBRATION_BUILD=1)
 endif()
 
+# VST3 versions of both plugins (acidus.vst3, burette.vst3), made by wrapping
+# the CLAP code with clap-wrapper (the clap-wrapper submodule). The VST3 SDK
+# is downloaded at configure time unless VST3_SDK_ROOT points at a local copy.
+option(ACIDUS_BUILD_VST3 "Also build VST3 versions of the plugins" ON)
+
 # Whole-program/link-time optimization lets the linker fold identical CLAP
 # vtable trampolines (/OPT:ICF) and drop unreferenced code (/OPT:REF), which
 # matters a lot for a plugin this small. Only apply it in Release-type
@@ -91,6 +96,49 @@ set_target_properties(acidus PROPERTIES
 )
 
 target_link_libraries(acidus PRIVATE ${GUI_LIBS})
+
+if(ACIDUS_BUILD_VST3)
+    # clap-wrapper defaults to the static MSVC runtime; keep CMake's default
+    # (DLL) runtime so the wrapper links with the rest of the project and the
+    # .clap builds are unchanged.
+    if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    endif()
+    if(NOT DEFINED VST3_SDK_ROOT OR "${VST3_SDK_ROOT}" STREQUAL "")
+        set(CLAP_WRAPPER_DOWNLOAD_DEPENDENCIES ON CACHE BOOL "" FORCE)
+    endif()
+    set(CLAP_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/clap" CACHE PATH "" FORCE)
+    if(APPLE)
+        # The wrapper's macOS sources are Objective-C++, compiled into
+        # targets made in this directory.
+        enable_language(OBJC OBJCXX)
+    endif()
+    add_subdirectory(clap-wrapper EXCLUDE_FROM_ALL)
+    # Both .vst3s link their own clap_entry, so let the wrapper use it
+    # directly. Without this, on Linux the wrapper dlopen()s its own .so to
+    # find clap_entry and dlclose()s it from a static destructor at process
+    # exit, unmapping the code it is running in: the host crashes on exit.
+    target_compile_definitions(clap-wrapper-shared-detail PRIVATE STATICALLY_LINKED_CLAP_ENTRY=1)
+    find_package(Threads REQUIRED)
+    # Read (unset) by wrap_vst3.cmake; defining it empty avoids a bogus
+    # "RESOURCE_DIRECTORY defined" warning.
+    set(TCLP_RESOURCE_DIRECTORY "")
+
+    # Same code as acidus.clap, wrapped around its clap_entry: the .vst3 is
+    # self-contained (no .clap needed beside it).
+    add_library(acidus_vst3 MODULE
+        ${CORE_SOURCES}
+        ${CLAP_SOURCES}
+        ${GUI_SOURCES}
+    )
+    target_link_libraries(acidus_vst3 PRIVATE ${GUI_LIBS} Threads::Threads)
+    target_add_vst3_wrapper(
+        TARGET acidus_vst3
+        OUTPUT_NAME "acidus"
+        BUNDLE_IDENTIFIER "com.holstebroe.acidus.vst3"
+        BUNDLE_VERSION "${PROJECT_VERSION}"
+    )
+endif()
 
 # Build the plugin and copy the .clap to the folder in the CLAPTEST environment
 # variable. Not part of ALL: a host that has the plugin loaded locks the file,
@@ -213,6 +261,20 @@ set_target_properties(burette PROPERTIES
     OUTPUT_NAME "burette"
 )
 target_link_libraries(burette PRIVATE ${GUI_LIBS})
+
+if(ACIDUS_BUILD_VST3)
+    add_library(burette_vst3 MODULE
+        ${SEQ_SOURCES}
+        ${SEQ_PLUGIN_SOURCES}
+    )
+    target_link_libraries(burette_vst3 PRIVATE ${GUI_LIBS} Threads::Threads)
+    target_add_vst3_wrapper(
+        TARGET burette_vst3
+        OUTPUT_NAME "burette"
+        BUNDLE_IDENTIFIER "com.holstebroe.burette.vst3"
+        BUNDLE_VERSION "${PROJECT_VERSION}"
+    )
+endif()
 
 add_custom_target(deploy_burette_clap
     COMMAND ${CMAKE_COMMAND} -DCLAP_FILE=$<TARGET_FILE:burette>
