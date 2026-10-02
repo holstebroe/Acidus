@@ -42,6 +42,8 @@ jobs:
           build/Release/burette.clap
           build/acidus.vst3
           build/Release/acidus.vst3
+          build/burette.vst3
+          build/Release/burette.vst3
         if-no-files-found: ignore
 
   release:
