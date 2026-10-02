@@ -40,76 +40,86 @@ inline float clampParam(float v, float lo, float hi, float fallback) {
 // are deliberately wider than the CLAP parameter ranges: this is a last line of
 // defence against corrupt state, hostile host automation and bad callers, not
 // the parameters' user-facing limits.
+// Valid range per float field. A table rather than one clamp call per field:
+// the DSP core builds at -O3, where 61 inlined clamps cost ~6 KB of code.
+struct ParamRange {
+    float SynthParameters::* field;
+    float lo, hi;
+};
+
+const ParamRange kParamRanges[] = {
+    {&SynthParameters::cutoff, 0.0f, 1.0f},
+    {&SynthParameters::resonance, 0.0f, 1.0f},
+    {&SynthParameters::envMod, 0.0f, 1.0f},
+    {&SynthParameters::decay, 0.0f, 1.0f},
+    {&SynthParameters::accent, 0.0f, 1.0f},
+    {&SynthParameters::masterVolume, 0.0f, 1.0f},
+    {&SynthParameters::drive, 0.0f, 1.0f},
+    {&SynthParameters::tuningCents, -1200.0f, 1200.0f},
+
+    {&SynthParameters::oscCouplingHz, 1.0f, 500.0f},
+    {&SynthParameters::resCouplingHz, 1.0f, 2000.0f},
+    {&SynthParameters::filterFeedbackGain, 0.0f, 40.0f},
+    {&SynthParameters::filterPostHpHz, 1.0f, 1000.0f},
+    {&SynthParameters::filterNotchHz, 0.5f, 100.0f},
+    {&SynthParameters::filterNotchBandwidthHz, 0.1f, 100.0f},
+    {&SynthParameters::filterAllpassHz, 0.5f, 200.0f},
+    {&SynthParameters::filterInputCouplingHz, 0.5f, 500.0f},
+    {&SynthParameters::filterOutputCouplingHz, 1000.0f, 40000.0f},
+    {&SynthParameters::filterCapScale1, 0.2f, 4.0f},
+    {&SynthParameters::filterCapScale2, 0.2f, 4.0f},
+    {&SynthParameters::filterCapScale3, 0.2f, 4.0f},
+    {&SynthParameters::filterCapScale4, 0.2f, 4.0f},
+    {&SynthParameters::filterLadderInputScale, 0.005f, 1.0f},
+    {&SynthParameters::filterLadderTopology, 0.0f, 1.0f},
+    {&SynthParameters::vegDecaySec, 0.05f, 30.0f},
+    {&SynthParameters::vcaGateOffMs, 0.05f, 1000.0f},
+    {&SynthParameters::vcaGateOffAccentMs, 0.05f, 1000.0f},
+    {&SynthParameters::vcaResTapRatio, 0.0f, 10.0f},
+    {&SynthParameters::vcaGainSaturationDrive, 0.0f, 50.0f},
+    {&SynthParameters::vcoOctaveScale, 0.5f, 2.0f},
+
+    {&SynthParameters::cutoffBaseHz, 10.0f, 2000.0f},
+    {&SynthParameters::cutoffSpanOct, 0.0f, 8.0f},
+    {&SynthParameters::cutoffMaxHz, 100.0f, 40000.0f},
+    {&SynthParameters::cutoffTaperExp, 0.1f, 5.0f},
+    {&SynthParameters::envModScaleC0, 0.0f, 20.0f},
+    {&SynthParameters::envModScaleC0Slope, 0.0f, 20.0f},
+    {&SynthParameters::envModScaleC1, 0.0f, 20.0f},
+    {&SynthParameters::envModScaleC1Slope, 0.0f, 20.0f},
+    {&SynthParameters::envModOffset, -2.0f, 2.0f},
+    {&SynthParameters::envModTaperExp, 0.1f, 8.0f},
+    {&SynthParameters::envModTaperMid, 0.05f, 1.0f},
+    {&SynthParameters::envModTaperWidth, 0.0f, 2.0f},
+    {&SynthParameters::envModOffsetCutSlope, -2.0f, 2.0f},
+    {&SynthParameters::accentSweepDepthOct, 0.0f, 20.0f},
+    {&SynthParameters::accentVcaDepth, 0.0f, 20.0f},
+    {&SynthParameters::accentChargeBaseSec, 0.0005f, 2.0f},
+    {&SynthParameters::accentChargePotSec, 0.0005f, 2.0f},
+    {&SynthParameters::accentDiodeDrop, 0.0f, 0.9f},
+    {&SynthParameters::accentMixSec, 0.001f, 2.0f},
+    {&SynthParameters::oscSawLpfHz, 100.0f, 1.0e6f},
+    {&SynthParameters::oscSawShape, -1.0f, 1.0f},
+    {&SynthParameters::oscSquareDutyDepth, 0.0f, 0.25f},
+    {&SynthParameters::oscSquareLevel, 0.0f, 2.0f},
+    {&SynthParameters::vcfAttackMs, 0.01f, 100.0f},
+    {&SynthParameters::vcaNormalDelayMs, 0.0f, 100.0f},
+    {&SynthParameters::vcaAttackMs, 0.05f, 500.0f},
+    {&SynthParameters::vcfDecayMinSec, 0.005f, 10.0f},
+    {&SynthParameters::vcfDecayMaxSec, 0.005f, 20.0f},
+    {&SynthParameters::vcfDecayTaper, 1.0f, 500.0f},
+    {&SynthParameters::accentDecaySec, 0.005f, 5.0f},
+    {&SynthParameters::filterResonanceSkew, -20.0f, 20.0f},
+    {&SynthParameters::filterResonanceLimit, 0.1f, 3.0f},
+};
+
 SynthParameters sanitizeParams(const SynthParameters& in) {
     const SynthParameters d;   // defaults, used for non-finite values
     SynthParameters p = in;
-    auto fix = [](float& v, float lo, float hi, float def) { v = clampParam(v, lo, hi, def); };
-
-    fix(p.cutoff, 0.0f, 1.0f, d.cutoff);
-    fix(p.resonance, 0.0f, 1.0f, d.resonance);
-    fix(p.envMod, 0.0f, 1.0f, d.envMod);
-    fix(p.decay, 0.0f, 1.0f, d.decay);
-    fix(p.accent, 0.0f, 1.0f, d.accent);
-    fix(p.masterVolume, 0.0f, 1.0f, d.masterVolume);
-    fix(p.drive, 0.0f, 1.0f, d.drive);
-    fix(p.tuningCents, -1200.0f, 1200.0f, d.tuningCents);
+    for (const ParamRange& r : kParamRanges)
+        p.*r.field = clampParam(p.*r.field, r.lo, r.hi, d.*r.field);
     if (p.waveform != Waveform::Saw && p.waveform != Waveform::Square) p.waveform = Waveform::Saw;
-
-    fix(p.oscCouplingHz, 1.0f, 500.0f, d.oscCouplingHz);
-    fix(p.resCouplingHz, 1.0f, 2000.0f, d.resCouplingHz);
-    fix(p.filterFeedbackGain, 0.0f, 40.0f, d.filterFeedbackGain);
-    fix(p.filterPostHpHz, 1.0f, 1000.0f, d.filterPostHpHz);
-    fix(p.filterNotchHz, 0.5f, 100.0f, d.filterNotchHz);
-    fix(p.filterNotchBandwidthHz, 0.1f, 100.0f, d.filterNotchBandwidthHz);
-    fix(p.filterAllpassHz, 0.5f, 200.0f, d.filterAllpassHz);
-    fix(p.filterInputCouplingHz, 0.5f, 500.0f, d.filterInputCouplingHz);
-    fix(p.filterOutputCouplingHz, 1000.0f, 40000.0f, d.filterOutputCouplingHz);
-    fix(p.filterCapScale1, 0.2f, 4.0f, d.filterCapScale1);
-    fix(p.filterCapScale2, 0.2f, 4.0f, d.filterCapScale2);
-    fix(p.filterCapScale3, 0.2f, 4.0f, d.filterCapScale3);
-    fix(p.filterCapScale4, 0.2f, 4.0f, d.filterCapScale4);
-    fix(p.filterLadderInputScale, 0.005f, 1.0f, d.filterLadderInputScale);
-    fix(p.filterLadderTopology, 0.0f, 1.0f, d.filterLadderTopology);
-    fix(p.vegDecaySec, 0.05f, 30.0f, d.vegDecaySec);
-    fix(p.vcaGateOffMs, 0.05f, 1000.0f, d.vcaGateOffMs);
-    fix(p.vcaGateOffAccentMs, 0.05f, 1000.0f, d.vcaGateOffAccentMs);
-    fix(p.vcaResTapRatio, 0.0f, 10.0f, d.vcaResTapRatio);
-    fix(p.vcaGainSaturationDrive, 0.0f, 50.0f, d.vcaGainSaturationDrive);
-    fix(p.vcoOctaveScale, 0.5f, 2.0f, d.vcoOctaveScale);
-
-    fix(p.cutoffBaseHz, 10.0f, 2000.0f, d.cutoffBaseHz);
-    fix(p.cutoffSpanOct, 0.0f, 8.0f, d.cutoffSpanOct);
-    fix(p.cutoffMaxHz, 100.0f, 40000.0f, d.cutoffMaxHz);
-    fix(p.cutoffTaperExp, 0.1f, 5.0f, d.cutoffTaperExp);
-    fix(p.envModScaleC0, 0.0f, 20.0f, d.envModScaleC0);
-    fix(p.envModScaleC0Slope, 0.0f, 20.0f, d.envModScaleC0Slope);
-    fix(p.envModScaleC1, 0.0f, 20.0f, d.envModScaleC1);
-    fix(p.envModScaleC1Slope, 0.0f, 20.0f, d.envModScaleC1Slope);
-    fix(p.envModOffset, -2.0f, 2.0f, d.envModOffset);
-    fix(p.envModTaperExp, 0.1f, 8.0f, d.envModTaperExp);
-    fix(p.envModTaperMid, 0.05f, 1.0f, d.envModTaperMid);
-    fix(p.envModTaperWidth, 0.0f, 2.0f, d.envModTaperWidth);
-    fix(p.envModOffsetCutSlope, -2.0f, 2.0f, d.envModOffsetCutSlope);
-    fix(p.accentSweepDepthOct, 0.0f, 20.0f, d.accentSweepDepthOct);
-    fix(p.accentVcaDepth, 0.0f, 20.0f, d.accentVcaDepth);
-    fix(p.accentChargeBaseSec, 0.0005f, 2.0f, d.accentChargeBaseSec);
-    fix(p.accentChargePotSec, 0.0005f, 2.0f, d.accentChargePotSec);
-    fix(p.accentDiodeDrop, 0.0f, 0.9f, d.accentDiodeDrop);
-    fix(p.accentMixSec, 0.001f, 2.0f, d.accentMixSec);
-    fix(p.oscSawLpfHz, 100.0f, 1.0e6f, d.oscSawLpfHz);
-    fix(p.oscSawShape, -1.0f, 1.0f, d.oscSawShape);
-    fix(p.oscSquareDutyDepth, 0.0f, 0.25f, d.oscSquareDutyDepth);
-    fix(p.oscSquareLevel, 0.0f, 2.0f, d.oscSquareLevel);
-    fix(p.vcfAttackMs, 0.01f, 100.0f, d.vcfAttackMs);
-    fix(p.vcaNormalDelayMs, 0.0f, 100.0f, d.vcaNormalDelayMs);
-    fix(p.vcaAttackMs, 0.05f, 500.0f, d.vcaAttackMs);
-    fix(p.vcfDecayMinSec, 0.005f, 10.0f, d.vcfDecayMinSec);
-    fix(p.vcfDecayMaxSec, 0.005f, 20.0f, d.vcfDecayMaxSec);
     p.vcfDecayMaxSec = std::max(p.vcfDecayMaxSec, p.vcfDecayMinSec);
-    fix(p.vcfDecayTaper, 1.0f, 500.0f, d.vcfDecayTaper);
-    fix(p.accentDecaySec, 0.005f, 5.0f, d.accentDecaySec);
-    fix(p.filterResonanceSkew, -20.0f, 20.0f, d.filterResonanceSkew);
-    fix(p.filterResonanceLimit, 0.1f, 3.0f, d.filterResonanceLimit);
     return p;
 }
 
