@@ -236,6 +236,7 @@ set_target_properties(acidus_calibration_render PROPERTIES
 set(SEQ_SOURCES
     src/sequencer/Pattern.cpp
     src/sequencer/SequencerEngine.cpp
+    src/sequencer/MidiExport.cpp
 )
 set(SEQ_PLUGIN_SOURCES
     src/sequencer/SequencerClap.cpp
@@ -260,14 +261,20 @@ set_target_properties(burette PROPERTIES
     SUFFIX ".clap"
     OUTPUT_NAME "burette"
 )
-target_link_libraries(burette PRIVATE ${GUI_LIBS})
+# Windows: file dialogs (comdlg32) and dragging MIDI files out (ole32, shell32).
+if(WIN32)
+    set(SEQ_GUI_LIBS ${GUI_LIBS} comdlg32 ole32 shell32 uuid)
+else()
+    set(SEQ_GUI_LIBS ${GUI_LIBS})
+endif()
+target_link_libraries(burette PRIVATE ${SEQ_GUI_LIBS})
 
 if(ACIDUS_BUILD_VST3)
     add_library(burette_vst3 MODULE
         ${SEQ_SOURCES}
         ${SEQ_PLUGIN_SOURCES}
     )
-    target_link_libraries(burette_vst3 PRIVATE ${GUI_LIBS} Threads::Threads)
+    target_link_libraries(burette_vst3 PRIVATE ${SEQ_GUI_LIBS} Threads::Threads)
     target_add_vst3_wrapper(
         TARGET burette_vst3
         OUTPUT_NAME "burette"
@@ -291,4 +298,4 @@ add_executable(burette_test
     ${SEQ_PLUGIN_SOURCES}
     src/sequencer_test_main.cpp
 )
-target_link_libraries(burette_test PRIVATE ${GUI_LIBS})
+target_link_libraries(burette_test PRIVATE ${SEQ_GUI_LIBS})

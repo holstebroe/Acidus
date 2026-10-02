@@ -29,8 +29,10 @@ releases it a 16th note at a time.*
 `acidus.clap` stays the same size. Put it before Acidus in the same chain (or
 route its note output to Acidus).
 
-- **16 patterns**, up to 16 steps each, triggered by MIDI keys **C-1 (pattern 1)
-  to D#0 (pattern 16)**. A pattern plays while its key is held; the newest
+- **16 patterns**, up to 16 steps each, triggered by MIDI keys **C2 (MIDI 36,
+  pattern 1) to D#3 (MIDI 51, pattern 16)**: the lowest keys of a standard
+  61-key keyboard (DAWs that call middle C "C3" name these C1 to D#2).
+  A pattern plays while its key is held; the newest
   held key wins, and a change takes effect at the next step. Releasing the key
   never cuts a step short: a started step plays out its gate, slide or tie.
 - **Locked to the host.** Steps are 16th notes at the host tempo, on the
@@ -58,20 +60,45 @@ route its note output to Acidus).
   link is unset or points back into the chain, then loops from A. The chain
   counts as one long pattern on the host grid, and slides and ties carry
   across pattern boundaries.
-- Other notes (above D#0) and MIDI (CCs etc.) pass straight through.
+- Other notes (outside MIDI 36-51) and MIDI (CCs etc.) pass straight through.
 
 **VST3.** `burette.vst3` is the same plugin; it shows up as an instrument
 with an event (MIDI) output. Route that output to Acidus; how depends on the
 host (Reaper and Bitwig route VST3 note output, some hosts do not).
 
-**Editing.** Click a pattern number to edit it (FOLLOW makes the editor jump
-to the pattern that starts playing). In the grid, left-click a cell for the
-next value, right-click for the previous one, or left-drag up/down to cycle.
-Note cells go rest -> C ... B -> C' -> tie; a tie is shown as a note cell
-without a name, a rest as a dark empty cell. The LENGTH, TRANSPOSE, NEXT and KEY boxes
-work the same way; steps past the length are shaded, and the pattern
-buttons of the edited pattern's chain are underlined. Slots 1-7 hold
-original demo patterns, 6 and 7 chained.
+**Editing.** Click a pattern number to edit it (the small FOLLOW light under
+PATTERN makes the editor jump to the pattern that starts playing). In the
+grid, left-click a cell for the next value, right-click for the previous one,
+or left-drag up/down to scroll through them. Note cells go rest -> C ... B ->
+C' -> tie; a tie is shown as a note cell without a name, a rest as a dark
+empty cell. The LENGTH, TRANSPOSE, NEXT and KEY boxes work the same way;
+steps past the length are shaded, and the pattern buttons of the edited
+pattern's chain are underlined.
+
+Along the top:
+
+- **Play / pause** plays the edited pattern (its chain, if it has one) as if
+  its trigger key were held: with the host stopped it runs at the host tempo,
+  with the host playing it locks to the grid. Selecting another pattern while
+  it plays switches at the next step. Pause shows while anything plays; it
+  stops the play button's pattern, not the host's triggers.
+- **The name**: click it and type (Enter keeps it, Escape cancels).
+- **INIT** clears the edited pattern: click it once to arm it (SURE?) and
+  again to clear.
+- **Load / save** (the floppies, arrow out / in) read and write the whole
+  pattern bank as a `.burette` file. On Linux the file dialog is zenity or
+  kdialog, whichever is installed.
+- **MIDI** (the blue tab): drag it onto a DAW track to drop the pattern as
+  a MIDI clip: what triggering it plays, once (a whole chain for a chained
+  pattern), with the KEY transpose. The clip has the 303 timing: half-step
+  gates, accents at velocity 127, ties as long notes, and slid notes
+  overlapping the next note by 1/48 beat so a mono synth glides on playback.
+
+All 16 slots hold original demo patterns, each showing a 303 technique:
+octave jumps, accent grooves, pedal notes, tied drones, rolling 16ths, acid
+house rests, a legato slide melody, stabs, a 7-step pattern against the bar,
+an arpeggio, high-register squeal, and two chains (6 > 7, and call and
+response 15 > 16).
 
 ---
 

@@ -6,7 +6,9 @@
 #include "Pattern.hpp"
 #include "SequencerEngine.hpp"
 #include <atomic>
+#include <filesystem>
 #include <memory>
+#include <string>
 #include <mutex>
 #include <vector>
 
@@ -16,7 +18,7 @@ namespace seq {
 class SequencerGui;
 
 // Burette: a separate CLAP plugin (burette.clap) that turns held
-// pattern-trigger keys (C-1 = pattern 1 ... D#0 = pattern 16) into a
+// pattern-trigger keys (C2 = pattern 1 ... D#3 = pattern 16) into a
 // TB-303-timed note stream on its note output, for Acidus (or any mono synth
 // that slides on overlapping notes) chained after it. Notes and MIDI outside
 // the trigger range pass straight through.
@@ -51,6 +53,20 @@ public:
     bool followPlaying() const { return follow_.load(std::memory_order_relaxed); }
     void setFollowPlaying(bool f) { follow_.store(f, std::memory_order_relaxed); markStateDirty(); }
 
+    // The GUI's play button: holds `pattern`'s trigger as if its key were
+    // held (-1 lets go), for trying a pattern without the host sending
+    // triggers. Not part of the saved state.
+    int previewPattern() const { return previewPattern_.load(std::memory_order_relaxed); }
+    void setPreviewPattern(int pattern);
+
+    // Pattern bank files (".burette": the bank part of the saved state).
+    // load returns false, and changes nothing, if the file is not a bank.
+    bool saveBankFile(const std::filesystem::path& path) const;
+    bool loadBankFile(const std::filesystem::path& path);
+    // Writes what triggering `pattern` plays as a MIDI file in a temporary
+    // folder, for dragging onto a DAW track. Returns its path, or empty.
+    std::filesystem::path writePatternMidi(int pattern) const;
+
     // Global key transpose: the plugin's one CLAP parameter (automatable).
     static constexpr clap_id kParamTranspose = 0;
     int globalTranspose() const { return globalTranspose_.load(std::memory_order_relaxed); }
@@ -75,6 +91,8 @@ private:
     std::atomic<int> editPattern_{0};
     std::atomic<bool> follow_{true};
     std::atomic<int> globalTranspose_{0};
+    std::atomic<int> previewPattern_{-1};
+    int previewHeld_{-1};       // audio thread: the preview trigger the engine holds
 
     // GUI parameter events waiting to go to the host.
     struct ParamOut { uint16_t type; double value; };
