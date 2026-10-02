@@ -117,7 +117,7 @@ struct FactoryPattern {
 };
 
 // Original demo patterns, each showing off a 303 technique.
-static const FactoryPattern kFactory[] = {
+static const FactoryPattern kFactory[kNumPatterns] = {
     // Octave jumps with long slide runs and three accents.
     { "OCTAVE JUMPER", 5, 0,
       "Cd Cu D#s Gu F A#das Gd Cu Cus D# A#ds Cuas C Ds Fds F#s" },
@@ -138,6 +138,32 @@ static const FactoryPattern kFactory[] = {
       "Cd C D#s Fa Gs G#u T Cus" },
     { "CHAIN B", 0, 6,
       "C'ua C' Gs Fa D#s T Cd C'" },
+    // Acid techno: an unbroken low 16th roll, accents on the off-16ths.
+    { "ROLLING 16THS", 0, 0,
+      "Cd C Cd Ca Cd C Cd Cas Cd C Cd Ca D#d D# Fd Gas" },
+    // Acid house: rests and syncopation, the groove is in the gaps.
+    { "HOUSE WALK", 0, 0,
+      "Ca - Cu C - D#s F - Ca - Cu A#d - Gd A#ds C" },
+    // A legato melody: most notes slide, so the envelopes rarely retrigger.
+    { "SLIDE MELODY", 0, 0,
+      "A Cus Eu Ds C Bds A G Eds Ga A T Cus Bs A Ed" },
+    // Sparse accented stabs for minimal techno; one slide into the stab.
+    { "STAB RIFF", 0, 0,
+      "Ga - - Gua - - Ga - Fs Ga - - A#ua - F -" },
+    // Seven steps against the 4/4 bar: the accent lands somewhere new each bar.
+    { "7 OVER 4", 2, 0,
+      "Da D Du Fs Da A#d C" },
+    // A minor-seventh arpeggio over two octaves, accented on the beat.
+    { "ARPEGGIO", 0, 0,
+      "Ca D# G A# Cua A# G D# Ca D# G Cu D#ua Cu A# G" },
+    // The top octave with slides and ties: resonance up for the squeal.
+    { "HIGH SQUEAL", 0, 0,
+      "C'us Gus C'u A#u C'ua T Gus Fu D#us Fu Gua T C'u A#us Gu C'ua" },
+    // Call and response: a 32-step phrase as a chain (15 > 16 > 15 ...).
+    { "CALL", 0, 16,
+      "Ca - D#s F - Ca D# - G - Fs D# C - A#ds Cu" },
+    { "RESPONSE", 0, 15,
+      "Ca - D#s F - Ca D# - G#u - Gs F D# - Ds C" },
 };
 
 static int parseFactorySteps(const char* text, Step* out) {
