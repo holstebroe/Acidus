@@ -174,6 +174,54 @@ Findings:
   harmonics over time, envelope and the D row, worse on the sweep track,
   harmonic levels and the E row.
 
+## Second unit: Acidvoice (13 notes)
+
+Does the x0x result repeat on an independent unit? Two arms, 20 min each
+(~12,000 evaluations), the free set of the original `acidvoice` fit
+(cutoff law, accent depths, feedback and limit, Env Mod scale and offset,
+VEG, VCA tap, post-HP, oscillator coupling, knobs, timing), `--w-harmt 2`,
+limit bounded to 0.995:
+
+- **AC**: from `x0x-circuit` (network on), plus `filterNetworkTimeScale`.
+- **AO**: from `x0x` (Open303 topology), the original `acidvoice` recipe.
+
+Predicted beforehand: a tie on score (all 13 notes have Env Mod 0, where
+the network gained least on x0x), with the network fit landing on schematic
+values (post-HP ~70 Hz, feedback ~18.7, VEG 1.5-1.9 s, time scale 0.9-1.1).
+
+| Standard scoring (13 notes) | `acidvoice` (shipped) | AO | AC |
+|---|---|---|---|
+| Weighted error | **2.07** | 2.28 | 2.99 |
+| Harmonic levels (dB) | | 1.79 | 2.30 |
+| Resonant-peak shape (dB) | | 2.58 | 3.82 |
+| Note level, RMS (dB) | | 2.25 | 3.05 |
+
+| Constant | `acidvoice` | AO | AC | predicted | `x0x-circuit` |
+|---|---|---|---|---|---|
+| `filterPostHpHz` | 189 | 231 | **80** | ~70 | 69 |
+| `vegDecaySec` | 1.91 | 1.66 | **1.58** | 1.5-1.9 | 1.54 |
+| `filterFeedbackGain` | 17.9 | 17.7 | 17.6 | ~18.7 | 18.8 |
+| `filterNetworkTimeScale` | - | - | 0.79 | 0.9-1.1 | 1.11 |
+| `accentVcaDepth` | 2.29 | 1.83 | 3.48 | | 2.09 |
+
+- **The score prediction was wrong**: on this unit the network fits worse
+  (2.99 against 2.28 at equal budget), mostly in the resonant-peak shape and
+  note levels; the high accent VCA depth looks like compensation.
+- **The low-end prediction held**: on the second unit too, the network
+  replaces the ~200 Hz post-filter high-pass with ~80 Hz, next to the 220 k
+  VCA tap's 72 Hz, and the VEG lands near R123 x C42.
+- **Feedback and time scale did not**: the feedback stays at this unit's
+  lower 17.6 in both topologies (it is the tamer unit), and the network's
+  time constants come out 0.79 here against 1.11 on x0x. Within electrolytic
+  tolerance (+-20 % around ~0.95), but it means the two units do not agree
+  on one network.
+- Caveats: 13 saw notes, Env Mod 0 throughout, lower pitches (A1-D3, down
+  to 53 Hz, below the x0x set's C2) where the network's 92 Hz section bites
+  hardest, and an unknown recording chain (an AC-coupled interface adds a
+  high-pass the fit would absorb).
+
+No Acidvoice circuit preset: the network is not better for this unit.
+
 ## Next
 
 - The network is the better model at equal effort, closer to the schematic
