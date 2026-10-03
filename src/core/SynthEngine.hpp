@@ -104,6 +104,10 @@ public:
 
     void noteOn(int noteNumber, float velocity);
     void noteOff(int noteNumber);
+    // Polyphonic pressure on the held note re-latches its accent (pressure
+    // >= 0.5 is accented) with no retrigger: Burette's accent change on an
+    // equal-pitch slide (TB303_REFERENCE.md §4.6). Other keys are ignored.
+    void notePressure(int noteNumber, float pressure);
 
     void processAudio(float* outLeft, float* outRight, int numFrames);
 
@@ -113,6 +117,8 @@ public:
     // Read-only probe for tests: the cutoff (Hz) handed to the filter on the
     // most recent processed sample, after the engine's clamp.
     float getLastCutoffHz() const { return lastCutoffHz_; }
+    // Is the held (or last) note accented?
+    bool isAccent() const { return env_.isAccent(); }
 
 private:
     double sampleRate_{44100.0};

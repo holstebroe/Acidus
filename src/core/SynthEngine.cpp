@@ -167,6 +167,14 @@ void SynthEngine::noteOn(int noteNumber, float velocity) {
     env_.noteOn(isAccent, isSlide, p.accent);
 }
 
+void SynthEngine::notePressure(int noteNumber, float pressure) {
+    if (!isNoteActive_ || noteNumber != currentNote_ || !std::isfinite(pressure)) return;
+    const bool isAccent = pressure >= 0.5f;
+    if (isAccent == env_.isAccent()) return;
+    accentLevel_ = isAccent ? 1.0f : 0.0f;
+    env_.setAccent(isAccent);
+}
+
 void SynthEngine::noteOff(int noteNumber) {
     if (noteNumber == currentNote_ || noteNumber < 0) {
         isNoteActive_ = false;

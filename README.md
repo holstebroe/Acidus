@@ -16,6 +16,7 @@
 - **CLAP Standard Support**: Full support for CLAP parameter automation, state save/restore, and host event flushing.
 - **VST3 too**: both plugins are also built as VST3 (`acidus.vst3`, `burette.vst3`) by wrapping the same CLAP code with [clap-wrapper](https://github.com/free-audio/clap-wrapper).
 - **Cross-Platform Support**: Linux (X11), Windows (Win32), and macOS (Cocoa).
+- **303 accent latch over MIDI**: velocity 102 and up is an accent; polyphonic pressure (CLAP pressure note expression or MIDI poly aftertouch, not channel pressure) on the held note switches its accent on (>= 50 %) or off with no retrigger, as the 303's accent latch does under a held gate. Burette uses it to tell a same-pitch slide from a tie.
 - **Burette**: a separate TB-303-style pattern sequencer plugin (`burette.clap`) that sends Acidus the notes it needs for real 303 gate, slide, tie and accent timing. See [Burette](#burette).
 
 ---
@@ -46,8 +47,17 @@ route its note output to Acidus).
     sent *before* the previous note-off, so Acidus glides without
     retriggering its envelopes. A slide on a tied note applies at the end of
     the tie, and a slide on the last step wraps to the first;
-  - **tie** (`T`) extends the previous note's gate; a slide to the same pitch
-    is also a tie;
+  - **tie** (`T`) extends the previous note's gate and keeps its accent
+    (the 303's accent is latched);
+  - **slide to the same pitch** sounds like a tie (no new note, no glide,
+    no retrigger), except that it takes the slid-to step's accent: if that
+    differs from the held note's, Burette sends polyphonic pressure on the
+    held key (full for accent on, zero for off) and Acidus switches the
+    accent mid-note. Note-ons and note-offs stay paired. On a real 303 this
+    is how the accent latch behaves when a new note is clocked under a held
+    gate; whether the 303's own firmware keeps such a step or folds it into
+    a tie is unconfirmed. See `TB303_REFERENCE.md` §4.6 for the six
+    combinations and the sources;
   - **accent** is velocity 127, other notes 100 (Acidus accents at 102 and up).
 - **Pitch**: C..B and high C (C') with octave down / none / up spans C1-C4,
   the 303's range (C2 = MIDI 36 is the middle octave). On top come a
@@ -64,7 +74,10 @@ route its note output to Acidus).
 
 **VST3.** `burette.vst3` is the same plugin; it shows up as an instrument
 with an event (MIDI) output. Route that output to Acidus; how depends on the
-host (Reaper and Bitwig route VST3 note output, some hosts do not).
+host (Reaper and Bitwig route VST3 note output, some hosts do not). The
+accent change of a same-pitch slide is a pressure event; a host that does
+not pass pressure from Burette to Acidus drops it, and that step then plays
+as a tie.
 
 **Editing.** Click a pattern number to edit it (the small FOLLOW light under
 PATTERN makes the editor jump to the pattern that starts playing). In the
@@ -91,8 +104,9 @@ Along the top:
 - **MIDI** (the blue tab): drag it onto a DAW track to drop the pattern as
   a MIDI clip: what triggering it plays, once (a whole chain for a chained
   pattern), with the KEY transpose. The clip has the 303 timing: half-step
-  gates, accents at velocity 127, ties as long notes, and slid notes
-  overlapping the next note by 1/48 beat so a mono synth glides on playback.
+  gates, accents at velocity 127, ties as long notes, slid notes
+  overlapping the next note by 1/48 beat so a mono synth glides on playback,
+  and a same-pitch slide's accent change as poly aftertouch on the held note.
 
 All 16 slots hold original demo patterns, each showing a 303 technique:
 octave jumps, accent grooves, pedal notes, tied drones, rolling 16ths, acid

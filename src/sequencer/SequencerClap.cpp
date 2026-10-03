@@ -309,6 +309,23 @@ clap_process_status SequencerClap::process(const clap_process_t* process) {
     pushParamOut(out);   // time 0: ahead of everything else
     uint32_t n = 0;
     auto pushNote = [&](const NoteEvent& e) {
+        if (e.pressure) {
+            // An equal-pitch slide's accent change (SequencerEngine.hpp).
+            clap_event_note_expression_t ev{};
+            ev.header.size = sizeof(ev);
+            ev.header.time = e.time;
+            ev.header.space_id = CLAP_CORE_EVENT_SPACE_ID;
+            ev.header.type = CLAP_EVENT_NOTE_EXPRESSION;
+            ev.header.flags = 0;
+            ev.expression_id = CLAP_NOTE_EXPRESSION_PRESSURE;
+            ev.note_id = -1;
+            ev.port_index = 0;
+            ev.channel = 0;
+            ev.key = static_cast<int16_t>(e.key);
+            ev.value = e.velocity;
+            out->try_push(out, &ev.header);
+            return;
+        }
         clap_event_note_t ev{};
         ev.header.size = sizeof(ev);
         ev.header.time = e.time;

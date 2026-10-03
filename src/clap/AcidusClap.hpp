@@ -237,6 +237,7 @@ private:
     std::atomic<double> transportBarsPerSec_{0.0};
     std::atomic<int64_t> transportStampNs_{0};      // steady_clock time of that block
     void noteOnFromHost(int key, float velocity);
+    void notePressureFromHost(int key, float pressure);
 
     // GUI/preset -> host events, drained by the audio thread. Fixed capacity
     // (no allocation on either side, bounded when the host is not processing);
