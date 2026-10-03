@@ -36,6 +36,12 @@ How a match is scored (all errors are in dB, lower is better)
            peaks that the hardware doesn't have.
 * env   -- short-time RMS envelope (window = 2 pitch periods, 1 ms hop).
 * stft  -- 1/3-octave band levels over time (23 ms frames): filter sweeps.
+* harmt -- (--w-harmt, off by default) every harmonic's level over time:
+           40 ms frames every 10 ms, the same +-f0/4 bands and k^-0.5
+           weighting as `harm`. Unlike `harm` (a whole-note average) and
+           `stft` (1/3-octave bands, wider than the harmonic spacing below
+           ~400 Hz at C2), it scores how each harmonic, and the resonant
+           peak riding over them, evolves through the note.
 * wave  -- (optional, --w-wave, off by default) phase-aligned waveform
            shape: the render is shifted by a sub-sample lag within +-1/2
            pitch period (the hardware's oscillator phase at note-on is
@@ -474,6 +480,15 @@ class FeatureSpec:
         self.sw_base = (int(np.searchsorted(fr, 80.0)), int(np.searchsorted(fr, 400.0)))
         self.sw_freqs = fr
         self.sw_window = np.hanning(self.sw_frame)
+        # Harmonics over time: 40 ms frames (2.6 periods at C2, enough to
+        # separate the harmonics with the Hann window) every 10 ms.
+        self.ht_frame = int(round(0.040 * ref.sr))
+        self.ht_hop = int(round(0.010 * ref.sr))
+        self.ht_nfft = 8192
+        dft = ref.sr / self.ht_nfft
+        self.ht_lo = np.round((k - 0.25) * f0 / dft).astype(int)
+        self.ht_hi = np.maximum(self.ht_lo + 1, np.round((k + 0.25) * f0 / dft).astype(int))
+        self.ht_window = np.hanning(self.ht_frame)
 
 
 def db(p):
@@ -554,10 +569,14 @@ def compute_features(x, spec):
     }
     if spec.sweep:
         out["sweep"] = sweep_track(x, spec)
+    frames = np.lib.stride_tricks.sliding_window_view(x, spec.ht_frame)[::spec.ht_hop]
+    H = np.abs(np.fft.rfft(frames * spec.ht_window, spec.ht_nfft, axis=1)) ** 2
+    Hc = np.concatenate([np.zeros((H.shape[0], 1)), np.cumsum(H, axis=1)], axis=1)
+    out["harmt"] = db((Hc[:, spec.ht_hi] - Hc[:, spec.ht_lo]) / spec.ht_frame ** 2)
     return out
 
 
-FLOORS = {"harm": 80.0, "inter": 80.0, "env": 50.0, "stft": 70.0}
+FLOORS = {"harm": 80.0, "inter": 80.0, "env": 50.0, "stft": 70.0, "harmt": 70.0}
 
 
 def noise_floors(rf):
@@ -570,7 +589,8 @@ def noise_floors(rf):
       inter: the reference's own inter-harmonic level (only content the
              model adds on top of the hardware's noise counts)
       stft:  the quietest frame of each band (the silence around the note),
-             +3 dB"""
+             +3 dB
+      harmt: the same for each harmonic's band"""
     if "floors" in rf:
         return rf["floors"]
     inter = rf["inter"]
@@ -578,7 +598,9 @@ def noise_floors(rf):
     na = np.concatenate([inter, [inter[-1]]])
     harm_fl = 10 * np.log10(0.5 * (10 ** (nb / 10) + 10 ** (na / 10))) + 3.0
     stft_fl = rf["stft"].min(axis=0) + 3.0
-    rf["floors"] = {"harm": harm_fl, "inter": inter.copy(), "stft": stft_fl[None, :]}
+    harmt_fl = rf["harmt"].min(axis=0) + 3.0
+    rf["floors"] = {"harm": harm_fl, "inter": inter.copy(), "stft": stft_fl[None, :],
+                    "harmt": harmt_fl[None, :]}
     return rf["floors"]
 
 
@@ -588,7 +610,7 @@ def feature_errors(rf, sf, gain_db, spec):
     and (harm / inter / stft) at the recording's measured noise floor."""
     nf = noise_floors(rf)
     out = {}
-    for key in ("harm", "inter", "env", "stft"):
+    for key in ("harm", "inter", "env", "stft", "harmt"):
         r = rf[key]
         s = sf[key] + gain_db
         fl = r.max() - FLOORS[key] if key != "inter" else rf["harm"].max() - FLOORS[key]
@@ -596,7 +618,14 @@ def feature_errors(rf, sf, gain_db, spec):
             fl = np.maximum(fl, nf[key])
         rc, sc = np.maximum(r, fl), np.maximum(s, fl)
         e = sc - rc
-        if key in ("env", "stft"):
+        if key == "harmt":
+            # Keep the harmonic index for the k^-0.5 weighting.
+            n = min(len(rc), len(sc))
+            e = e[:n]
+            m = (r[:n] > fl) | (s[:n] > fl)
+            out["harmt_w"] = np.broadcast_to(spec.harm_w[None, :], e.shape)[m]
+            e = e[m]
+        elif key in ("env", "stft"):
             e = e[(r > fl) | (s > fl)]
         out[key] = e
     return out
@@ -775,7 +804,7 @@ class Problem:
         self.r = renderer
         self.args = args
         self.w = {"harm": args.w_harm, "inter": args.w_inter, "env": args.w_env, "stft": args.w_stft,
-                  "peak": args.w_peak, "wave": args.w_wave, "sweep": args.w_sweep}
+                  "peak": args.w_peak, "wave": args.w_wave, "sweep": args.w_sweep, "harmt": args.w_harmt}
         self.pool = ThreadPoolExecutor(max_workers=args.workers)
 
         # Per-reference analysis
@@ -933,6 +962,7 @@ class Problem:
             "peak": weighted_rms(sim_rel - ref.peak_ref_rel, ref.peak_weight),
             "wave": wave_error(ref, sf["y"]) if self.w["wave"] > 0 else 0.0,
             "sweep": sweep_error(ref.feat, sf),
+            "harmt": weighted_rms(e["harmt"], e["harmt_w"]),
         }
         cost = sum(self.w[k] * comp[k] for k in comp) / sum(self.w.values())
         return cost, comp
@@ -1173,7 +1203,7 @@ def summarize(problem, u, gain=None):
     agg = {k: float(np.mean([p[k] for p in per if not p.get("failed")]))
            for k in ("cost", "harm_within_1db", "harm_within_3db", "harm_within_6db", "harm_mean_abs_db")}
     agg["level_rms_db"] = float(np.sqrt(np.mean([p["level_db"] ** 2 for p in per if not p.get("failed")])))
-    for comp in ("harm", "inter", "env", "stft", "wave", "sweep"):
+    for comp in ("harm", "inter", "env", "stft", "wave", "sweep", "harmt"):
         agg[comp] = float(np.mean([p["components"][comp] for p in per if not p.get("failed")]))
     sw = [p["components"]["sweep"] for p, ref in zip(per, problem.refs) if ref.spec.sweep and not p.get("failed")]
     agg["sweep"] = float(np.mean(sw)) if sw else 0.0
@@ -1417,6 +1447,9 @@ def main():
                     "trade the peak away (see 2026-09 peak-vs-broadband tradeoff)")
     ap.add_argument("--w-wave", type=float, default=0.0,
                     help="weight on the phase-aligned, per-frame-normalised waveform comparison (0 = off)")
+    ap.add_argument("--w-harmt", type=float, default=0.0,
+                    help="weight on every harmonic's level over time (40 ms frames, 10 ms hop; 0 = off, "
+                    "still reported)")
     ap.add_argument("--w-sweep", type=float, default=0.0,
                     help="weight on the resonant-peak sweep track (peak frequency over time, 30 ms frames, "
                     "semitones) at Resonance >= 50 %% (0 = off)")
@@ -1614,6 +1647,7 @@ def write_outputs(problem, args, before, after, u_best, run, sens, labels, elaps
                      ("env", "envelope error (dB)"), ("stft", "spectrogram error (dB)"),
                      ("wave", "aligned waveform error (10*sqrt(residual/ref))"),
                      ("sweep", "resonant-peak sweep track error (semitones)"),
+                     ("harmt", "harmonics-over-time error (dB)"),
                      ("harm_mean_abs_db", "mean |harmonic error| (dB)"),
                      ("level_rms_db", "note level error, RMS over notes (dB)"),
                      ("harm_within_1db", "harmonics within 1 dB (%)"),
