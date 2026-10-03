@@ -180,7 +180,7 @@ sample:
 The figures are regenerated from the recordings and the current engine by
 `tools/make_readme_figures.py`.
 
-The `factory` profile passes 30 of the 34 schematic conformance checks in
+The `factory` profile passes 32 of the 34 schematic conformance checks in
 `acidus_reference_test`. Cross-unit scores and per-set results are in
 [`calibrations/README.md`](calibrations/README.md).
 
@@ -216,7 +216,8 @@ after the preset was loaded.
 |---|---|
 | `x0x` (default) | The dinsync.info unit as recorded: 40 years old, low cutoff trim, aged C13. Best fit to its 400 notes. |
 | `acidvoice` | The Acidvoice unit: the same circuit model fitted to its 13 samples; higher cutoff range, louder accent. |
-| `factory` | The schematic: every value the schematic, parts list or service manual fixes (component values, trims, ladder capacitors and orientation, filter-to-VCA taps). Passes 30 of 34 conformance checks. |
+| `factory` | The schematic: every value the schematic, parts list or service manual fixes (component values, trims, ladder capacitors and orientation, filter-to-VCA taps), with Stinchcombe's full coupling network around the filter. Passes 32 of 34 conformance checks. |
+| `x0x-circuit` | The dinsync.info unit refitted on Stinchcombe's full coupling network with schematic ladder capacitors. Lands on schematic values where `x0x` needs compensating ones (feedback, VEG, post-filter high-pass); a candidate to replace `x0x`, see [`docs/STINCHCOMBE_NETWORK_2026-10-03.md`](docs/STINCHCOMBE_NETWORK_2026-10-03.md). Last in the preset cycle. |
 | `hellfish` | Hell Fish, the ultimate 303: the schematic core with Devil Fish ranges and popular community mods (self-oscillating resonance, wider cutoff, deeper Env Mod, bass mod, harder accent, filter overdrive). Tuned for sound, not modelled on a unit. |
 
 Every knob law and calibration constant, its circuit part, schematic value,
@@ -231,12 +232,11 @@ fit's procedure and per-set results are in
   attack.
 - The x0x set is all C2, so key tracking is constrained by the circuit, not
   by recordings.
-- The presets use Open303's empirical coupling network around the filter.
-  It accounts for two of the four conformance checks `factory` does not pass
-  (resonant-peak height, low-frequency shape); the other two (square edge
-  ringing, fast MEG term in the VCA) are in the oscillator and VCA.
-  Stinchcombe's full network is implemented as an option
-  (`filterCouplingNetwork`) and passes both; it is not a preset yet, see
+- `x0x`, `acidvoice` and `hellfish` use Open303's empirical coupling network
+  around the filter. Two conformance checks are still failed by `factory`, both outside the
+  filter: square edge ringing and the fast MEG term in the VCA.
+  Stinchcombe's full network (`filterCouplingNetwork`) passes both; `factory`
+  and `x0x-circuit` use it, see
   [`docs/STINCHCOMBE_NETWORK_2026-10-03.md`](docs/STINCHCOMBE_NETWORK_2026-10-03.md).
 
 ---

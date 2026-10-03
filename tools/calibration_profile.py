@@ -38,7 +38,9 @@ PRESET_HEADER = REPO / "src" / "core" / "CalibrationPresets.hpp"
 
 # The plugin's calibration presets, in cycling order: (profile, display name).
 # The first one is the plugin's startup calibration.
-PRESETS = [("x0x", "X0X"), ("acidvoice", "ACIDVOICE"), ("factory", "FACTORY"), ("hellfish", "HELL FISH")]
+# Saved plugin state stores the preset by index: append new presets, never insert.
+PRESETS = [("x0x", "X0X"), ("acidvoice", "ACIDVOICE"), ("factory", "FACTORY"), ("hellfish", "HELL FISH"),
+           ("x0x-circuit", "X0X CIRCUIT")]
 
 # SynthParameters fields that are user controls, not calibration.
 NOT_CALIBRATION = {"cutoff", "resonance", "envMod", "decay", "accent", "masterVolume", "drive", "tuningCents"}
@@ -78,6 +80,11 @@ def write_header(values):
     return unset
 
 
+def ident(pid):
+    """C++ identifier for a profile id (ids may contain '-')."""
+    return pid.replace("-", "_")
+
+
 def preset_header():
     fields = header_values()
     out = [
@@ -106,13 +113,13 @@ def preset_header():
         extra = sorted(set(vals) - set(fields))
         if missing or extra:
             sys.exit(f"{pid}: fields missing {missing}, unknown {extra}")
-        out.append(f"inline SynthParameters makeCalibrationPreset_{pid}() {{")
+        out.append(f"inline SynthParameters makeCalibrationPreset_{ident(pid)}() {{")
         out.append("    SynthParameters p;")
         out += [f"    p.{k} = {fmt_float(vals[k])};" for k in fields]
         out += ["    return p;", "}", ""]
     out.append("inline const CalibrationPreset* calibrationPresets() {")
     out.append("    static const CalibrationPreset presets[kCalibrationPresetCount] = {")
-    out += [f'        {{"{pid}", "{name}", makeCalibrationPreset_{pid}()}},' for pid, name in PRESETS]
+    out += [f'        {{"{pid}", "{name}", makeCalibrationPreset_{ident(pid)}()}},' for pid, name in PRESETS]
     out += ["    };", "    return presets;", "}", "", "} // namespace acidus", "",
             "#endif // ACIDUS_CALIBRATION_PRESETS_HPP", ""]
     return "\n".join(out)
