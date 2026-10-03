@@ -798,6 +798,18 @@ class Param:
         return (v - self.lo) / (self.hi - self.lo)
 
 
+def parse_bounds(text):
+    """--bound name=lo:hi[,name=lo:hi...] -> {name: (lo, hi)}"""
+    out = {}
+    for item in filter(None, (text or "").split(",")):
+        name, rng = item.split("=")
+        lo, hi = (float(v) for v in rng.split(":"))
+        if name not in MODEL_PARAMS or not lo < hi:
+            raise SystemExit(f"--bound: bad range for {name!r}")
+        out[name] = (lo, hi)
+    return out
+
+
 class Problem:
     def __init__(self, refs, renderer, args):
         self.refs = refs
@@ -834,13 +846,19 @@ class Problem:
         self.params = []
         only = set(args.only.split(",")) if args.only else None
         fixed = set(args.fix.split(",")) if args.fix else set()
+        bounds = parse_bounds(args.bound)
         for name, (lo, hi, log, group) in MODEL_PARAMS.items():
             if name not in self.r.index:
                 continue
             init = float(self.r.defaults[self.r.index[name]])
             if name in fixed or (only and group not in only and name not in only):
                 continue
-            lo, hi = min(lo, init), max(hi, init)
+            if name in bounds:
+                # A hard range: the start value is clipped into it.
+                lo, hi = bounds[name]
+                init = min(max(init, lo), hi)
+            else:
+                lo, hi = min(lo, init), max(hi, init)
             self.params.append(Param(name, lo, hi, log, init, "model", group, target=name))
         self.knob_nominal = {}
         for ref in refs:
@@ -1425,6 +1443,9 @@ def main():
     ap.add_argument("--fmax", type=float, default=16000.0, help="highest frequency compared (Hz)")
     ap.add_argument("--only", default="", help="comma list of groups/params to fit "
                     "(groups: osc, filter, cv, env, knobs, timing)")
+    ap.add_argument("--bound", default="",
+                    help="comma list of name=lo:hi hard ranges for fitted constants, replacing the "
+                    "default range (the start value is clipped into it), e.g. filterResonanceLimit=0.9:0.99")
     ap.add_argument("--fix", default="", help="comma list of groups/params to keep at their current value")
     ap.add_argument("--include", default="",
                     help="comma list of substrings; if given, only matching reference files are used")
