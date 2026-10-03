@@ -115,11 +115,69 @@ Findings:
   evaluation). Smaller subsets, one fit at a time, and a per-thread cache of
   the critical-gain table (it was rebuilt for every rendered note) fixed it.
 
+## Full staged refit (both topologies, equal budget)
+
+Two arms, one at a time on 4 cores, every constant free except those the
+shipped x0x fit also held (saw LPF/bend, square duty, notch, all-pass,
+output coupling, MEG attack, VCA saturation), `--bound
+filterResonanceLimit=0.9:0.995`, no early stopping:
+
+- **O**: Open303 topology, cap scales free (the shipped model), from `x0x`.
+- **N**: Stinchcombe network, cap scales at 1.0, from `x0x` with the network on.
+
+| Stage | Notes | Window | Knobs | Time | O | N |
+|---|---|---|---|---|---|---|
+| 1 | 40, every knob at an end stop | 900 ms | chart values | 35 min | 3.24 -> 2.61 | 3.68 -> 2.64 |
+| 2 | quarter 0 (100) | 900 ms | free, prior 0.3 | 45 min | 3.77 -> 2.89 | 3.55 -> 2.90 |
+| 3 | quarter 2 (100) | full | free, prior 0.3 | 40 min | 3.47 -> 2.89 | 3.37 -> 2.70 |
+
+All 400 notes, full length (300 of them never fitted in stages 2-3):
+
+| Metric | shipped `x0x` | O | **N** |
+|---|---|---|---|
+| Weighted error | **3.35** | 3.48 | 3.39 |
+| Resonant-peak shape (dB) | 3.55 | 3.83 | **3.24** |
+| Harmonics over time (dB) | 5.30 | 5.34 | **5.29** |
+| Resonant-peak sweep track (semitones) | **3.19** | 3.75 | 3.67 |
+| Harmonic levels (dB) | 2.32 | **2.30** | 2.53 |
+| Envelope (dB) | 3.11 | 3.22 | **3.06** |
+| Note level, RMS (dB) | 1.28 | 1.27 | **1.27** |
+| Conformance (`--fast`) | 24 / 34 | 22 / 34 | **28 / 34** |
+
+Per row: N is best in D (4.51 against 4.67 shipped, 5.16 O), O in B, the
+shipped profile in A, C and E.
+
+What the network fit chose, against the shipped `x0x`:
+
+| Constant | x0x | O | N | Schematic |
+|---|---|---|---|---|
+| `filterFeedbackGain` | 19.29 | 19.12 | **18.78** | 18.7 (Stinchcombe) |
+| `filterPostHpHz` | 199 | 204 | **69** | 159 / 72 (the two VCA taps) |
+| `vegDecaySec` | 2.68 | 2.91 | **1.54** | 1.5 (R123 x C42) |
+| cap scales | 1.29 / 0.70 / 0.91 / 1.06 | 0.71 / 0.42 / 0.74 / 1.23 | 1.0 (fixed) | 1.0 |
+| `filterNetworkTimeScale` | - | - | 1.11 | 1.0 |
+
+Findings:
+
+- **At equal budget the network wins again** (3.39 against 3.48), and
+  passes 28 conformance checks against 22: it keeps B4 and B6 and fails
+  only C1, D5, E9 and the unit's cutoff trim (E1-E3).
+- **It removes the compensations.** Fitted freely, the Open303 model needs
+  a 200 Hz post-filter high-pass, a 2.7-2.9 s VEG and wildly spread ladder
+  capacitors to match this unit. With the network the same data puts the
+  feedback at Stinchcombe's value, the VEG at the schematic's 1.5 s and the
+  post-HP near the 220 k VCA tap's 72 Hz, with schematic capacitors. The
+  low end the old fit got from a 200 Hz high-pass comes from the coupling
+  network instead.
+- **Neither 2-hour refit beats the shipped profile overall** (3.35), which
+  had a longer multi-stage fit. N is better than it on peak shape,
+  harmonics over time, envelope and the D row, worse on the sweep track,
+  harmonic levels and the E row.
+
 ## Next
 
-- A full staged refit of both topologies with equal, longer budgets and all
-  constants free, to decide against the shipped profile rather than at
-  28 minutes per stage.
-- Bound `filterResonanceLimit` below 1 for stock-unit profiles (B1).
-- Then, if N still wins, a `factory`-style network profile and a refit of
-  `x0x` with it.
+- The network is the better model at equal effort, closer to the schematic
+  and with fewer compensating constants; the shipped `x0x` still edges it
+  on the overall score. Options: a `factory` profile on the network (no fit
+  involved; 32 / 34), and a longer N fit (more rounds of stages 2-3 on the
+  other quarters) to beat 3.35 before making it the `x0x` default.
