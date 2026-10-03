@@ -49,8 +49,11 @@ which adds the resonant-peak sweep track to the score).
 
 `factory` fails four conformance checks: B4 (resonant peak height), B6
 (low-frequency shape), C5 (square edge ringing) and E9 (fast MEG term in
-the VCA). They come from the empirical coupling network around the filter,
-not from calibration choices. The measured units fail six more each, all
+the VCA). B4 and B6 come from the empirical coupling network around the
+filter, C5 and E9 from the oscillator and VCA models; none from
+calibration choices. With Stinchcombe's network (`filterCouplingNetwork`
+1), `factory` passes B4 and B6
+([`STINCHCOMBE_NETWORK_2026-10-03.md`](../docs/STINCHCOMBE_NETWORK_2026-10-03.md)). The measured units fail six more each, all
 where the unit differs from a new one: the cutoff trim (both), a slow VEG
 (both), the full-Env-Mod peak and a long held-note decay (x0x), and a
 weaker Env Mod bias shift and a stronger oscillator-side high-pass

@@ -231,10 +231,13 @@ fit's procedure and per-set results are in
   attack.
 - The x0x set is all C2, so key tracking is constrained by the circuit, not
   by recordings.
-- The coupling network around the filter follows Open303's empirical
-  topology rather than Stinchcombe's full network, which accounts for the
-  four conformance checks `factory` does not pass (resonant-peak height,
-  low-frequency shape, square edge ringing, fast MEG term in the VCA).
+- The presets use Open303's empirical coupling network around the filter.
+  It accounts for two of the four conformance checks `factory` does not pass
+  (resonant-peak height, low-frequency shape); the other two (square edge
+  ringing, fast MEG term in the VCA) are in the oscillator and VCA.
+  Stinchcombe's full network is implemented as an option
+  (`filterCouplingNetwork`) and passes both; it is not a preset yet, see
+  [`docs/STINCHCOMBE_NETWORK_2026-10-03.md`](docs/STINCHCOMBE_NETWORK_2026-10-03.md).
 
 ---
 
