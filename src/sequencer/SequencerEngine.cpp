@@ -34,13 +34,14 @@ void SequencerEngine::reset() {
     playingStep_.store(-1, std::memory_order_relaxed);
 }
 
-void SequencerEngine::emit(uint32_t time, bool on, int key, float velocity) {
-    if (outCount_ < outCapacity_) out_[outCount_++] = { time, on, key, velocity };
+void SequencerEngine::emit(uint32_t time, bool on, int key, float velocity, bool pressure) {
+    if (outCount_ < outCapacity_) out_[outCount_++] = { time, on, key, velocity, pressure };
 }
 
 void SequencerEngine::release(uint32_t time) {
     if (sounding_) emit(time, false, soundingKey_, 0.0f);
     sounding_ = false;
+    soundingAccent_ = false;
     connected_ = false;
     tieSlide_ = false;
     offCountdown_ = 0;
@@ -131,11 +132,14 @@ void SequencerEngine::stepBoundary(int64_t stepNum, uint32_t time) {
         const float velocity = step.accent ? kAccentVelocity : kNormalVelocity;
         if (gateOpen) {
             // Slide: new note first, then the old note's off, at the same
-            // sample. An equal-pitch slide is a tie: nothing to send.
+            // sample. An equal-pitch slide is a tie, unless it changes the
+            // accent: then only the accent latch moves, sent as pressure.
             if (key != soundingKey_) {
                 emit(time, true, key, velocity);
                 emit(time, false, soundingKey_, 0.0f);
                 soundingKey_ = key;
+            } else if (step.accent != soundingAccent_) {
+                emit(time, true, key, step.accent ? kAccentPressure : 0.0f, true);
             }
         } else {
             release(time);
@@ -143,6 +147,7 @@ void SequencerEngine::stepBoundary(int64_t stepNum, uint32_t time) {
             soundingKey_ = key;
             sounding_ = true;
         }
+        soundingAccent_ = step.accent;
         tieSlide_ = step.slide;
     } else if (step.note == kNoteTie && gateOpen) {
         tieSlide_ = tieSlide_ || step.slide;

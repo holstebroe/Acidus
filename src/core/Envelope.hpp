@@ -45,6 +45,9 @@ public:
 
     void noteOn(bool isAccent, bool isSlide, float accentKnob = 1.0f);
     void noteOff();
+    // Re-latch the accent of the held note with no retrigger, as the 303's
+    // accent latch clocked on an equal-pitch slide (TB303_REFERENCE.md §4.6).
+    void setAccent(bool isAccent);
 
     void processNextSample();
 

@@ -13,8 +13,10 @@ static constexpr int64_t kStepSamples = 6000;
 static constexpr int64_t kTickSamples = kStepSamples / kMidiTicksPerStep;
 static constexpr uint32_t kRenderBlock = 4096;
 
-std::vector<MidiNote> renderPatternNotes(const PatternBank& bank, int pattern, int globalTranspose) {
+std::vector<MidiNote> renderPatternNotes(const PatternBank& bank, int pattern, int globalTranspose,
+                                         std::vector<MidiPressure>* pressures) {
     std::vector<MidiNote> notes;
+    if (pressures) pressures->clear();
     if (pattern < 0 || pattern >= kNumPatterns) return notes;
     int chain[kNumPatterns];
     const int count = SequencerEngine::chainOf(bank, pattern, chain);
@@ -66,7 +68,12 @@ std::vector<MidiNote> renderPatternNotes(const PatternBank& bank, int pattern, i
             const NoteEvent& e = out[i];
             const int64_t time = s + e.time;
             if (e.key < 0 || e.key > 127) continue;
-            if (e.on) {
+            if (e.pressure) {
+                if (pressures && open[e.key].on && time < loopEnd + delay) {
+                    pressures->push_back({ toTick(time), e.key,
+                                           std::min(127, std::max(0, static_cast<int>(std::lround(e.velocity * 127.0f)))) });
+                }
+            } else if (e.on) {
                 if (time >= loopEnd + delay) continue;   // the next time round
                 close(e.key, toTick(time));
                 open[e.key] = { true, toTick(time),
@@ -99,21 +106,24 @@ static void putBE(std::string& out, uint32_t v, int bytes) {
 }
 
 std::string patternMidiFile(const PatternBank& bank, int pattern, int globalTranspose) {
-    const std::vector<MidiNote> notes = renderPatternNotes(bank, pattern, globalTranspose);
+    std::vector<MidiPressure> pressures;
+    const std::vector<MidiNote> notes = renderPatternNotes(bank, pattern, globalTranspose, &pressures);
     int chain[kNumPatterns];
     const int count = SequencerEngine::chainOf(bank, pattern, chain);
     int steps = 0;
     for (int i = 0; i < count; ++i) steps += bank.length(chain[i]);
 
-    // Events in time order; at the same tick note-offs go first.
-    struct Ev { int tick; bool on; int key; int velocity; };
+    // Events in time order; at the same tick note-offs go first, then
+    // note-ons, then pressures (which apply to notes already held).
+    struct Ev { int tick; int order; uint8_t status; int key; int value; };
     std::vector<Ev> events;
     for (const MidiNote& n : notes) {
-        events.push_back({ n.start, true, n.key, n.velocity });
-        events.push_back({ n.end, false, n.key, 64 });
+        events.push_back({ n.start, 1, 0x90, n.key, n.velocity });
+        events.push_back({ n.end, 0, 0x80, n.key, 64 });
     }
+    for (const MidiPressure& p : pressures) events.push_back({ p.tick, 2, 0xA0, p.key, p.value });
     std::stable_sort(events.begin(), events.end(), [](const Ev& a, const Ev& b) {
-        return a.tick != b.tick ? a.tick < b.tick : (!a.on && b.on);
+        return a.tick != b.tick ? a.tick < b.tick : a.order < b.order;
     });
 
     std::string track;
@@ -128,9 +138,9 @@ std::string patternMidiFile(const PatternBank& bank, int pattern, int globalTran
     for (const Ev& e : events) {
         putVarLen(track, static_cast<uint32_t>(e.tick - tick));
         tick = e.tick;
-        track += static_cast<char>(e.on ? 0x90 : 0x80);
+        track += static_cast<char>(e.status);
         track += static_cast<char>(e.key);
-        track += static_cast<char>(e.velocity);
+        track += static_cast<char>(e.value);
     }
     // End of track at the pattern's end, so the clip is the pattern's length.
     putVarLen(track, static_cast<uint32_t>(std::max(0, steps * kMidiTicksPerStep - tick)));

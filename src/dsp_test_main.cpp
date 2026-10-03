@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cmath>
 #include <cstdlib>
+#include <algorithm>
 
 void writeWav(const std::string& filename, const std::vector<float>& samples, int sampleRate = 44100) {
     std::ofstream file(filename, std::ios::binary);
@@ -93,8 +94,81 @@ static void testOctaveScale() {
     }
 }
 
+// Polyphonic pressure re-latches the held note's accent with no retrigger:
+// Burette's equal-pitch slide that changes the accent, vs. a tie, which
+// sends nothing (TB303_REFERENCE.md §4.6).
+struct PressureRender { std::vector<float> audio, cutoff; };
+
+static PressureRender renderWithPressure(float startVelocity, int pressureKey, float pressure,
+                                         bool pressureAfterOff = false, bool retrigger = false) {
+    acidus::SynthEngine e;
+    e.setSampleRate(44100.0);
+    auto& p = e.getParams();
+    p.cutoff = 0.4f; p.resonance = 0.6f; p.envMod = 0.8f; p.decay = 0.5f; p.accent = 0.9f;
+    p.masterVolume = 0.8f;
+    const int step = 5512;                   // a 16th at 120 BPM
+    const int pressureAt = pressureAfterOff ? 2 * step : step;
+    const int offAt = step + step / 2;       // the second step's gate end
+    PressureRender r;
+    float l = 0.0f, rr = 0.0f;
+    for (int i = 0; i < 3 * step; ++i) {
+        if (i == 0) e.noteOn(36, startVelocity);
+        if (i == pressureAt && pressureKey >= 0) e.notePressure(pressureKey, pressure);
+        if (i == step && retrigger) { e.noteOff(36); e.noteOn(36, 1.0f); }   // a fresh accented note
+        if (i == offAt) e.noteOff(36);
+        e.processAudio(&l, &rr, 1);
+        r.audio.push_back(l);
+        r.cutoff.push_back(e.getLastCutoffHz());
+    }
+    return r;
+}
+
+static double rms(const std::vector<float>& v, int from, int to) {
+    double sum = 0.0;
+    for (int i = from; i < to; ++i) sum += static_cast<double>(v[i]) * v[i];
+    return std::sqrt(sum / std::max(1, to - from));
+}
+
+static void testAccentPressure() {
+    const int step = 5512, offAt = step + step / 2;
+    bool ok = true;
+    auto expect = [&](bool c, const char* what) {
+        std::cout << (c ? "PASS: " : "FAIL: ") << what << "\n";
+        ok = ok && c;
+    };
+    const PressureRender tieNormal = renderWithPressure(100.0f / 127.0f, -1, 0.0f);   // case 1/3
+    const PressureRender tieAccent = renderWithPressure(1.0f, -1, 0.0f);              // case 2/6
+    const PressureRender accentOn  = renderWithPressure(100.0f / 127.0f, 36, 1.0f);   // case 4
+    const PressureRender accentOff = renderWithPressure(1.0f, 36, 0.0f);              // case 5
+
+    expect(std::equal(accentOn.audio.begin(), accentOn.audio.begin() + step, tieNormal.audio.begin()),
+           "pressure: identical to a tie before the accent change");
+    expect(rms(accentOn.audio, step, offAt) > 1.05 * rms(tieNormal.audio, step, offAt),
+           "pressure 1 on a held normal note: accent on, louder than the tie");
+    expect(rms(accentOff.audio, step, offAt) < 0.95 * rms(tieAccent.audio, step, offAt),
+           "pressure 0 on a held accented note: accent off, quieter than the tie");
+    // No retrigger: the accent works from what is left of the decaying MEG,
+    // far below a fresh accented note's MEG peak, and the switch to the short
+    // accent decay then closes the filter sooner than the tie (§4.4).
+    const PressureRender fresh = renderWithPressure(100.0f / 127.0f, -1, 0.0f, false, true);
+    const auto peak = [&](const PressureRender& r) {
+        return *std::max_element(r.cutoff.begin() + step, r.cutoff.begin() + step + 882);   // 20 ms
+    };
+    expect(peak(accentOn) > peak(tieNormal) && peak(accentOn) < 0.5f * peak(fresh),
+           "pressure: accent from the decaying MEG, well below a retriggered accent");
+    expect(accentOn.cutoff[step + 1300] < tieNormal.cutoff[step + 1300],
+           "pressure: the MEG switches to the short accent decay");
+
+    const PressureRender otherKey = renderWithPressure(100.0f / 127.0f, 48, 1.0f);
+    const PressureRender afterOff = renderWithPressure(100.0f / 127.0f, 36, 1.0f, true);
+    expect(otherKey.audio == tieNormal.audio, "pressure on another key is ignored");
+    expect(afterOff.audio == tieNormal.audio, "pressure after the note-off is ignored");
+    if (!ok) std::exit(1);
+}
+
 int main() {
     testOctaveScale();
+    testAccentPressure();
 
     acidus::SynthEngine engine;
     engine.setSampleRate(44100.0);
