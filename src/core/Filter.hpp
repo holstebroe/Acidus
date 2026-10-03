@@ -89,6 +89,82 @@ private:
     float y2_{0.0f};
 };
 
+// First-order section H(s) = (s + z) / (s + p), z = 0 for a plain high-pass,
+// discretised with the bilinear transform and run in transposed direct form
+// II. Double precision: the coupling network's corners go down to ~0.7 Hz,
+// where at the 8x oversampled rate the coefficients differ from 1 by ~1e-5.
+struct CouplingSection {
+    double b0{1.0}, b1{0.0}, a1{0.0};
+    double s{0.0};
+
+    void design(double zeroRad, double poleRad, double sampleRate) {
+        const double K = 2.0 * sampleRate;
+        b0 = (K + zeroRad) / (K + poleRad);
+        b1 = (zeroRad - K) / (K + poleRad);
+        a1 = (poleRad - K) / (K + poleRad);
+    }
+    inline double process(double x) {
+        double y = b0 * x + s;
+        s = b1 * x - a1 * y;
+        return y;
+    }
+};
+
+// Stinchcombe's coupling network around the TB-303 VCF (TB303_REFERENCE.md
+// §11.1): his 10-pole / 6-zero model is
+//
+//   H(s) = 1.06 s^3 (s+109.9)(s+34.0)(s+7.41)
+//          / [ L(s) D(s) + 18.7 k s^4 (s+46.5)(s+4.40) ],
+//   D(s) = (s+97.5)(s+38.5)(s+4.45)(s+578.1)(s+20.0)(s+7.41),   s in rad/s,
+//
+// with L(s) the ladder core. That is exactly the closed loop
+//
+//   u = Fin(s) x - k Floop(s) y4,   out = 1.06 y4,   y4 = ladder(u),
+//   Fin   = s^3 (s+109.9)(s+34.0)(s+7.41) / D(s)
+//   Floop = s^4 (s+46.5)(s+4.40) / D(s)            (k = 18.7 at Resonance 1)
+//
+// around the nonlinear ladder. Every section is first order with real
+// roots, so each path is a cascade of six CouplingSections (Fin's
+// (s+7.41)/(s+7.41) pair cancels, leaving five). The model is linear and
+// fixes only the product of the input and output networks; this puts all
+// of it ahead of the ladder, so the sub-bass hump that the loop builds up
+// (8-20 Hz, §11.2) reaches the ladder's operating point, as mystran
+// describes. timeScale multiplies every RC time constant (ageing
+// electrolytics: 1.0 = Stinchcombe's values).
+class StinchcombeNetwork {
+public:
+    static constexpr int kInSections = 5;
+    static constexpr int kLoopSections = 6;
+    static constexpr double kForwardGain = 1.06;
+
+    void design(double sampleRate, double timeScale);
+    void reset();
+
+    inline double processInput(double x) {
+        for (auto& sec : in_) x = sec.process(x);
+        return x;
+    }
+    // The loop path's output is affine in this step's input: y = gain*x + offset.
+    double loopGain() const { return loopGain_; }
+    inline double loopOffset() const {
+        double c = 0.0;
+        for (const auto& sec : loop_) c = sec.b0 * c + sec.s;
+        return c;
+    }
+    inline double processLoop(double x) {
+        for (auto& sec : loop_) x = sec.process(x);
+        return x;
+    }
+
+    // Analogue loop-network response |Floop(jw)| and phase (w in rad/s).
+    static void loopResponse(double w, double timeScale, double* mag, double* phase);
+
+private:
+    CouplingSection in_[kInSections];
+    CouplingSection loop_[kLoopSections];
+    double loopGain_{1.0};
+};
+
 class Filter {
 public:
     Filter();
@@ -145,6 +221,19 @@ public:
     // signal behaviour differs.
     void setLadderTopology(int t) { ladderTopology_ = t; }
 
+    // Coupling network around the ladder.
+    //   0: Open303's empirical topology (TB303_REFERENCE.md §11.3 option 2):
+    //      input HP (inputCouplingHz), one in-loop feedback HP
+    //      (resCouplingHz), and the out-of-loop notch and all-pass.
+    //   1: Stinchcombe's full network (§11.1, §11.3 option 1): see
+    //      StinchcombeNetwork. inputCouplingHz, resCouplingHz, the notch and
+    //      the all-pass are unused; the feedback ceiling at Resonance 1 is
+    //      his k = 18.7. The post-filter HP (the VCA input coupling, outside
+    //      his model) and the output low-pass still apply.
+    void setCouplingNetwork(int n) { couplingNetwork_ = n; }
+    // Network RC time-constant scale (mode 1 only); 1.0 = the schematic.
+    void setNetworkTimeScale(float s) { networkTimeScale_ = s; }
+
     // Resonance-pot law and the resonance-dependent feedback/coupling terms.
     // Deliberately NOT a resonance-dependent output gain: TB303_EMULATION_
     // REFERENCE.md Sec60 documents passband/bass gain *falling* as
@@ -185,6 +274,13 @@ private:
     float fLadderV2_{0.0f};
     float fLadderV3_{0.0f};
     float fLadderV4_{0.0f};
+
+    StinchcombeNetwork network_;
+    double networkForRate_{-1.0};
+    float networkForTimeScale_{-1.0f};
+    float networkUPrev_{0.0f}; // ladder input u at the previous oversampled step (mode 1)
+    int couplingNetwork_{0};
+    float networkTimeScale_{1.0f};
 
     float fHpFbStateX1_{0.0f};
     float fHpFbStateY1_{0.0f};
@@ -229,6 +325,8 @@ private:
     float kcTableLogLo_{0.0f};
     float kcTableInvStep_{0.0f};
     float kcTableCouplingHz_{-1.0f};
+    int kcTableNetwork_{-1};
+    float kcTableTimeScale_{-1.0f};
     double kcTableOsRate_{-1.0};
     bool kcTableValid_{false};
     void buildKcTable();

@@ -48,7 +48,41 @@ inline void solveDense4(float A[4][4], float b[4], float x[4]) {
     }
 }
 
+// Stinchcombe's network roots in rad/s, as (zero, pole) pairs; zero 0 = a
+// plain high-pass section. See StinchcombeNetwork in Filter.hpp.
+constexpr double kNetIn[StinchcombeNetwork::kInSections][2] = {
+    {109.9, 97.5}, {34.0, 38.5}, {0.0, 578.1}, {0.0, 20.0}, {0.0, 4.45}};
+constexpr double kNetLoop[StinchcombeNetwork::kLoopSections][2] = {
+    {46.5, 38.5}, {4.40, 4.45}, {0.0, 578.1}, {0.0, 97.5}, {0.0, 20.0}, {0.0, 7.41}};
+
 } // namespace
+
+void StinchcombeNetwork::design(double sampleRate, double timeScale) {
+    const double ts = std::max(timeScale, 1e-3);
+    for (int i = 0; i < kInSections; ++i) in_[i].design(kNetIn[i][0] / ts, kNetIn[i][1] / ts, sampleRate);
+    loopGain_ = 1.0;
+    for (int i = 0; i < kLoopSections; ++i) {
+        loop_[i].design(kNetLoop[i][0] / ts, kNetLoop[i][1] / ts, sampleRate);
+        loopGain_ *= loop_[i].b0;
+    }
+}
+
+void StinchcombeNetwork::reset() {
+    for (auto& sec : in_) sec.s = 0.0;
+    for (auto& sec : loop_) sec.s = 0.0;
+}
+
+void StinchcombeNetwork::loopResponse(double w, double timeScale, double* mag, double* phase) {
+    const double ts = std::max(timeScale, 1e-3);
+    double m = 1.0, ph = 0.0;
+    for (const auto& r : kNetLoop) {
+        const double z = r[0] / ts, p = r[1] / ts;
+        m *= std::sqrt(w * w + z * z) / std::sqrt(w * w + p * p);
+        ph += std::atan2(w, z) - std::atan(w / p);
+    }
+    *mag = m;
+    *phase = ph;
+}
 
 void Filter::updatePoles() {
     const float sc[4] = {capScale1_, capScale2_, capScale3_, capScale4_};
@@ -93,6 +127,47 @@ void Filter::updatePoles() {
 double Filter::criticalFeedbackGainExact(double cutoffHz) {
     updatePoles();
     const double wc = 2.0 * 3.14159265358979323846 * cutoffHz * kCutoffToOmegaScale_;
+    if (couplingNetwork_ == 1) {
+        // Loop gain G(jw) = H_ladder(jw) * Floop(jw). Its phase runs from
+        // +360 deg (Floop's s^4) down to -360 deg, so it crosses +-180 deg
+        // twice: near the main resonance and around the sub-bass hump. The
+        // loop goes unstable at the smaller of the two gains 1/|G|.
+        constexpr double kPi = 3.14159265358979323846;
+        auto loop = [&](double w, double* mag) {
+            double m, ph;
+            StinchcombeNetwork::loopResponse(w, networkTimeScale_, &m, &ph);
+            const double x = w / wc;
+            for (double p : poles_) {
+                m *= p / std::sqrt(x * x + p * p);
+                ph -= std::atan(x / p);
+            }
+            *mag = m;
+            return ph;
+        };
+        const double lo = std::log(2.0 * kPi * 0.05), hi = std::log(wc * 100.0);
+        // ~7 points per decade: between grid points the phase moves far less
+        // than 360 deg, so no crossing is skipped.
+        const int kGrid = 48;
+        double best = 1e9, mag;
+        double prevL = lo, prevPh = loop(std::exp(lo), &mag);
+        for (int i = 1; i <= kGrid; ++i) {
+            const double l = lo + (hi - lo) * i / kGrid;
+            const double ph = loop(std::exp(l), &mag);
+            for (double target : {kPi, -kPi}) {
+                if ((prevPh - target) * (ph - target) > 0.0) continue;
+                double a = prevL, b = l;
+                for (int it = 0; it < 36; ++it) {
+                    const double m = 0.5 * (a + b);
+                    if ((loop(std::exp(m), &mag) - target) * (prevPh - target) > 0.0) a = m; else b = m;
+                }
+                loop(std::exp(0.5 * (a + b)), &mag);
+                best = std::min(best, 1.0 / mag);
+            }
+            prevL = l;
+            prevPh = ph;
+        }
+        return best;
+    }
     const double h = 2.0 * 3.14159265358979323846 * resCouplingHz_ / wc;
     // Loop gain G(jx) = H_ladder(jx) * HP(jx), x = w / wc. Its phase falls
     // monotonically from +90 deg to -360 deg; find the -180 deg crossing.
@@ -122,13 +197,16 @@ void Filter::buildKcTable() {
     kcTableLogLo_ = static_cast<float>(lo);
     kcTableInvStep_ = static_cast<float>(1.0 / step);
     kcTableCouplingHz_ = resCouplingHz_;
+    kcTableNetwork_ = couplingNetwork_;
+    kcTableTimeScale_ = networkTimeScale_;
     kcTableOsRate_ = oversampledRate_;
     kcTableValid_ = true;
 }
 
 float Filter::criticalFeedbackGain(float cutoffHz) {
     updatePoles();
-    if (!kcTableValid_ || resCouplingHz_ != kcTableCouplingHz_ || oversampledRate_ != kcTableOsRate_) {
+    if (!kcTableValid_ || resCouplingHz_ != kcTableCouplingHz_ || oversampledRate_ != kcTableOsRate_
+        || couplingNetwork_ != kcTableNetwork_ || networkTimeScale_ != kcTableTimeScale_) {
         buildKcTable();
     }
     float u = (std::log(std::max(cutoffHz, 1.0f)) - kcTableLogLo_) * kcTableInvStep_;
@@ -152,6 +230,8 @@ void Filter::reset() {
     fLadderV1_ = fLadderV2_ = fLadderV3_ = fLadderV4_ = 0.0f;
     fHpFbStateX1_ = fHpFbStateY1_ = 0.0f;
     prevInput_ = 0.0f;
+    network_.reset();
+    networkUPrev_ = 0.0f;
     inputCoupling_.reset();
     outputCoupling_.reset();
     postFilterHp_.reset();
@@ -192,6 +272,17 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
     const float inCouplingAlpha = inCouplingAlpha_;
     const float outCouplingAlpha = outCouplingAlpha_;
 
+    const bool fullNetwork = couplingNetwork_ == 1;
+    if (fullNetwork && (oversampledRate_ != networkForRate_ || networkTimeScale_ != networkForTimeScale_)) {
+        network_.design(oversampledRate_, networkTimeScale_);
+        networkForRate_ = oversampledRate_;
+        networkForTimeScale_ = networkTimeScale_;
+    }
+    // Mode 1 also applies the class-A output stage's inversion (§2.3), which
+    // the mode-0 chain gets from Open303's all-pass (-1 at high frequencies):
+    // both modes end with the saw's sharp edge falling (reference test C7).
+    const float outputGain = fullNetwork ? -static_cast<float>(StinchcombeNetwork::kForwardGain) : 1.0f;
+
     float out = 0.0f;
     float prevIn = prevInput_;
     prevInput_ = input;
@@ -205,19 +296,30 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
         float currIn = prevIn + alphaOS * (input - prevIn);
 
         float inSample = currIn * ladderInputScale_;
-        inSample = inputCoupling_.highpass(inSample, inCouplingAlpha);
-
         float h = dt;
         float v1 = fLadderV1_, v2 = fLadderV2_, v3 = fLadderV3_, v4 = fLadderV4_;
 
-        float hpOut0 = resCouplingAlpha * (fHpFbStateY1_ + v4 - fHpFbStateX1_);
-        fHpFbStateX1_ = v4;
-        fHpFbStateY1_ = hpOut0;
-        float u0 = inSample - hpOut0 * kFb;
+        // The feedback reaching the ladder input is affine in this step's
+        // y4: u(y4) = inSample - kFb * (fbGain * y4 + fbOffset). u0 is the
+        // input at the start of the step (trapezoidal rule's old point).
+        float fbGain, fbOffset, u0;
+        if (fullNetwork) {
+            inSample = static_cast<float>(network_.processInput(inSample));
+            fbGain = static_cast<float>(network_.loopGain());
+            fbOffset = static_cast<float>(network_.loopOffset());
+            u0 = networkUPrev_;
+        } else {
+            inSample = inputCoupling_.highpass(inSample, inCouplingAlpha);
+            float hpOut0 = resCouplingAlpha * (fHpFbStateY1_ + v4 - fHpFbStateX1_);
+            fHpFbStateX1_ = v4;
+            fHpFbStateY1_ = hpOut0;
+            u0 = inSample - hpOut0 * kFb;
+            fbGain = resCouplingAlpha;
+            fbOffset = resCouplingAlpha * (fHpFbStateY1_ - fHpFbStateX1_);
+        }
 
         auto feedbackFor = [&](float v4pred) {
-            float hpOut = resCouplingAlpha * (fHpFbStateY1_ + v4pred - fHpFbStateX1_);
-            return inSample - hpOut * kFb;
+            return inSample - kFb * (fbGain * v4pred + fbOffset);
         };
 
         float k1, k2, k3, k4;
@@ -238,7 +340,7 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
             rhs(u0, v1, v2, v3, v4, fo);
             k1 = v1 + h * fo[0]; k2 = v2 + h * fo[1];
             k3 = v3 + h * fo[2]; k4 = v4 + h * fo[3];
-            const float dUdY4 = -kFb * resCouplingAlpha;
+            const float dUdY4 = -kFb * fbGain;
             for (int iter = 0; iter < kNewtonIters; ++iter) {
                 float uk = feedbackFor(k4);
                 float Tu = std::tanh(uk * VtInv), T12 = std::tanh((k1 - k2) * VtInv);
@@ -325,8 +427,12 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
             fLadderV3_ = v3;
             fLadderV4_ = v4;
         }
+        if (fullNetwork) {
+            const double yLoop = network_.processLoop(fLadderV4_);
+            networkUPrev_ = inSample - kFb * static_cast<float>(yLoop);
+        }
 
-        float stageOut = fLadderV4_ / ladderInputScale_;
+        float stageOut = outputGain * fLadderV4_ / ladderInputScale_;
         stageOut = outputCoupling_.lowpass(stageOut, outCouplingAlpha);
         out += stageOut / static_cast<float>(kOS);
     }
@@ -338,10 +444,13 @@ float Filter::processSample(float input, float cutoffHz, float resonance) {
     float postHpAlpha = 1.0f - std::exp(-2.0f * 3.14159265358979323846f
                                          * postFilterHpHz_ / static_cast<float>(sampleRate_));
     out = postFilterHp_.highpass(out, postHpAlpha);
-    out = notch_.process(out, notchFreqHz_, notchBandwidthHz_, sampleRate_);
-    float tanAp = std::tan(3.14159265358979323846 * allpassFreqHz_ / sampleRate_);
-    float apCoeff = (tanAp - 1.0f) / (tanAp + 1.0f);
-    out = allpass_.process(out, apCoeff);
+    if (!fullNetwork) {
+        // Open303's stand-ins for the network's sub-audio response.
+        out = notch_.process(out, notchFreqHz_, notchBandwidthHz_, sampleRate_);
+        float tanAp = std::tan(3.14159265358979323846 * allpassFreqHz_ / sampleRate_);
+        float apCoeff = (tanAp - 1.0f) / (tanAp + 1.0f);
+        out = allpass_.process(out, apCoeff);
+    }
 
     // No resonance-dependent output gain here -- see the comment on
     // setResonanceSkew in Filter.hpp. Whatever level

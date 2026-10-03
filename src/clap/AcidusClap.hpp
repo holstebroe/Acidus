@@ -124,7 +124,10 @@ enum ParamId : clap_id {
 
     PARAM_VCO_OCTAVE_SCALE = 56,               // VCO V/oct scale (TM5 width), 1 = exact 2:1 octaves
 
-    PARAM_EXPERIMENTAL_COUNT = 57,
+    PARAM_FILTER_COUPLING_NETWORK = 57,        // Filter.hpp - 0 = Open303 empirical coupling, 1 = Stinchcombe's full network
+    PARAM_FILTER_NETWORK_TIME_SCALE = 58,      // Filter.hpp - Stinchcombe network RC time-constant scale
+
+    PARAM_EXPERIMENTAL_COUNT = 59,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

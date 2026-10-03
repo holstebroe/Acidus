@@ -16,6 +16,7 @@
 // Exit code: number of failed (non-INFO) checks.
 
 #include "core/SynthEngine.hpp"
+#include "core/CalibrationPresets.hpp"
 #include "core/Filter.hpp"
 #include "core/Oscillator.hpp"
 #include "core/Envelope.hpp"
@@ -81,6 +82,44 @@ bool inRange(double v, double lo, double hi) { return v >= lo && v <= hi; }
 // --ladder-topology N: run every check with that ladder orientation instead
 // of the shipped default (Filter.hpp setLadderTopology).
 int gLadderTopologyOverride = -1;
+// --network N: run with that coupling network (Filter.hpp setCouplingNetwork).
+int gNetworkOverride = -1;
+// --profile ID: the calibration preset every check starts from (default: the
+// SynthParameters defaults, i.e. the header's profile).
+SynthParameters gBase;
+
+} // namespace
+extern "C" int acidus_calib_set_field(void* params, const char* name, double value); // CalibrationRender.cpp
+namespace {
+
+// --params FILE: a calibration profile or a calibrator checkpoint (JSON).
+// Every `"field": number` pair that names a SynthParameters field is applied
+// on top of the defaults; other keys are ignored.
+bool loadParamsJson(const char* path, SynthParameters& p) {
+    FILE* f = std::fopen(path, "rb");
+    if (!f) return false;
+    std::string text;
+    char buf[4096];
+    size_t n;
+    while ((n = std::fread(buf, 1, sizeof(buf), f)) > 0) text.append(buf, n);
+    std::fclose(f);
+    int applied = 0;
+    for (size_t q = text.find('"'); q != std::string::npos; q = text.find('"', q + 1)) {
+        size_t e = text.find('"', q + 1);
+        if (e == std::string::npos) break;
+        std::string key = text.substr(q + 1, e - q - 1);
+        size_t c = text.find_first_not_of(" \t\r\n", e + 1);
+        q = e;
+        if (c == std::string::npos || text[c] != ':') continue;
+        const char* v = text.c_str() + c + 1;
+        char* end;
+        double val = std::strtod(v, &end);
+        if (end == v) continue;
+        if (acidus_calib_set_field(&p, key.c_str(), val) == 0) ++applied;
+    }
+    std::printf("Loaded %d parameters from %s\n", applied, path);
+    return applied > 0;
+}
 
 void applyFilterParams(Filter& f, const SynthParameters& p) {
     f.setResCouplingHz(p.resCouplingHz);
@@ -97,6 +136,8 @@ void applyFilterParams(Filter& f, const SynthParameters& p) {
     f.setCapScale4(p.filterCapScale4);
     f.setLadderInputScale(p.filterLadderInputScale);
     f.setLadderTopology(gLadderTopologyOverride >= 0 ? gLadderTopologyOverride : (p.filterLadderTopology >= 0.5f ? 1 : 0));
+    f.setCouplingNetwork(gNetworkOverride >= 0 ? gNetworkOverride : (p.filterCouplingNetwork >= 0.5f ? 1 : 0));
+    f.setNetworkTimeScale(p.filterNetworkTimeScale);
     f.setResonanceSkew(p.filterResonanceSkew);
     f.setResonanceLimit(p.filterResonanceLimit);
 }
@@ -122,6 +163,7 @@ void applyEnvParams(Envelope& e, const SynthParameters& p, float decayKnob) {
 // Removes every coupling network around the ladder so only the 4-pole core
 // is left (used to compare against Stinchcombe's core polynomial).
 void neutralizeCouplings(Filter& f) {
+    f.setCouplingNetwork(0);
     f.setInputCouplingHz(0.001f);
     f.setPostFilterHpHz(0.001f);
     f.setNotchFreqHz(20000.0f);   // park the notch far above the band...
@@ -261,6 +303,7 @@ Render renderEngine(const SynthParameters& p, double sr, std::vector<Ev> evs, do
     e.setSampleRate(sr);
     e.getParams() = p;
     if (gLadderTopologyOverride >= 0) e.getParams().filterLadderTopology = static_cast<float>(gLadderTopologyOverride);
+    if (gNetworkOverride >= 0) e.getParams().filterCouplingNetwork = static_cast<float>(gNetworkOverride);
     std::sort(evs.begin(), evs.end(), [](const Ev& a, const Ev& b) { return a.t < b.t; });
     size_t n = static_cast<size_t>(dur * sr);
     Render r{std::vector<float>(n), std::vector<float>(n), sr};
@@ -332,7 +375,7 @@ double spectralPeakHz(const std::vector<float>& x, double sr, double t0, double 
 }
 
 SynthParameters panel(float cutoff, float res, float envMod, float decay, float accent) {
-    SynthParameters p;
+    SynthParameters p = gBase;
     p.cutoff = cutoff;
     p.resonance = res;
     p.envMod = envMod;
@@ -379,7 +422,7 @@ void testLadderCore() {
 
     run("A1", "Solver control: equal cap scales (1,1,1,1), couplings removed",
         [](Filter& f) { neutralizeCouplings(f); }, true);
-    SynthParameters p;
+    SynthParameters p = gBase;
     run("A2", "Shipped defaults: capScale1..4 as shipped, couplings removed",
         [p](Filter& f) { applyFilterParams(f, p); neutralizeCouplings(f); }, false);
 }
@@ -391,7 +434,7 @@ void testLadderCore() {
 void testResonanceLoop(bool fast) {
     std::printf("\n== B. Resonance loop with the shipped coupling network (§11.2, §12) ==\n");
     const double sr = 44100.0;
-    const SynthParameters p;
+    const SynthParameters p = gBase;
     FilterCfg shipped = [p](Filter& f) { applyFilterParams(f, p); };
     // Stinchcombe's model ends at the VCF output, so the frequency-response
     // comparisons (B2..B7) park the out-of-loop Open303-style stages (post
@@ -552,7 +595,7 @@ std::vector<float> renderOsc(const SynthParameters& p, Waveform w, int note, dou
 
 void testOscillator() {
     std::printf("\n== C. Oscillator, pulse shaper, slide (§6, §7, §8, §9) ==\n");
-    const SynthParameters p;
+    const SynthParameters p = gBase;
     const double sr = 44100.0;
 
     // C1: pre-filter high-pass. The saw goes straight into the VCF input
@@ -699,7 +742,7 @@ void testOscillator() {
 
 void testEnvelopes() {
     std::printf("\n== D. MEG / VEG timing (§14, §15) ==\n");
-    const SynthParameters p;
+    const SynthParameters p = gBase;
     const double sr = 44100.0;
 
     struct Trace { std::vector<float> meg, veg; };
@@ -898,6 +941,17 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i)
         if (std::strcmp(argv[i], "--fast") == 0) fast = true;
         else if (std::strcmp(argv[i], "--ladder-topology") == 0 && i + 1 < argc) gLadderTopologyOverride = std::atoi(argv[++i]);
+        else if (std::strcmp(argv[i], "--network") == 0 && i + 1 < argc) gNetworkOverride = std::atoi(argv[++i]);
+        else if (std::strcmp(argv[i], "--params") == 0 && i + 1 < argc) {
+            if (!loadParamsJson(argv[++i], gBase)) { std::fprintf(stderr, "cannot read parameters from %s\n", argv[i]); return 2; }
+        }
+        else if (std::strcmp(argv[i], "--profile") == 0 && i + 1 < argc) {
+            const char* id = argv[++i];
+            bool found = false;
+            for (int k = 0; k < kCalibrationPresetCount; ++k)
+                if (std::strcmp(calibrationPresets()[k].id, id) == 0) { gBase = calibrationPresets()[k].params; found = true; }
+            if (!found) { std::fprintf(stderr, "unknown profile '%s'\n", id); return 2; }
+        }
 
     std::printf("Acidus reference-conformance tests (docs/TB-303 Reference/TB303_REFERENCE.md)\n");
     testLadderCore();

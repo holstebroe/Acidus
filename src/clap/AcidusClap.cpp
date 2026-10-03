@@ -51,6 +51,8 @@ static const CalibrationBinding kCalibrationBindings[] = {
     { PARAM_VCA_RES_TAP_RATIO, &SynthParameters::vcaResTapRatio },
     { PARAM_VCO_OCTAVE_SCALE, &SynthParameters::vcoOctaveScale },
     { PARAM_FILTER_LADDER_TOPOLOGY, &SynthParameters::filterLadderTopology },
+    { PARAM_FILTER_COUPLING_NETWORK, &SynthParameters::filterCouplingNetwork },
+    { PARAM_FILTER_NETWORK_TIME_SCALE, &SynthParameters::filterNetworkTimeScale },
     { PARAM_CUTOFF_BASE_HZ, &SynthParameters::cutoffBaseHz },
     { PARAM_CUTOFF_SPAN_OCT, &SynthParameters::cutoffSpanOct },
     { PARAM_CUTOFF_TAPER_EXP, &SynthParameters::cutoffTaperExp },
@@ -751,6 +753,22 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->min_value = 0.0;
             paramInfo->max_value = 1.0;
             paramInfo->default_value = kCalibrationDefaults.filterLadderTopology;
+            break;
+        case PARAM_FILTER_COUPLING_NETWORK:
+            // 0 = Open303 empirical coupling, 1 = Stinchcombe's full network (§11).
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Coupling Network");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->flags |= CLAP_PARAM_IS_STEPPED;
+            paramInfo->min_value = 0.0;
+            paramInfo->max_value = 1.0;
+            paramInfo->default_value = kCalibrationDefaults.filterCouplingNetwork;
+            break;
+        case PARAM_FILTER_NETWORK_TIME_SCALE:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Filter Network Time Scale");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Filter");
+            paramInfo->min_value = 0.5;
+            paramInfo->max_value = 2.0;
+            paramInfo->default_value = kCalibrationDefaults.filterNetworkTimeScale;
             break;
         case PARAM_CUTOFF_BASE_HZ:
             // The unit's cutoff trim (TM3): shifts the whole Cutoff range.

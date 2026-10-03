@@ -126,6 +126,7 @@ MODEL_PARAMS = {
     "filterCapScale3":          (0.2, 4.0, True, "filter"),
     "filterCapScale4":          (0.2, 4.0, True, "filter"),
     "filterLadderInputScale":   (0.01, 0.4, True, "filter"),
+    "filterNetworkTimeScale":   (0.7, 1.4, True, "filter"),     # Stinchcombe network RCs (filterCouplingNetwork 1 only)
     "filterInputCouplingHz":    (3.0, 60.0, True, "filter"),
     "filterOutputCouplingHz":   (6000.0, 40000.0, True, "filter"),
     "filterPostHpHz":           (5.0, 400.0, True, "filter"),  # also stands in for the VCA-input coupling (10 nF into BA662, tens-hundreds of Hz, §15.4)
