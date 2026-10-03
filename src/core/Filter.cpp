@@ -191,8 +191,34 @@ void Filter::buildKcTable() {
     const double lo = std::log(20.0);
     const double hi = std::log(std::max(40.0, 0.1 * oversampledRate_));
     const double step = (hi - lo) / (kKcTableSize - 1);
-    for (int i = 0; i < kKcTableSize; ++i) {
-        kcTable_[i] = static_cast<float>(criticalFeedbackGainExact(std::exp(lo + step * i)));
+    // The table depends only on the loop, not on this instance: reuse the
+    // last one built on this thread when the loop is the same (a new
+    // engine per note in the offline calibrator, or several instances).
+    struct Cached {
+        bool valid{false};
+        double poles[4]{};
+        double osRate{0.0};
+        float couplingHz{0.0f}, timeScale{0.0f};
+        int network{-1};
+        float table[kKcTableSize];
+    };
+    thread_local Cached cache;
+    const bool hit = cache.valid && cache.osRate == oversampledRate_ && cache.network == couplingNetwork_
+        && cache.couplingHz == resCouplingHz_ && cache.timeScale == networkTimeScale_
+        && std::equal(poles_, poles_ + 4, cache.poles);
+    if (hit) {
+        std::copy(cache.table, cache.table + kKcTableSize, kcTable_);
+    } else {
+        for (int i = 0; i < kKcTableSize; ++i) {
+            kcTable_[i] = static_cast<float>(criticalFeedbackGainExact(std::exp(lo + step * i)));
+        }
+        std::copy(kcTable_, kcTable_ + kKcTableSize, cache.table);
+        std::copy(poles_, poles_ + 4, cache.poles);
+        cache.osRate = oversampledRate_;
+        cache.network = couplingNetwork_;
+        cache.couplingHz = resCouplingHz_;
+        cache.timeScale = networkTimeScale_;
+        cache.valid = true;
     }
     kcTableLogLo_ = static_cast<float>(lo);
     kcTableInvStep_ = static_cast<float>(1.0 / step);
