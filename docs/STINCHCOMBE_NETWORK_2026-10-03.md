@@ -222,6 +222,21 @@ values (post-HP ~70 Hz, feedback ~18.7, VEG 1.5-1.9 s, time scale 0.9-1.1).
 
 No Acidvoice circuit preset: the network is not better for this unit.
 
+## Listening test (2026-10-04)
+
+Against the hardware's SET-E3 (Env Mod swept 25-100 % with every other knob
+at 100 %), `x0x-circuit` sounds more squelchy than `x0x` but **less
+accurate**. The scores agree: E3 is one of its worst sets (6.00 against
+4.95), with harmonic levels up to 10 dB off at Env Mod 50-75 %, notes up to
+4 dB too loud, and the resonant-peak track 3.5-6.9 semitones off at Env Mod
+100 % (`x0x`: 2.5-3.2).
+
+Not the high-cutoff threshold: lowering only `filterResonanceLimit` (0.993
+-> 0.97 / 0.94 / 0.90) on the E3 notes improves the harmonic levels a little
+(5.8 -> 4.9 dB) but leaves the peak track at 2.5 semitones (`x0x` 1.6) and
+the weighted error worse (5.8 -> 6.4; `x0x` 4.9). Where the peak travels
+during the sweep is wrong, not only how strong it is.
+
 ## Next
 
 - The network is the better model at equal effort, closer to the schematic
