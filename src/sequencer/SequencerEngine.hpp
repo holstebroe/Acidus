@@ -28,12 +28,16 @@ struct TriggerEvent {
     int transpose{0};
 };
 
-// A note the sequencer plays, for the synth chained after it.
+// A note the sequencer plays, for the synth chained after it. With
+// `pressure` set it is instead a polyphonic pressure change on the held
+// `key` (`velocity` is the pressure, `on` is unused): the accent of an
+// equal-pitch slide (see below).
 struct NoteEvent {
     uint32_t time;
     bool on;
     int key;
     float velocity;
+    bool pressure{false};
 };
 
 // A TB-303-style step sequencer turning pattern-trigger keys into the notes
@@ -49,7 +53,12 @@ struct NoteEvent {
 // - Tie: the tied-into step sends nothing; the previous step's gate is just
 //   held through it. A slide flag on a note applies at the end of its tie
 //   chain, as on the 303 where the flag belongs to the pitch, not the step.
-//   A slide between equal pitches is a tie (§4.4): no new note, no accent.
+// - Slide between equal pitches: like a tie, no new note, unless the slid-to
+//   note's accent differs from the accent latched on the sounding note. Then
+//   the 303 would clock its accent latch with no retrigger (§4.4), so the
+//   change is sent as polyphonic pressure on the held key: kAccentPressure
+//   for accent on, 0 for accent off. Note-ons and note-offs stay paired.
+//   A tie never changes the accent (it stays latched).
 // - Accent: velocity 127; normal notes 100 (Acidus accents at >= 0.8).
 // - Pitch: the step's note, octave and pattern transpose, plus the global key
 //   transpose (automatable; like the 303's track transpose it is taken when a
@@ -77,6 +86,7 @@ public:
     static constexpr double kGateFraction = 0.5;
     static constexpr float kNormalVelocity = 100.0f / 127.0f;
     static constexpr float kAccentVelocity = 1.0f;
+    static constexpr float kAccentPressure = 1.0f;
     // Step boundaries are placed this many samples after the exact grid time,
     // so a trigger note placed on the grid (which a host may round to either
     // neighbouring sample) is always seen before the step it starts or ends.
@@ -132,6 +142,7 @@ private:
     // The note currently gated on.
     bool sounding_{false};
     int soundingKey_{-1};
+    bool soundingAccent_{false};    // the accent latched on the sounding note
     bool connected_{false};         // gate held into the next step (slide/tie)
     bool tieSlide_{false};          // the sounding note's slide flag (applies at the end of its ties)
     int globalTranspose_{0};
@@ -147,7 +158,7 @@ private:
     std::atomic<int> playingPattern_{-1};
     std::atomic<int> playingStep_{-1};
 
-    void emit(uint32_t time, bool on, int key, float velocity);
+    void emit(uint32_t time, bool on, int key, float velocity, bool pressure = false);
     void release(uint32_t time);
     void handleTrigger(const TriggerEvent& ev, uint32_t time);
     void stepBoundary(int64_t stepNum, uint32_t time);

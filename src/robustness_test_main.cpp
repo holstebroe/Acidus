@@ -152,6 +152,18 @@ static void testPluginEvents() {
     late.key = 50; late.velocity = 0.5;
     auto& early = ev.add<clap_event_note_t>(CLAP_EVENT_NOTE_ON, 0);
     early.key = 45; early.velocity = 0.9;
+    // Pressure with junk values, keys and sizes.
+    auto& nanPressure = ev.add<clap_event_note_expression_t>(CLAP_EVENT_NOTE_EXPRESSION, 12);
+    nanPressure.expression_id = CLAP_NOTE_EXPRESSION_PRESSURE;
+    nanPressure.key = 40; nanPressure.value = std::numeric_limits<double>::quiet_NaN();
+    auto& hugePressure = ev.add<clap_event_note_expression_t>(CLAP_EVENT_NOTE_EXPRESSION, 13);
+    hugePressure.expression_id = CLAP_NOTE_EXPRESSION_PRESSURE;
+    hugePressure.key = 30000; hugePressure.value = 1.0e300;
+    auto& midiPressure = ev.add<clap_event_midi_t>(CLAP_EVENT_MIDI, 14);
+    midiPressure.data[0] = 0xA0; midiPressure.data[1] = 200; midiPressure.data[2] = 127;
+    ev.raw.emplace_back(sizeof(clap_event_note_t), 0);   // too short for an expression
+    auto* shortExpr = reinterpret_cast<clap_event_header_t*>(ev.raw.back().data());
+    *shortExpr = { sizeof(clap_event_note_t), 15, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_NOTE_EXPRESSION, 0 };
 
     std::vector<float> l(512, 1.0f), r(512, 1.0f);
     float* chans[2] = { l.data(), r.data() };
@@ -326,11 +338,46 @@ static void testGui() {
     gui.handleMouseUp();
 }
 
+// Pressure on the held note re-latches its accent (Burette's equal-pitch
+// slide, TB303_REFERENCE.md §4.6), as a CLAP note expression or MIDI poly
+// pressure; channel pressure and other keys do nothing.
+static void testPluginPressure() {
+    acidus::AcidusClap plugin(nullptr);
+    plugin.activate(44100.0, 1, 512);
+    Events ev;
+    auto& on = ev.add<clap_event_note_t>(CLAP_EVENT_NOTE_ON, 0);
+    on.key = 36; on.velocity = 100.0 / 127.0;
+    auto& other = ev.add<clap_event_note_expression_t>(CLAP_EVENT_NOTE_EXPRESSION, 50);
+    other.expression_id = CLAP_NOTE_EXPRESSION_PRESSURE; other.key = 48; other.value = 1.0;
+    auto& channel = ev.add<clap_event_midi_t>(CLAP_EVENT_MIDI, 60);
+    channel.data[0] = 0xD0; channel.data[1] = 127;
+    auto& accentOn = ev.add<clap_event_note_expression_t>(CLAP_EVENT_NOTE_EXPRESSION, 100);
+    accentOn.expression_id = CLAP_NOTE_EXPRESSION_PRESSURE; accentOn.key = 36; accentOn.value = 1.0;
+    auto& accentOff = ev.add<clap_event_midi_t>(CLAP_EVENT_MIDI, 200);
+    accentOff.data[0] = 0xA0; accentOff.data[1] = 36; accentOff.data[2] = 0;
+    auto& accentAgain = ev.add<clap_event_midi_t>(CLAP_EVENT_MIDI, 300);
+    accentAgain.data[0] = 0xA0; accentAgain.data[1] = 36; accentAgain.data[2] = 127;
+    std::vector<float> l(512), r(512);
+    float* chans[2] = { l.data(), r.data() };
+    clap_audio_buffer_t out{};
+    out.channel_count = 2;
+    out.data32 = chans;
+    clap_process_t proc{};
+    proc.frames_count = 512;
+    proc.in_events = &ev.list;
+    proc.audio_outputs = &out;
+    proc.audio_outputs_count = 1;
+    plugin.process(&proc);
+    check(plugin.accentCount() == 2, "pressure: accent on via note expression and MIDI poly pressure only");
+    check(finiteAndBounded(l) && finiteAndBounded(r), "pressure: output finite");
+}
+
 int main() {
     testEngineExtremes();
     testEngineRandomParams();
     testSampleRates();
     testPluginEvents();
+    testPluginPressure();
     testTextConversion();
     testState();
     testOutEventQueueBounded();

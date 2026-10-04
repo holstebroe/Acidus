@@ -330,6 +330,12 @@ void AcidusClap::handleEvent(const clap_event_header_t* header) {
         if (header->size < sizeof(clap_event_note_t)) return;
         const auto* noteEv = reinterpret_cast<const clap_event_note_t*>(header);
         engine_.noteOff(noteEv->key);
+    } else if (header->type == CLAP_EVENT_NOTE_EXPRESSION) {
+        if (header->size < sizeof(clap_event_note_expression_t)) return;
+        const auto* exprEv = reinterpret_cast<const clap_event_note_expression_t*>(header);
+        if (exprEv->expression_id == CLAP_NOTE_EXPRESSION_PRESSURE) {
+            notePressureFromHost(exprEv->key, static_cast<float>(exprEv->value));
+        }
     } else if (header->type == CLAP_EVENT_MIDI) {
         if (header->size < sizeof(clap_event_midi_t)) return;
         const auto* midiEv = reinterpret_cast<const clap_event_midi_t*>(header);
@@ -342,6 +348,9 @@ void AcidusClap::handleEvent(const clap_event_header_t* header) {
             noteOnFromHost(data1, static_cast<float>(data2) / 127.0f);
         } else if (status == 0x80 || (status == 0x90 && data2 == 0)) {
             engine_.noteOff(data1);
+        } else if (status == 0xA0) {
+            // Polyphonic key pressure (not channel pressure): accent latch.
+            notePressureFromHost(data1, static_cast<float>(data2) / 127.0f);
         } else if (status == 0xB0) {
             // MIDI Control Change
             clap_id paramId = PARAM_COUNT;
@@ -391,6 +400,13 @@ void AcidusClap::noteOnFromHost(int key, float velocity) {
     if (velocity >= SynthEngine::kAccentVelocity) {
         accentCount_.fetch_add(1, std::memory_order_relaxed);
     }
+}
+
+void AcidusClap::notePressureFromHost(int key, float pressure) {
+    if (key < 0 || key > 127 || !std::isfinite(pressure)) return;
+    const bool wasAccent = engine_.isAccent();
+    engine_.notePressure(key, pressure);
+    if (!wasAccent && engine_.isAccent()) accentCount_.fetch_add(1, std::memory_order_relaxed);
 }
 
 bool AcidusClap::transportBarPhase(double& phase) const {

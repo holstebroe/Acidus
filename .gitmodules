@@ -4,4 +4,5 @@
 	branch = next
 [submodule "clap-wrapper"]
 	path = clap-wrapper
-	url = https://github.com/free-audio/clap-wrapper.git
+	url = https://github.com/holstebroe/clap-wrapper.git
+	branch = vst3-midi-out

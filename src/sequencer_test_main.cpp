@@ -28,7 +28,7 @@ static constexpr double kTempo = 120.0;
 static constexpr int64_t kStep = 6000;   // samples per 16th at 120 BPM, 48 kHz
 static constexpr int64_t kDelay = 2;     // SequencerEngine::kBoundaryDelaySamples
 
-struct Ev { int64_t time; bool on; int key; float vel; };
+struct Ev { int64_t time; bool on; int key; float vel; bool pressure{false}; };
 
 static Step note(int n, int oct = 0, bool acc = false, bool sl = false) {
     Step s; s.note = n; s.octave = oct; s.accent = acc; s.slide = sl; return s;
@@ -74,7 +74,7 @@ struct Run {
             const uint32_t n = engine.process(frames, t, in.data(), static_cast<uint32_t>(in.size()),
                                               out.data(), static_cast<uint32_t>(out.size()));
             for (uint32_t i = 0; i < n; ++i) {
-                events.push_back({ s + out[i].time, out[i].on, out[i].key, out[i].velocity });
+                events.push_back({ s + out[i].time, out[i].on, out[i].key, out[i].velocity, out[i].pressure });
             }
         }
     }
@@ -84,7 +84,11 @@ static std::string describe(const std::vector<Ev>& ev) {
     std::string s;
     char buf[64];
     for (const auto& e : ev) {
-        std::snprintf(buf, sizeof(buf), " %s%d@%lld", e.on ? "+" : "-", e.key, static_cast<long long>(e.time));
+        if (e.pressure) {
+            std::snprintf(buf, sizeof(buf), " ~%d=%.2f@%lld", e.key, e.vel, static_cast<long long>(e.time));
+        } else {
+            std::snprintf(buf, sizeof(buf), " %s%d@%lld", e.on ? "+" : "-", e.key, static_cast<long long>(e.time));
+        }
         s += buf;
     }
     return s;
@@ -93,7 +97,9 @@ static std::string describe(const std::vector<Ev>& ev) {
 static void expectEvents(const std::vector<Ev>& got, const std::vector<Ev>& want, const std::string& what) {
     bool ok = got.size() == want.size();
     for (size_t i = 0; ok && i < got.size(); ++i) {
-        ok = got[i].time == want[i].time && got[i].on == want[i].on && got[i].key == want[i].key;
+        ok = got[i].time == want[i].time && got[i].on == want[i].on && got[i].key == want[i].key
+             && got[i].pressure == want[i].pressure
+             && (!want[i].pressure || std::fabs(got[i].vel - want[i].vel) < 1e-6f);
     }
     check(ok, what + ": got" + describe(got) + " want" + describe(want));
 }
@@ -132,12 +138,49 @@ static void testSlide() {
     }, "slide holds the gate and overlaps the next note-on");
 }
 
-static void testSlideToSamePitchIsTie() {
+// Slide vs tie between equal pitches (TB303_REFERENCE.md §4.6): the gate,
+// pitch and envelopes are those of a tie; only an accent change is sent, as
+// pressure on the held key, and note-ons and note-offs stay paired.
+static void testSlideToSamePitchVsTie() {
+    const int64_t end = kStep + kDelay + kStep / 2;   // the second step's gate end
+    const Ev on{ kDelay, true, 36, 0 }, off{ end, false, 36, 0 };
+    const Ev accentOn{ kStep + kDelay, true, 36, SequencerEngine::kAccentPressure, true };
+    const Ev accentOff{ kStep + kDelay, true, 36, 0.0f, true };
+    struct Case { const char* what; Step a, b; std::vector<Ev> want; };
+    const Case cases[] = {
+        { "1: normal, tie", note(1), tie(), { on, off } },
+        { "2: accent, tie (accent stays latched)", note(1, 0, true), tie(), { on, off } },
+        { "3: normal slide, normal", note(1, 0, false, true), note(1), { on, off } },
+        { "4: normal slide, accent", note(1, 0, false, true), note(1, 0, true), { on, accentOn, off } },
+        { "5: accent slide, normal", note(1, 0, true, true), note(1), { on, accentOff, off } },
+        { "6: accent slide, accent", note(1, 0, true, true), note(1, 0, true), { on, off } },
+    };
+    for (const Case& c : cases) {
+        Run r;
+        setPattern(r.bank, 0, { c.a, c.b, rest(), rest() });
+        r.go(0, 4 * kStep, { { 0, true, kFirstTriggerKey } });
+        expectEvents(r.events, c.want, std::string("equal-pitch slide vs tie, case ") + c.what);
+    }
+
+    // The latch persists through a tie: slide into an accent, tie it (no
+    // event), then slide out of the tie into a normal note (accent off).
     Run r;
-    setPattern(r.bank, 0, { note(1, 0, false, true), note(1, 0, true), rest(), rest() });
-    r.go(0, 4 * kStep, { { 0, true, kFirstTriggerKey } });
-    expectEvents(r.events, { { kDelay, true, 36, 0 }, { kStep + kDelay + kStep / 2, false, 36, 0 } },
-                 "slide to the same pitch is a tie");
+    setPattern(r.bank, 0, { note(1, 0, false, true), note(1, 0, true), tie(true), note(1), rest() });
+    r.go(0, 5 * kStep, { { 0, true, kFirstTriggerKey } });
+    expectEvents(r.events, {
+        on, accentOn, { 3 * kStep + kDelay, true, 36, 0.0f, true },
+        { 3 * kStep + kDelay + kStep / 2, false, 36, 0 },
+    }, "the accent latch holds through a tie and is compared after it");
+
+    // A slide to a new pitch carries its own accent in the velocity; a
+    // following equal-pitch slide is compared with that.
+    Run r2;
+    setPattern(r2.bank, 0, { note(1, 0, false, true), note(3, 0, true, true), note(3), rest() });
+    r2.go(0, 4 * kStep, { { 0, true, kFirstTriggerKey } });
+    expectEvents(r2.events, {
+        on, { kStep + kDelay, true, 38, 0 }, { kStep + kDelay, false, 36, 0 },
+        { 2 * kStep + kDelay, true, 38, 0.0f, true }, { 2 * kStep + kDelay + kStep / 2, false, 38, 0 },
+    }, "an equal-pitch slide after a slid accented note clears the accent");
 }
 
 static void testTie() {
@@ -561,6 +604,65 @@ static void testClapRouting() {
     check(r[100] == 0.0f, "audio output is silent");
 }
 
+// The accent change of an equal-pitch slide leaves Burette as a CLAP pressure
+// note expression and a MIDI poly pressure on the held key, between the
+// note's on and off.
+static void testClapPressureOutput() {
+    SequencerClap plugin(testHost());
+    const clap_plugin_t* p = plugin.getClapPlugin();
+    const uint32_t frames = 4 * static_cast<uint32_t>(kStep);
+    p->activate(p, kRate, 1, frames);
+    setPattern(plugin.bank(), 0, { note(1, 0, false, true), note(1, 0, true), rest(), rest() });
+
+    EventList in;
+    in.addNote(CLAP_EVENT_NOTE_ON, 0, kFirstTriggerKey);
+    EventList out;
+    clap_input_events_t inEv{ &in,
+        [](const clap_input_events_t* l) -> uint32_t { return static_cast<uint32_t>(static_cast<EventList*>(l->ctx)->events.size()); },
+        [](const clap_input_events_t* l, uint32_t i) -> const clap_event_header_t* {
+            return reinterpret_cast<const clap_event_header_t*>(static_cast<EventList*>(l->ctx)->events[i].data());
+        } };
+    clap_output_events_t outEv{ &out, [](const clap_output_events_t* l, const clap_event_header_t* h) -> bool {
+        static_cast<EventList*>(l->ctx)->add(h);
+        return true;
+    } };
+    std::vector<float> l(frames), r(frames);
+    float* chans[2] = { l.data(), r.data() };
+    clap_audio_buffer_t audio{};
+    audio.data32 = chans;
+    audio.channel_count = 2;
+    clap_event_transport_t tr{};
+    tr.header = { sizeof(tr), 0, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_TRANSPORT, 0 };
+    tr.flags = CLAP_TRANSPORT_HAS_TEMPO | CLAP_TRANSPORT_HAS_BEATS_TIMELINE | CLAP_TRANSPORT_IS_PLAYING;
+    tr.tempo = kTempo;
+    clap_process_t proc{};
+    proc.frames_count = frames;
+    proc.transport = &tr;
+    proc.audio_outputs = &audio;
+    proc.audio_outputs_count = 1;
+    proc.in_events = &inEv;
+    proc.out_events = &outEv;
+    p->process(p, &proc);
+
+    std::vector<uint16_t> types;
+    bool pressureOk = false, midiOk = false;
+    for (const auto& e : out.events) {
+        const auto* h = reinterpret_cast<const clap_event_header_t*>(e.data());
+        types.push_back(h->type);
+        if (h->type == CLAP_EVENT_NOTE_EXPRESSION) {
+            const auto* x = reinterpret_cast<const clap_event_note_expression_t*>(h);
+            pressureOk = x->expression_id == CLAP_NOTE_EXPRESSION_PRESSURE && x->key == 36
+                         && x->value == 1.0 && h->time == kStep + kDelay && x->note_id == -1;
+        } else if (h->type == CLAP_EVENT_MIDI) {
+            const auto* m = reinterpret_cast<const clap_event_midi_t*>(h);
+            midiOk = m->data[0] == 0xA0 && m->data[1] == 36 && m->data[2] == 127 && h->time == kStep + kDelay;
+        }
+    }
+    check(types == std::vector<uint16_t>({ CLAP_EVENT_NOTE_ON, CLAP_EVENT_NOTE_EXPRESSION, CLAP_EVENT_MIDI,
+                                           CLAP_EVENT_NOTE_OFF })
+          && pressureOk && midiOk, "CLAP output: note on, pressure (accent) as expression and MIDI, one note off");
+}
+
 static void testTransposeParam() {
     SequencerClap plugin(testHost());
     const clap_plugin_t* p = plugin.getClapPlugin();
@@ -689,7 +791,7 @@ static void testGuiEditing() {
 // --- MIDI export, bank files, play button, new GUI controls --------------------
 
 // Notes and the end-of-track tick read back from a format 0 MIDI file.
-struct ParsedMidi { bool ok{false}; int division{0}; int endTick{0}; std::vector<MidiNote> notes; };
+struct ParsedMidi { bool ok{false}; int division{0}; int endTick{0}; std::vector<MidiNote> notes; std::vector<MidiPressure> pressures; };
 
 static ParsedMidi parseMidi(const std::string& f) {
     ParsedMidi m;
@@ -718,6 +820,11 @@ static ParsedMidi parseMidi(const std::string& f) {
             i += 2;
             if ((st & 0xF0) == 0x90 && vel > 0) { open[key] = { tick, 0, key, vel }; isOpen[key] = true; }
             else if (isOpen[key]) { open[key].end = tick; m.notes.push_back(open[key]); isOpen[key] = false; }
+        } else if ((st & 0xF0) == 0xA0) {
+            // Pressure is only meaningful on a held note.
+            if (!isOpen[u(i)]) return m;
+            m.pressures.push_back({ tick, u(i), u(i + 1) });
+            i += 2;
         } else {
             return m;
         }
@@ -768,6 +875,21 @@ static void testMidiExport() {
     setPattern(b, 1, { note(1), note(3, 0, false, true) });
     check(sameNotes(renderPatternNotes(b, 1, 0), { { 0, G, 36, 100 }, { S, 2 * S, 38, 100 } }),
           "MIDI export: a wrapping slide ends at the clip end" + describeNotes(renderPatternNotes(b, 1, 0)));
+
+    // An equal-pitch slide that changes the accent: one note, the accent
+    // change as poly pressure on it (TB303_REFERENCE.md §4.6).
+    setPattern(b, 2, { note(1, 0, false, true), note(1, 0, true), rest(), rest() });
+    std::vector<MidiPressure> pressures;
+    const auto held = renderPatternNotes(b, 2, 0, &pressures);
+    check(sameNotes(held, { { 0, S + G, 36, 100 } }) && pressures.size() == 1 && pressures[0].tick == S
+          && pressures[0].key == 36 && pressures[0].value == 127,
+          "MIDI export: an equal-pitch accent slide is one note plus pressure" + describeNotes(held));
+    const ParsedMidi pm = parseMidi(patternMidiFile(b, 2, 0));
+    check(pm.ok && sameNotes(pm.notes, held) && pm.pressures.size() == 1 && pm.pressures[0].tick == S
+          && pm.pressures[0].value == 127, "MIDI file round trip with pressure");
+    std::vector<MidiPressure> none;
+    renderPatternNotes(b, 0, 2, &none);
+    check(none.empty(), "MIDI export: no pressure without an equal-pitch accent change");
 
     // A chained pattern exports its whole chain once.
     PatternBank factory;
@@ -939,7 +1061,7 @@ int main() {
     testGateLengthAndRest();
     testAccentVelocity();
     testSlide();
-    testSlideToSamePitchIsTie();
+    testSlideToSamePitchVsTie();
     testTie();
     testSlideAtEndOfTieChain();
     testTieAfterRestIsRest();
@@ -962,6 +1084,7 @@ int main() {
     testStepPacking();
     testStateRoundTrip();
     testClapRouting();
+    testClapPressureOutput();
     testGuiEditing();
     testMidiExport();
     testBankFile();

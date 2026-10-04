@@ -70,6 +70,13 @@ void Envelope::noteOn(bool isAccent, bool isSlide, float accentKnob) {
     }
 }
 
+void Envelope::setAccent(bool isAccent) {
+    // Only the accent switch moves: the MEG decay tau changes at once and
+    // the accent sweep/VCA paths follow it; no envelope restarts.
+    isAccent_ = isAccent;
+    updateCoefficients();
+}
+
 void Envelope::noteOff() {
     gate_ = false;
     vcaTarget_ = 0.0f;

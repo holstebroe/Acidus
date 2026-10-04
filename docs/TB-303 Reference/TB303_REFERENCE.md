@@ -139,14 +139,43 @@ A slid step keeps the gate high through the whole step and into the next one: 1.
 
 - The slide flag sits on note A, but the glide happens at the **start of note B**. The gate stays high across the boundary, the CV steps to B, the slide RC integrates towards it, the envelopes are **not** retriggered, and the oscillator phase is untouched.
 - It needs no look-ahead: when the slide flag is set, the sequencer simply doesn't drop the gate.
-- A slide between two equal pitches is stored as a tie. Ties extend the gate with no new pitch and cannot carry an accent. A slide on the last step wraps round to the first. **[M: Mike Janney, rv0]**
+- A slide between two equal pitches is stored as a tie. Ties extend the gate with no new pitch and cannot carry an accent. A slide on the last step wraps round to the first. **[M: Mike Janney, rv0]** The only audible difference between the two is the accent latch; see §4.6, which also flags how far "stored as a tie" is confirmed.
 - An accent on a step reached by a slide is allowed. It switches the MEG to the short decay **mid-envelope**, with no retrigger. How much "wow" you get depends on how much MEG charge is left. **[M: antto]**
 
 ### 4.5 Pattern programming (for a faithful sequencer) [M: rv0, Mike Janney]
 
 - Pitch Mode stores a list of notes, each with Up, Down, Accent and Slide (UDAS). Time Mode stores a list of steps: `G` (new note, which takes the next pitch), `O` (tie), `-` (rest). Each `G` consumes the next pitch from the list.
-- A pattern can't start with `O`, and `O` must follow `G` or `O`. The 303 compacts redundant equal-pitch slides into ties.
+- A pattern can't start with `O`, and `O` must follow `G` or `O`. The 303 compacts redundant equal-pitch slides into ties (§4.6).
 - The sequencer covers 3 octaves (low C with Down = C1 up to high C with Up = C4), with transpose. **4 octaves via track Key Shift.** Maximum note ≈ 5.33 V (≈ 659 Hz before Tune). **[S][M]**
+
+### 4.6 Equal-pitch slide vs tie: the accent latch [S][M][D][?]
+
+*Analysis 2026-10-03, for Burette/Acidus.* A tie (`O`) and a slide into a new note (`G`) of the **same pitch** look identical to most of the voice, but not to the accent latch.
+
+**What is the same.** In both cases the gate stays high across the step boundary (§4.3, §4.4), the pitch CV does not change, so the slide RC has nothing to integrate, and neither the MEG nor the VEG is retriggered (§14.2, §15.1). The SLIDE strobe of a new note briefly puts the slide capacitor into "integrate" mode (§4.2), but with no CV step that does nothing, and the glitch is negligible anyway.
+
+**What differs: the accent latch.**
+
+- The ACCENT line is a flip-flop, **IC13 (4013), clocked by the SLIDE strobe** that the CPU sends at the start of **every new note**, slid notes included. **[S: §16.1; M: sonic-potions "303 timing" paper, via mystran, §4.2]**
+- A **tie** sends no strobe, so the latch keeps whatever the tied-from note set: an accent stays asserted through ties. **[M: Mike Janney, §4.2]**
+- A **slid-to note** clocks the latch with its own accent bit. An accent on a step reached by a slide is allowed, switches the MEG to the short decay **mid-envelope with no retrigger**, and gives as much "wow" as the MEG has charge left. **[M: antto, §4.4]**
+- The accent switch (IC12) does three things at once (§16.1): it shorts the Decay pot (MEG τ drops to ≈ 68–87 ms), it routes the MEG through VR7 to the VCA, and it feeds the MEG to the accent sweep network (§16.2). With the latch clocked under a held gate, all three switch **from the MEG's current, decaying level**. A fresh accented note starts from a full MEG.
+- The VCA accent tail follows the ACCENT line (§15.2): for tied accented notes it ends in the middle of the last step. For accent-then-slide-to-normal it lasts to the end of the step. **[M: Mike Janney, antto]**
+
+**The six combinations.** A is the first note, B the next step at the same pitch; "slide" is A's slide flag (§4.4: the flag sits on the slid-from note).
+
+| # | A | B | 303 behaviour | Evidence |
+| --- | --- | --- | --- | --- |
+| 1 | normal | tie | Gate held, envelopes keep decaying, no accent | [M] |
+| 2 | accent | tie | Gate held, accent stays latched; VCA accent tail ends mid last step | [M: Janney, antto] |
+| 3 | normal + slide | normal | Latch re-clocked to "no accent": no change. Same as 1 | [D] from §4.2/§16.1 |
+| 4 | normal + slide | accent | Latch set: MEG decay switches to the accent τ, VCA accent and accent sweep switch in from the decaying MEG; no retrigger. Small, soft "wow", bigger with more MEG left (long Decay, short gap) and with the Accent knob up | [M: antto] for a slid-to accent (different pitch); [D] for equal pitch |
+| 5 | accent + slide | normal | Latch cleared: MEG decay back to the Decay pot, VCA accent and sweep removed mid-note | [D] from §4.2/§16.1; consistent with the "accent-then-slide-to-normal" tail [M] |
+| 6 | accent + slide | accent | Latch set again: no change. Same as 2 | [D] |
+
+**Open question [?].** §4.4/§4.5 report that the 303 stores an equal-pitch slide as a tie ("compacts redundant equal-pitch slides into ties", Mike Janney, rv0). If the firmware does that at programming time, a stock 303 plays **cases 4 and 5 as ties** and drops the slid-to note's accent bit (case 4) or keeps the latched accent (case 5). Cases 1, 2, 3 and 6 sound the same either way. No source in this folder describes hearing case 4 or 5 on a stock unit. To settle it: program case 4 (normal slide into an accented note of the same pitch) and case 1 on a 303, with Decay up and Accent up, and compare the VCA level and the cutoff after the boundary, or probe the ACCENT line (IC13 Q) for a rising edge at the boundary.
+
+**What Acidus and Burette do.** Burette keeps the distinction the user programmed: a tie is a tie, and an equal-pitch slide plays as a tie **unless the accent changes** (cases 4 and 5). Then Burette sends **polyphonic pressure** on the held key, both as a CLAP pressure note expression and as MIDI poly aftertouch (`0xA0`), because hosts differ in which of the two they pass between plugins (one tested host passed MIDI poly aftertouch but dropped the expression). Its MIDI export writes the poly aftertouch. The value is 1.0 for accent on and 0 for accent off. Note-ons and note-offs stay paired, which a second note-on for a held key would break (CLAP and MIDI both expect one note-off per note-on). Acidus treats pressure on the held note as the latch: pressure ≥ 0.5 is an accent, and `Envelope::setAccent` switches the MEG decay τ and the accent VCA/sweep paths with no retrigger. Pressure on any other key, after the note-off, or as channel pressure does nothing. A synth that gets both events sees the same accent twice, which changes nothing. A host that routes neither loses the change, and the step falls back to a tie. The VST3 builds need the clap-wrapper fork (README, Building): upstream clap-wrapper drops a plugin's output MIDI and note expressions (free-audio/clap-wrapper#414). Cases 4 and 5 are therefore an extension pending the hardware check above. **[D][E]**
 
 ---
 
