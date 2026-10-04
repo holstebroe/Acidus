@@ -1,0 +1,111 @@
+From 98bed603c0dece1922c7be6c9c1e9d5935e9c898 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 4 Oct 2026 18:50:47 +0000
+Subject: [PATCH 2/2] VST3: address poly pressure without a note id by its
+ pitch
+
+A VST3 note id of -1 means "no id". The poly pressure input paths looked
+the key up in the held-note list by note id, so with id -1 they matched
+whichever held entry had id -1: the first one (MIDI path) or the last
+one (note expression path). Held entries are only freed on NOTE_END, so
+with hosts that send no ids that is often a stale note of another key.
+When the note expression path found no match at all it pushed an event
+with uninitialised key, channel, value and expression id.
+
+Fill the event from the pressure event's own pitch and channel, and
+take the held note's port, key and channel only when a real id matches.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LAjQt1Q4XHsJG5nztWUehn
+---
+ src/detail/vst3/process.cpp | 45 ++++++++++++++++++++-----------------
+ src/detail/vst3/process.h   |  2 ++
+ 2 files changed, 27 insertions(+), 20 deletions(-)
+
+diff --git a/src/detail/vst3/process.cpp b/src/detail/vst3/process.cpp
+index a81165e..630251d 100644
+--- a/src/detail/vst3/process.cpp
++++ b/src/detail/vst3/process.cpp
+@@ -588,16 +588,17 @@ void ProcessAdapter::processInputEvents(Steinberg::Vst::IEventList *eventlist)
+           n.noteexpression.header.time = vstevent.sampleOffset;
+           n.noteexpression.header.size = sizeof(clap_event_note_expression);
+           n.noteexpression.note_id = vstevent.polyPressure.noteId;
+-          for (auto &i : _activeNotes)
++          n.noteexpression.expression_id = CLAP_NOTE_EXPRESSION_PRESSURE;
++          n.noteexpression.port_index = 0;
++          n.noteexpression.key = vstevent.polyPressure.pitch;
++          n.noteexpression.channel = vstevent.polyPressure.channel;
++          n.noteexpression.value = vstevent.polyPressure.pressure;
++          // A note id of -1 means "no id": the pitch and channel address the note.
++          if (const auto *active = findActiveNote(vstevent.polyPressure.noteId))
+           {
+-            if (i.used && i.note_id == vstevent.polyPressure.noteId)
+-            {
+-              n.noteexpression.expression_id = CLAP_NOTE_EXPRESSION_PRESSURE;
+-              n.noteexpression.port_index = i.port_index;
+-              n.noteexpression.key = i.key;  // should be the same as vstevent.polyPressure.pitch
+-              n.noteexpression.channel = i.channel;
+-              n.noteexpression.value = vstevent.polyPressure.pressure;
+-            }
++            n.noteexpression.port_index = active->port_index;
++            n.noteexpression.key = active->key;
++            n.noteexpression.channel = active->channel;
+           }
+           _eventindices.push_back(_events.size());
+           _events.push_back(n);
+@@ -612,17 +613,11 @@ void ProcessAdapter::processInputEvents(Steinberg::Vst::IEventList *eventlist)
+           n.param.header.time = vstevent.sampleOffset;
+           n.param.header.size = sizeof(clap_event_midi_t);
+           n.midi.port_index = 0;
+-          n.midi.data[0] = 0xA0 + vstevent.polyPressure.channel;
+-          int key{-1};
+-          for (auto &i : _activeNotes)
+-          {
+-            if (i.used && i.note_id == vstevent.polyPressure.noteId)
+-            {
+-              key = i.key;
+-              break;
+-            }
+-          }
+-          if (key >= 0)
++          n.midi.data[0] = 0xA0 + (vstevent.polyPressure.channel & 0x0F);
++          // A note id of -1 means "no id": the pitch addresses the note.
++          int key = vstevent.polyPressure.pitch;
++          if (const auto *active = findActiveNote(vstevent.polyPressure.noteId)) key = active->key;
++          if (key >= 0 && key <= 127)
+           {
+             n.midi.data[1] = key;
+             n.midi.data[2] = vstevent.polyPressure.pressure * 127.0;
+@@ -902,6 +897,16 @@ void ProcessAdapter::addToActiveNotes(const clap_event_note *note)
+   _activeNotes.emplace_back(ActiveNote{true, note->note_id, note->port_index, note->channel, note->key});
+ }
+ 
++const ProcessAdapter::ActiveNote *ProcessAdapter::findActiveNote(int32_t note_id) const
++{
++  if (note_id == -1) return nullptr;  // VST3: no note id, address the note by pitch
++  for (const auto &i : _activeNotes)
++  {
++    if (i.used && i.note_id == note_id) return &i;
++  }
++  return nullptr;
++}
++
+ void ProcessAdapter::removeFromActiveNotes(const clap_event_note *note)
+ {
+   for (auto &i : _activeNotes)
+diff --git a/src/detail/vst3/process.h b/src/detail/vst3/process.h
+index 1e3a85b..687ba94 100644
+--- a/src/detail/vst3/process.h
++++ b/src/detail/vst3/process.h
+@@ -115,6 +115,8 @@ class ProcessAdapter
+     int16_t key;      // 0..127
+   };
+   std::vector<ActiveNote> _activeNotes;
++  // The held note with this id, or nullptr (always for id -1, "no id").
++  const ActiveNote *findActiveNote(int32_t note_id) const;
+ 
+   std::unique_ptr<clap_audio_buffer_t[]> _input_ports;
+   std::unique_ptr<clap_audio_buffer_t[]> _output_ports;
+-- 
+2.43.0
+

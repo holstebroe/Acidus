@@ -1,0 +1,112 @@
+From 0000e943a2abc6921ae708a94a0ab2bc1adb529a Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 4 Oct 2026 18:50:47 +0000
+Subject: [PATCH 1/2] VST3: send MIDI note on/off and poly pressure that a
+ plugin outputs
+
+The VST3 process adapter dropped every CLAP_EVENT_MIDI and every note
+expression a plugin pushed to its output events; only CLAP note on/off
+reached the host (#414). Convert the messages that have a VST3 event of
+their own, as is already done for CLAP notes:
+
+- MIDI 0x90/0x80 -> kNoteOnEvent / kNoteOffEvent (note id -1)
+- MIDI 0xA0 poly pressure -> kPolyPressureEvent (note id -1)
+- CLAP_NOTE_EXPRESSION_PRESSURE -> kPolyPressureEvent (note id kept)
+
+CC, channel pressure, pitch bend, sysex and MIDI 2 have no general VST3
+output event and are still dropped.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LAjQt1Q4XHsJG5nztWUehn
+---
+ src/detail/vst3/process.cpp | 67 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 67 insertions(+)
+
+diff --git a/src/detail/vst3/process.cpp b/src/detail/vst3/process.cpp
+index 68f1ba0..a81165e 100644
+--- a/src/detail/vst3/process.cpp
++++ b/src/detail/vst3/process.cpp
+@@ -730,6 +730,24 @@ bool ProcessAdapter::enqueueOutputEvent(const clap_event_header_t *event)
+       return true;
+       break;
+     case CLAP_EVENT_NOTE_EXPRESSION:
++    {
++      // VST3 has an output event for pressure only; the other expressions
++      // need the note expression controller and are dropped as before.
++      auto nevt = reinterpret_cast<const clap_event_note_expression *>(event);
++      if (nevt->expression_id == CLAP_NOTE_EXPRESSION_PRESSURE && nevt->key >= 0 && nevt->key <= 127)
++      {
++        Steinberg::Vst::Event oe{};
++        oe.type = Steinberg::Vst::Event::kPolyPressureEvent;
++        oe.polyPressure.channel = nevt->channel < 0 ? 0 : nevt->channel;
++        oe.polyPressure.pitch = nevt->key;
++        oe.polyPressure.pressure = static_cast<float>(nevt->value);
++        oe.polyPressure.noteId = nevt->note_id;
++        oe.busIndex = 0;  // FIXME - multi-out midi still needs work
++        oe.sampleOffset = nevt->header.time;
++
++        if (_vstdata && _vstdata->outputEvents) _vstdata->outputEvents->addEvent(oe);
++      }
++    }
+       return true;
+       break;
+     case CLAP_EVENT_PARAM_VALUE:
+@@ -808,6 +826,55 @@ bool ProcessAdapter::enqueueOutputEvent(const clap_event_header_t *event)
+       break;
+ 
+     case CLAP_EVENT_MIDI:
++    {
++      // MIDI 1.0 messages that have a VST3 event of their own go out as that
++      // event, like their CLAP counterparts above: note on/off and poly
++      // pressure. Other messages (CC, channel pressure, pitch bend) have no
++      // general VST3 output event and are dropped as before (#414).
++      auto mevt = reinterpret_cast<const clap_event_midi *>(event);
++      const uint8_t status = mevt->data[0] & 0xF0;
++      const int16_t channel = mevt->data[0] & 0x0F;
++      const int16_t key = mevt->data[1] & 0x7F;
++      const uint8_t value = mevt->data[2] & 0x7F;
++
++      Steinberg::Vst::Event oe{};
++      oe.busIndex = 0;  // FIXME - multi-out midi still needs work
++      oe.sampleOffset = mevt->header.time;
++      if (status == 0x90 && value > 0)
++      {
++        oe.type = Steinberg::Vst::Event::kNoteOnEvent;
++        oe.noteOn.channel = channel;
++        oe.noteOn.pitch = key;
++        oe.noteOn.velocity = value / 127.f;
++        oe.noteOn.length = 0;
++        oe.noteOn.tuning = 0.0f;
++        oe.noteOn.noteId = -1;
++      }
++      else if (status == 0x80 || status == 0x90)
++      {
++        oe.type = Steinberg::Vst::Event::kNoteOffEvent;
++        oe.noteOff.channel = channel;
++        oe.noteOff.pitch = key;
++        oe.noteOff.velocity = status == 0x80 ? value / 127.f : 0.f;
++        oe.noteOff.tuning = 0.0f;
++        oe.noteOff.noteId = -1;
++      }
++      else if (status == 0xA0)
++      {
++        oe.type = Steinberg::Vst::Event::kPolyPressureEvent;
++        oe.polyPressure.channel = channel;
++        oe.polyPressure.pitch = key;
++        oe.polyPressure.pressure = value / 127.f;
++        oe.polyPressure.noteId = -1;
++      }
++      else
++      {
++        return true;
++      }
++      if (_vstdata && _vstdata->outputEvents) _vstdata->outputEvents->addEvent(oe);
++    }
++      return true;
++      break;
+     case CLAP_EVENT_MIDI_SYSEX:
+     case CLAP_EVENT_MIDI2:
+       return true;
+-- 
+2.43.0
+
