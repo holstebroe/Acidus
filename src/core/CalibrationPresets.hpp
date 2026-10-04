@@ -293,12 +293,12 @@ inline SynthParameters makeCalibrationPreset_x0x_circuit() {
     p.envModTaperMid = 0.687298f;
     p.envModTaperWidth = 0.170725f;
     p.envModOffsetCutSlope = -0.0391839f;
-    p.accentSweepDepthOct = 8.72259f;
-    p.accentVcaDepth = 2.08519f;
-    p.accentChargeBaseSec = 0.0328324f;
-    p.accentChargePotSec = 0.0198223f;
-    p.accentDiodeDrop = 0.254079f;
-    p.accentMixSec = 0.101037f;
+    p.accentSweepDepthOct = 8.16304f;
+    p.accentVcaDepth = 0.967658f;
+    p.accentChargeBaseSec = 0.0663452f;
+    p.accentChargePotSec = 0.0396145f;
+    p.accentDiodeDrop = 0.148834f;
+    p.accentMixSec = 0.151973f;
     p.oscSawLpfHz = 40000.0f;
     p.oscSawShape = 0.0f;
     p.oscSquareDutyDepth = 0.12f;
@@ -309,7 +309,7 @@ inline SynthParameters makeCalibrationPreset_x0x_circuit() {
     p.vcfDecayMinSec = 0.0649836f;
     p.vcfDecayMaxSec = 1.0334f;
     p.vcfDecayTaper = 8.35757f;
-    p.accentDecaySec = 0.0584235f;
+    p.accentDecaySec = 0.0617467f;
     p.filterResonanceSkew = -0.9737f;
     p.filterResonanceLimit = 0.992779f;
     return p;
