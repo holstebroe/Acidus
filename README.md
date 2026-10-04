@@ -77,10 +77,9 @@ route its note output to Acidus).
 **VST3.** `burette.vst3` is the same plugin; it shows up as an instrument
 with an event (MIDI) output. Route that output to Acidus; how depends on the
 host (Reaper and Bitwig route VST3 note output, some hosts do not). The
-accent change of a same-pitch slide is a pressure event, and the VST3
-wrapper (clap-wrapper) does not pass pressure out of a plugin: with
-`burette.vst3` those steps play as ties. Use `burette.clap` for them (it
-can drive `acidus.vst3`, which does take poly pressure).
+accent change of a same-pitch slide goes out as VST3 poly pressure; the
+host must route that too (tested with a minimal SDK host; Cubase likely
+does not). A host that drops it plays those steps as ties.
 
 **Editing.** Click a pattern number to edit it (the small FOLLOW light under
 PATTERN makes the editor jump to the pattern that starts playing). In the
@@ -279,7 +278,11 @@ The VST3 plugins, `acidus.vst3` and `burette.vst3`, are built next to them
 `.clap` file is needed. On Linux and macOS a `.vst3` is a folder (bundle);
 copy the whole folder to your VST3 directory.
 
-The VST3s are made with the `clap-wrapper` submodule. Configuring downloads
+The VST3s are made with the `clap-wrapper` submodule. It points at the
+`vst3-midi-out` branch of a fork (holstebroe/clap-wrapper): upstream
+v0.16.0 plus two fixes that let a VST3 plugin send MIDI note on/off and
+poly pressure out (upstream drops them, free-audio/clap-wrapper#414), and
+that address VST3 poly pressure without a note id by its pitch. Configuring downloads
 the VST3 SDK (MIT licensed) from GitHub; to use a local copy instead, pass
 `-DVST3_SDK_ROOT=/path/to/vst3sdk`. To build only the CLAPs, pass
 `-DACIDUS_BUILD_VST3=OFF`.
