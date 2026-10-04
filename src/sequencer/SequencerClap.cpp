@@ -310,7 +310,20 @@ clap_process_status SequencerClap::process(const clap_process_t* process) {
     uint32_t n = 0;
     auto pushNote = [&](const NoteEvent& e) {
         if (e.pressure) {
-            // An equal-pitch slide's accent change (SequencerEngine.hpp).
+            // An equal-pitch slide's accent change (SequencerEngine.hpp), as
+            // a CLAP pressure expression and as MIDI poly pressure: hosts
+            // differ in which they pass on between plugins. A synth that gets
+            // both sees the same accent twice, which changes nothing.
+            clap_event_midi_t midi{};
+            midi.header.size = sizeof(midi);
+            midi.header.time = e.time;
+            midi.header.space_id = CLAP_CORE_EVENT_SPACE_ID;
+            midi.header.type = CLAP_EVENT_MIDI;
+            midi.header.flags = 0;
+            midi.port_index = 0;
+            midi.data[0] = 0xA0;
+            midi.data[1] = static_cast<uint8_t>(e.key);
+            midi.data[2] = static_cast<uint8_t>(std::lround(std::min(std::max(e.velocity, 0.0f), 1.0f) * 127.0f));
             clap_event_note_expression_t ev{};
             ev.header.size = sizeof(ev);
             ev.header.time = e.time;
@@ -324,6 +337,7 @@ clap_process_status SequencerClap::process(const clap_process_t* process) {
             ev.key = static_cast<int16_t>(e.key);
             ev.value = e.velocity;
             out->try_push(out, &ev.header);
+            out->try_push(out, &midi.header);
             return;
         }
         clap_event_note_t ev{};

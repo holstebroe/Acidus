@@ -605,7 +605,8 @@ static void testClapRouting() {
 }
 
 // The accent change of an equal-pitch slide leaves Burette as a CLAP pressure
-// note expression on the held key, between the note's on and off.
+// note expression and a MIDI poly pressure on the held key, between the
+// note's on and off.
 static void testClapPressureOutput() {
     SequencerClap plugin(testHost());
     const clap_plugin_t* p = plugin.getClapPlugin();
@@ -644,7 +645,7 @@ static void testClapPressureOutput() {
     p->process(p, &proc);
 
     std::vector<uint16_t> types;
-    bool pressureOk = false;
+    bool pressureOk = false, midiOk = false;
     for (const auto& e : out.events) {
         const auto* h = reinterpret_cast<const clap_event_header_t*>(e.data());
         types.push_back(h->type);
@@ -652,10 +653,14 @@ static void testClapPressureOutput() {
             const auto* x = reinterpret_cast<const clap_event_note_expression_t*>(h);
             pressureOk = x->expression_id == CLAP_NOTE_EXPRESSION_PRESSURE && x->key == 36
                          && x->value == 1.0 && h->time == kStep + kDelay && x->note_id == -1;
+        } else if (h->type == CLAP_EVENT_MIDI) {
+            const auto* m = reinterpret_cast<const clap_event_midi_t*>(h);
+            midiOk = m->data[0] == 0xA0 && m->data[1] == 36 && m->data[2] == 127 && h->time == kStep + kDelay;
         }
     }
-    check(types == std::vector<uint16_t>({ CLAP_EVENT_NOTE_ON, CLAP_EVENT_NOTE_EXPRESSION, CLAP_EVENT_NOTE_OFF })
-          && pressureOk, "CLAP output: note on, pressure (accent), one note off");
+    check(types == std::vector<uint16_t>({ CLAP_EVENT_NOTE_ON, CLAP_EVENT_NOTE_EXPRESSION, CLAP_EVENT_MIDI,
+                                           CLAP_EVENT_NOTE_OFF })
+          && pressureOk && midiOk, "CLAP output: note on, pressure (accent) as expression and MIDI, one note off");
 }
 
 static void testTransposeParam() {

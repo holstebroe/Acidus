@@ -52,7 +52,9 @@ route its note output to Acidus).
   - **slide to the same pitch** sounds like a tie (no new note, no glide,
     no retrigger), except that it takes the slid-to step's accent: if that
     differs from the held note's, Burette sends polyphonic pressure on the
-    held key (full for accent on, zero for off) and Acidus switches the
+    held key (full for accent on, zero for off; as a CLAP note expression
+    and as MIDI poly aftertouch, since hosts differ in which they pass
+    between plugins) and Acidus switches the
     accent mid-note. Note-ons and note-offs stay paired. On a real 303 this
     is how the accent latch behaves when a new note is clocked under a held
     gate; whether the 303's own firmware keeps such a step or folds it into
@@ -75,9 +77,10 @@ route its note output to Acidus).
 **VST3.** `burette.vst3` is the same plugin; it shows up as an instrument
 with an event (MIDI) output. Route that output to Acidus; how depends on the
 host (Reaper and Bitwig route VST3 note output, some hosts do not). The
-accent change of a same-pitch slide is a pressure event; a host that does
-not pass pressure from Burette to Acidus drops it, and that step then plays
-as a tie.
+accent change of a same-pitch slide is a pressure event, and the VST3
+wrapper (clap-wrapper) does not pass pressure out of a plugin: with
+`burette.vst3` those steps play as ties. Use `burette.clap` for them (it
+can drive `acidus.vst3`, which does take poly pressure).
 
 **Editing.** Click a pattern number to edit it (the small FOLLOW light under
 PATTERN makes the editor jump to the pattern that starts playing). In the
