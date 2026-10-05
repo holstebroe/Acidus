@@ -56,8 +56,8 @@ int main() {
     mockOutList.ctx = &testCtx;
     mockOutList.try_push = TestOutEvents::tryPush;
 
-    gui.handleMouseDown(140, 100, false);
-    gui.handleMouseDrag(140, 20, false); // Drag up 80 pixels
+    gui.handleMouseDown(130, 100, false);
+    gui.handleMouseDrag(130, 20, false); // Drag up 80 pixels
     gui.handleMouseUp();
 
     double valNormal = 0.0;
@@ -73,8 +73,8 @@ int main() {
     assert(testCtx.paramIds.front() == acidus::PARAM_CUTOFF);
     std::cout << "GUI output event gesture queue test passed successfully! Events recorded: " << testCtx.types.size() << std::endl;
 
-    gui.handleMouseDown(232, 100, true); // Resonance knob at (232, 100) with Shift
-    gui.handleMouseDrag(232, 20, true);  // Drag up 80 pixels with Shift
+    gui.handleMouseDown(210, 100, true); // Resonance knob at (210, 100) with Shift
+    gui.handleMouseDrag(210, 20, true);  // Drag up 80 pixels with Shift
     gui.handleMouseUp();
 
     double valFine = 0.0;
@@ -83,10 +83,10 @@ int main() {
     assert(std::abs(valFine - 0.70) < 0.01);
 
     // Double-click on a knob resets it to its default, without dragging.
-    gui.handleMouseDown(232, 100, false);
+    gui.handleMouseDown(210, 100, false);
     gui.handleMouseUp();
-    gui.handleMouseDown(232, 100, false);
-    gui.handleMouseDrag(232, 20, false);   // ignored: the double-click started no drag
+    gui.handleMouseDown(210, 100, false);
+    gui.handleMouseDrag(210, 20, false);   // ignored: the double-click started no drag
     gui.handleMouseUp();
     double valReset = 0.0, resDefault = -1.0;
     plugin.paramsValue(acidus::PARAM_RESONANCE, &valReset);

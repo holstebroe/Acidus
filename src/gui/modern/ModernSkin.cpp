@@ -255,8 +255,9 @@ void paintPanel(Graphics& g, int width, int height, int dividerX) {
 
 // --- Knob --------------------------------------------------------------------
 
-constexpr float kStartAngle = 135.f * kPi / 180.f;   // 7 o'clock
-constexpr float kTotalAngle = 270.f * kPi / 180.f;
+// The 303's dial: 7 o'clock to 5 o'clock on the clock hours, 300 degrees.
+constexpr float kStartAngle = 120.f * kPi / 180.f;   // 7 o'clock
+constexpr float kTotalAngle = 300.f * kPi / 180.f;
 constexpr int kGripRidges = 30;
 
 void drawKnobDial(Graphics& g, float cx, float cy, float r) {
@@ -474,14 +475,15 @@ public:
         const uint32_t active = 0xFF157A1C, dim = 0xC0707478;
         const uint32_t saw = isSquare ? dim : active, sq = isSquare ? active : dim;
         const float ix = cx - 21.f, sy = cy - 9.f, qy = cy + 9.f;
-        drawLineAA(g, ix - 7, sy + 4, ix, sy - 4, 1.3f, saw);
-        drawLineAA(g, ix, sy - 4, ix, sy + 4, 1.3f, saw);
-        drawLineAA(g, ix, sy + 4, ix + 7, sy - 4, 1.3f, saw);
-        drawLineAA(g, ix - 7, qy - 4, ix - 3, qy - 4, 1.3f, sq);
-        drawLineAA(g, ix - 3, qy - 4, ix - 3, qy + 4, 1.3f, sq);
-        drawLineAA(g, ix - 3, qy + 4, ix + 3, qy + 4, 1.3f, sq);
-        drawLineAA(g, ix + 3, qy + 4, ix + 3, qy - 4, 1.3f, sq);
-        drawLineAA(g, ix + 3, qy - 4, ix + 7, qy - 4, 1.3f, sq);
+        // As printed on the 303: the saw rises straight up and ramps down,
+        // twice; the pulse is two humps on a baseline.
+        const float sawPts[][2] = { { -7, 4 }, { -7, -4 }, { 0, 4 }, { 0, -4 }, { 7, 4 } };
+        const float sqPts[][2] = { { -8, 4 }, { -6, 4 }, { -6, -4 }, { -2, -4 }, { -2, 4 }, { 2, 4 },
+                                   { 2, -4 }, { 6, -4 }, { 6, 4 }, { 8, 4 } };
+        for (int i = 0; i + 1 < 5; ++i)
+            drawLineAA(g, ix + sawPts[i][0], sy + sawPts[i][1], ix + sawPts[i + 1][0], sy + sawPts[i + 1][1], 1.3f, saw);
+        for (int i = 0; i + 1 < 10; ++i)
+            drawLineAA(g, ix + sqPts[i][0], qy + sqPts[i][1], ix + sqPts[i + 1][0], qy + sqPts[i + 1][1], 1.3f, sq);
         store(g);
     }
 

@@ -38,6 +38,10 @@ struct Control {
 
 class GuiWindow {
 public:
+    // The panel's fixed size, as reported to the host.
+    static constexpr uint32_t kDefaultWidth = 966;
+    static constexpr uint32_t kDefaultHeight = 180;
+
     explicit GuiWindow(AcidusClap* plugin);
     ~GuiWindow();
 
@@ -89,8 +93,8 @@ public:
 
 private:
     AcidusClap* plugin_{nullptr};
-    uint32_t width_{1070};
-    uint32_t height_{180};
+    uint32_t width_{kDefaultWidth};
+    uint32_t height_{kDefaultHeight};
 
     // The host's UI thread (show/setSize/...) and the window's own event
     // thread both render and handle input; this serialises them.

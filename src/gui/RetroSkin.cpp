@@ -22,20 +22,25 @@ void drawLabel(Graphics& g, const Font& font, const Control& ctrl, int top) {
     g.drawText(font, ctrl.label, ctrl.x - textW / 2, top, kInk, kLabelTextScale);
 }
 
-// A rising ramp with a sharp vertical drop, drawn twice across the icon's width.
+// The 303 panel's saw: a vertical rise, then a ramp down, twice.
 void drawSawIcon(Graphics& g, int cx, int cy, uint32_t color) {
-    g.drawLine(cx - 7, cy + 4, cx, cy - 4, color, 1);
-    g.drawLine(cx, cy - 4, cx, cy + 4, color, 1);
-    g.drawLine(cx, cy + 4, cx + 7, cy - 4, color, 1);
+    g.drawLine(cx - 7, cy + 4, cx - 7, cy - 4, color, 1);
+    g.drawLine(cx - 7, cy - 4, cx, cy + 4, color, 1);
+    g.drawLine(cx, cy + 4, cx, cy - 4, color, 1);
+    g.drawLine(cx, cy - 4, cx + 7, cy + 4, color, 1);
 }
 
-// A square wave: high, drop, low, rise, high.
+// The 303 panel's pulse: two humps on a baseline.
 void drawSquareIcon(Graphics& g, int cx, int cy, uint32_t color) {
-    g.drawLine(cx - 7, cy - 4, cx - 3, cy - 4, color, 1);
-    g.drawLine(cx - 3, cy - 4, cx - 3, cy + 4, color, 1);
-    g.drawLine(cx - 3, cy + 4, cx + 3, cy + 4, color, 1);
-    g.drawLine(cx + 3, cy + 4, cx + 3, cy - 4, color, 1);
-    g.drawLine(cx + 3, cy - 4, cx + 7, cy - 4, color, 1);
+    g.drawLine(cx - 8, cy + 4, cx - 6, cy + 4, color, 1);
+    g.drawLine(cx - 6, cy + 4, cx - 6, cy - 4, color, 1);
+    g.drawLine(cx - 6, cy - 4, cx - 2, cy - 4, color, 1);
+    g.drawLine(cx - 2, cy - 4, cx - 2, cy + 4, color, 1);
+    g.drawLine(cx - 2, cy + 4, cx + 2, cy + 4, color, 1);
+    g.drawLine(cx + 2, cy + 4, cx + 2, cy - 4, color, 1);
+    g.drawLine(cx + 2, cy - 4, cx + 6, cy - 4, color, 1);
+    g.drawLine(cx + 6, cy - 4, cx + 6, cy + 4, color, 1);
+    g.drawLine(cx + 6, cy + 4, cx + 8, cy + 4, color, 1);
 }
 
 // Soft drop shadow: several translucent discs, offset down-right, so the
@@ -85,9 +90,10 @@ void RetroSkin::drawKnob(Graphics& g, const Control& ctrl, const Font& font) {
     const int cy = ctrl.y;
     const int r = ctrl.radius;
 
-    // Dial: 11 ticks from 7 o'clock to 5 o'clock, and the index square.
-    const double startAngle = 135.0 * kPi / 180.0;
-    const double totalAngle = 270.0 * kPi / 180.0;
+    // Dial: 11 ticks on the clock hours from 7 o'clock to 5 o'clock (a
+    // 300 degree sweep, as on the 303), and the index square.
+    const double startAngle = 120.0 * kPi / 180.0;
+    const double totalAngle = 300.0 * kPi / 180.0;
     for (int i = 0; i < 11; ++i) {
         double a = startAngle + totalAngle * i / 10.0;
         int x1 = cx + static_cast<int>(std::lround(std::cos(a) * (r + 4)));
