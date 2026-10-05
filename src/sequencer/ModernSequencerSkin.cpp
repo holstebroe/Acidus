@@ -35,10 +35,10 @@ constexpr uint32_t kStatusInk = 0xFF8A4A00;
 constexpr float kLabelCap = 7.f;
 // The playing step's column: a tint behind its cells and a glowing frame
 // round it. Raise the alphas (0..1) to make the playhead stand out more.
-const Color kPlayhead{ 1.00f, 0.82f, 0.15f };
-constexpr float kPlayheadTint = 0.22f;        // behind the cells
+const Color kPlayhead{ 0.22f, 0.43f, 0.64f };
+constexpr float kPlayheadTint = 0.4f;        // behind the cells
 constexpr float kPlayheadFrame = 0.85f;       // the frame line
-constexpr float kPlayheadGlow = 0.35f;        // its glow outside the column
+constexpr float kPlayheadGlow = 0.6f;        // its glow outside the column
 
 void label(Graphics& g, const char* text, float x, float capTop, uint32_t argb = kInk) {
     drawText(g, kLabelFont, text, x, capTop, kLabelCap, argb, 0.15f);
