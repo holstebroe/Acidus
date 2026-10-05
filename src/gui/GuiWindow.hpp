@@ -39,7 +39,7 @@ struct Control {
 class GuiWindow {
 public:
     // The panel's fixed size, as reported to the host.
-    static constexpr uint32_t kDefaultWidth = 966;
+    static constexpr uint32_t kDefaultWidth = 854;
     static constexpr uint32_t kDefaultHeight = 180;
 
     explicit GuiWindow(AcidusClap* plugin);

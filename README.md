@@ -304,7 +304,8 @@ cmake -B build-modern -DCMAKE_BUILD_TYPE=Release -DACIDUS_GUI_STYLE=MODERN
 
   ![Retro GUI](docs/images/gui_retro.png)
 
-- **MODERN**: a worn, silver-painted 303 panel (brushed grain, grime,
+- **MODERN**: a worn, silver-painted 303 panel (brushed grain, grime, stains,
+  paint rubbed thin at the edges, flaked chips,
   scratches) with knobs shaded per pixel like the 303's: dark foot ring,
   knurled grip with a pointer nub, polished chamfer and a spun-metal top
   with an incised pointer line, lit from the upper left with soft shadows.

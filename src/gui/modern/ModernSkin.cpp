@@ -217,7 +217,17 @@ void paintPanel(Graphics& g, int width, int height, int dividerX) {
             const float edge = std::min(std::min(y, height - y) / 40.f, 1.f);
             const float grime = smoothstep(0.45f, 0.85f, fbm(x / 70.f, y / 45.f, 9)) * 0.55f
                                 + (1.f - edge) * 0.35f;
-            c = mix(c, grimeTint, 0.16f * grime);
+            c = mix(c, grimeTint, 0.24f * grime);
+            // Old stains: a few faint brownish blotches with darker rims,
+            // where something was spilled and dried.
+            const float stain = fbm(x / 34.f, y / 30.f, 13);
+            const float blot = smoothstep(0.70f, 0.73f, stain) * (1.f - 0.5f * smoothstep(0.73f, 0.78f, stain));
+            c = mix(c, Color{ 0.52f, 0.47f, 0.38f }, 0.12f * blot);
+            // Paint rubbed thin by hands along the panel's edges and in a
+            // few worn patches: brighter, smoother metal shows through.
+            const float rubBand = 1.f - smoothstep(14.f, 24.f, std::min(y, height - y));
+            const float rub = smoothstep(0.55f, 0.75f, fbm(x / 9.f, y / 30.f, 17)) * (0.35f + 0.65f * rubBand);
+            c = mix(c, Color{ 0.86f, 0.87f, 0.86f }, 0.30f * rub);
             // Gentle vignette.
             const float vx = (x / width - 0.5f) * 2.f, vy = (y / height - 0.5f) * 2.f;
             shade *= 1.f - 0.06f * (vx * vx * 0.5f + vy * vy);
@@ -241,12 +251,28 @@ void paintPanel(Graphics& g, int width, int height, int dividerX) {
     // Light scratches and scuffs from years of use.
     uint32_t seed = 0xAC1D;
     auto rnd = [&seed]() { seed = hashU(seed + 0x9E3779B9u); return (seed & 0xFFFFFF) / 16777216.f; };
-    for (int i = 0; i < 40; ++i) {
+    for (int i = 0; i < 70; ++i) {
         const float x = rnd() * dividerX, y = 16.f + rnd() * (height - 32.f);
         const float len = 3.f + 22.f * rnd() * rnd();
         const float ang = (rnd() - 0.5f) * 0.9f + (rnd() < 0.3f ? kPi / 2 : 0.f);
-        const uint32_t col = rnd() < 0.7f ? 0x18FFFFFFu : 0x0E000000u;
+        const uint32_t col = rnd() < 0.7f ? 0x22FFFFFFu : 0x14000000u;
         drawLineAA(g, x, y, x + len * std::cos(ang), y + len * std::sin(ang), 0.35f, col);
+    }
+
+    // Small chips where the paint has flaked off down to the dark primer,
+    // with a lit lower-right edge where the paint layer stands proud.
+    for (int i = 0; i < 28; ++i) {
+        const float x = 4.f + rnd() * (dividerX - 8.f), y = 15.f + rnd() * (height - 30.f);
+        const float r = 0.5f + 1.6f * rnd() * rnd();
+        const uint32_t chipSeed = 100 + i;
+        shadeBox(g, x - r - 2, y - r - 2, x + r + 2, y + r + 2, [&](float px, float py) {
+            const float dx = px - x, dy = py - y;
+            const float wobble = 1.f + 0.45f * (valueNoise(px * 1.3f, py * 1.3f, chipSeed) - 0.5f);
+            const float d = std::sqrt(dx * dx + dy * dy) / (r * wobble);
+            if (d < 1.f) return toArgb({ 0.42f, 0.42f, 0.41f }, 0.85f * smoothstep(1.f, 0.8f, d));
+            if (d < 1.35f && dx + dy > 0.f) return toArgb({ 1.f, 1.f, 1.f }, 0.35f * (1.35f - d) / 0.35f);
+            return 0u;
+        });
     }
 
     // The printed divider before the logo plate.
@@ -448,23 +474,23 @@ public:
     void drawKnob(Graphics& g, const Control& ctrl, const Font&) override {
         const float cx = ctrl.x + 0.5f, cy = ctrl.y + 0.5f, r = static_cast<float>(ctrl.radius);
         const float labelTop = static_cast<float>(ctrl.y - ctrl.radius - kLabelGap);
-        const float halfW = std::max(r + 11.f, ctrl.label ? labelWidth(ctrl.label) / 2.f + 2.f : 0.f);
-        if (restore(g, ctrl, cx - halfW, labelTop - 2.f, cx + halfW, cy + r + 14.f)) return;
+        // Labels are not cached: they can be wider than the knob and the
+        // knobs sit close, so the cached areas cover only dial and shadow.
+        drawLabel(g, ctrl.label, cx, labelTop, kInk);
+        if (restore(g, ctrl, cx - r - 11.f, cy - r - 15.f, cx + r + 11.f, cy + r + 14.f)) return;
         double norm = (ctrl.currentVal - ctrl.minVal) / (ctrl.maxVal - ctrl.minVal);
         norm = std::isfinite(norm) ? std::min(std::max(norm, 0.0), 1.0) : 0.0;
         drawKnobDial(g, cx, cy, r);
         drawKnobBody(g, cx, cy, r, kStartAngle + static_cast<float>(norm) * kTotalAngle, ctrl.accentColor);
-        drawLabel(g, ctrl.label, cx, labelTop, kInk);
         store(g);
     }
 
     void drawToggleSwitch(Graphics& g, const Control& ctrl, const Font&) override {
         const float cx = ctrl.x + 0.5f, cy = ctrl.y + 0.5f;
         const float labelTop = static_cast<float>(ctrl.y - 20 - kLabelGap);
-        const float halfW = std::max(32.f, ctrl.label ? labelWidth(ctrl.label) / 2.f + 2.f : 0.f);
-        if (restore(g, ctrl, cx - halfW, labelTop - 2.f, cx + halfW, cy + 29.f)) return;
-        const bool isSquare = ctrl.currentVal >= 0.5;
         drawLabel(g, ctrl.label, cx, labelTop, kInk);
+        if (restore(g, ctrl, cx - 32.f, cy - 26.f, cx + 32.f, cy + 29.f)) return;
+        const bool isSquare = ctrl.currentVal >= 0.5;
         drawSwitchBody(g, cx, cy, isSquare);
 
         // Waveform symbols beside the two positions, the active one in
@@ -488,8 +514,9 @@ private:
     // Shading a knob costs far more than copying it, and while one knob is
     // dragged the others redraw unchanged. So each control's finished
     // pixels are kept, keyed by its value, and copied back on a repeat. The
-    // area is the control's own (dial, shadow, label), over the cached
-    // panel, so it is the same every time the value is.
+    // area is the control's own (dial and shadow, not overlapping its
+    // neighbours'), over the cached panel, so it is the same every time
+    // the value is.
     struct Sprite {
         int id{-1};
         double value{0.0};
