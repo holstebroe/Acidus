@@ -33,6 +33,12 @@ const Color kDarkText{ 0.06f, 0.11f, 0.04f };
 constexpr uint32_t kDimInk = 0x90222326;
 constexpr uint32_t kStatusInk = 0xFF8A4A00;
 constexpr float kLabelCap = 7.f;
+// The playing step's column: a tint behind its cells and a glowing frame
+// round it. Raise the alphas (0..1) to make the playhead stand out more.
+const Color kPlayhead{ 1.00f, 0.82f, 0.15f };
+constexpr float kPlayheadTint = 0.22f;        // behind the cells
+constexpr float kPlayheadFrame = 0.85f;       // the frame line
+constexpr float kPlayheadGlow = 0.35f;        // its glow outside the column
 
 void label(Graphics& g, const char* text, float x, float capTop, uint32_t argb = kInk) {
     drawText(g, kLabelFont, text, x, capTop, kLabelCap, argb, 0.15f);
@@ -405,7 +411,7 @@ void ModernSequencerSkin::draw(Graphics& g, const SequencerView& v) {
             }
             // The step playing now: a soft yellow light behind its column.
             if (lit) {
-                shadeBox(g, x, y, x + w, y + h, [](float, float) { return toArgb({ 1.f, 0.85f, 0.2f }, 0.22f); });
+                shadeBox(g, x, y, x + w, y + h, [](float, float) { return toArgb(kPlayhead, kPlayheadTint); });
             }
             const float cx = x + kInset, cy = y + kInset, cw = w - 2 * kInset, ch = h - 2 * kInset;
             const float mid = x + w / 2.f;
@@ -453,8 +459,9 @@ void ModernSequencerSkin::draw(Graphics& g, const SequencerView& v) {
         const float hw = kCellW / 2.f - 1.f, hh = (gridBottom - kGridY) / 2.f - 1.f;
         shadeBox(g, sx - 4, kGridY - 4.f, sx + kCellW + 4, gridBottom + 4.f, [&](float px, float py) {
             const float d = sdRoundRect(px - cx, py - cy, hw, hh, 4.f);
-            const float a = 0.85f * (1.f - smoothstep(0.f, 1.2f, std::fabs(d))) + (d > 0.f ? 0.35f * (1.f - smoothstep(0.f, 3.5f, d)) : 0.f);
-            return a > 0.f ? toArgb({ 1.f, 0.82f, 0.15f }, std::min(a, 1.f)) : 0u;
+            const float a = kPlayheadFrame * (1.f - smoothstep(0.f, 1.2f, std::fabs(d)))
+                            + (d > 0.f ? kPlayheadGlow * (1.f - smoothstep(0.f, 3.5f, d)) : 0.f);
+            return a > 0.f ? toArgb(kPlayhead, std::min(a, 1.f)) : 0u;
         });
     }
 
