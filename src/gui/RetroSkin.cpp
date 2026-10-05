@@ -1,4 +1,4 @@
-#include "ControlRenderer.hpp"
+#include "IGuiSkin.hpp"
 #include "Graphics.hpp"
 #include "Font.hpp"
 #include "GuiWindow.hpp"
@@ -22,20 +22,25 @@ void drawLabel(Graphics& g, const Font& font, const Control& ctrl, int top) {
     g.drawText(font, ctrl.label, ctrl.x - textW / 2, top, kInk, kLabelTextScale);
 }
 
-// A rising ramp with a sharp vertical drop, drawn twice across the icon's width.
+// The 303 panel's saw: a vertical rise, then a ramp down, twice.
 void drawSawIcon(Graphics& g, int cx, int cy, uint32_t color) {
-    g.drawLine(cx - 7, cy + 4, cx, cy - 4, color, 1);
-    g.drawLine(cx, cy - 4, cx, cy + 4, color, 1);
-    g.drawLine(cx, cy + 4, cx + 7, cy - 4, color, 1);
+    g.drawLine(cx - 7, cy + 4, cx - 7, cy - 4, color, 1);
+    g.drawLine(cx - 7, cy - 4, cx, cy + 4, color, 1);
+    g.drawLine(cx, cy + 4, cx, cy - 4, color, 1);
+    g.drawLine(cx, cy - 4, cx + 7, cy + 4, color, 1);
 }
 
-// A square wave: high, drop, low, rise, high.
+// The 303 panel's pulse: two humps on a baseline.
 void drawSquareIcon(Graphics& g, int cx, int cy, uint32_t color) {
-    g.drawLine(cx - 7, cy - 4, cx - 3, cy - 4, color, 1);
-    g.drawLine(cx - 3, cy - 4, cx - 3, cy + 4, color, 1);
-    g.drawLine(cx - 3, cy + 4, cx + 3, cy + 4, color, 1);
-    g.drawLine(cx + 3, cy + 4, cx + 3, cy - 4, color, 1);
-    g.drawLine(cx + 3, cy - 4, cx + 7, cy - 4, color, 1);
+    g.drawLine(cx - 8, cy + 4, cx - 6, cy + 4, color, 1);
+    g.drawLine(cx - 6, cy + 4, cx - 6, cy - 4, color, 1);
+    g.drawLine(cx - 6, cy - 4, cx - 2, cy - 4, color, 1);
+    g.drawLine(cx - 2, cy - 4, cx - 2, cy + 4, color, 1);
+    g.drawLine(cx - 2, cy + 4, cx + 2, cy + 4, color, 1);
+    g.drawLine(cx + 2, cy + 4, cx + 2, cy - 4, color, 1);
+    g.drawLine(cx + 2, cy - 4, cx + 6, cy - 4, color, 1);
+    g.drawLine(cx + 6, cy - 4, cx + 6, cy + 4, color, 1);
+    g.drawLine(cx + 6, cy + 4, cx + 8, cy + 4, color, 1);
 }
 
 // Soft drop shadow: several translucent discs, offset down-right, so the
@@ -49,16 +54,46 @@ void drawShadow(Graphics& g, int cx, int cy, int r) {
 
 constexpr double kPi = 3.14159265358979323846;
 
+// The retro skin: flat-shaded silver panel and knobs drawn from circles and
+// lines, labels in the 5x7 pixel font. The smallest build.
+class RetroSkin : public IGuiSkin {
+public:
+    void drawPanel(Graphics& g, int width, int height, int dividerX) override;
+    void drawKnob(Graphics& g, const Control& ctrl, const Font& font) override;
+    void drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) override;
+};
+
 } // namespace
 
-void TB303ControlRenderer::drawKnob(Graphics& g, const Control& ctrl, const Font& font) {
+std::unique_ptr<IGuiSkin> createGuiSkin() {
+    return std::make_unique<RetroSkin>();
+}
+
+void RetroSkin::drawPanel(Graphics& g, int width, int height, int dividerX) {
+    // Brushed silver panel background
+    g.clear(0xFFDBDFE1);
+
+    // Top & Bottom metallic borders / trims
+    g.drawRect(0, 0, width, 12, 0xFFC0C4C8);
+    g.drawLine(0, 12, width, 12, 0xFF808488, 1);
+    g.drawLine(0, 13, width, 13, 0xFFFFFFFF, 1);
+
+    g.drawLine(0, height - 14, width, height - 14, 0xFF808488, 1);
+    g.drawRect(0, height - 13, width, 13, 0xFFC0C4C8);
+
+    // Vertical dividing line separating controls from right title panel
+    g.drawLine(dividerX, 14, dividerX, height - 14, 0xFF181818, 2);
+}
+
+void RetroSkin::drawKnob(Graphics& g, const Control& ctrl, const Font& font) {
     const int cx = ctrl.x;
     const int cy = ctrl.y;
     const int r = ctrl.radius;
 
-    // Dial: 11 ticks from 7 o'clock to 5 o'clock, and the index square.
-    const double startAngle = 135.0 * kPi / 180.0;
-    const double totalAngle = 270.0 * kPi / 180.0;
+    // Dial: 11 ticks on the clock hours from 7 o'clock to 5 o'clock (a
+    // 300 degree sweep, as on the 303), and the index square.
+    const double startAngle = 120.0 * kPi / 180.0;
+    const double totalAngle = 300.0 * kPi / 180.0;
     for (int i = 0; i < 11; ++i) {
         double a = startAngle + totalAngle * i / 10.0;
         int x1 = cx + static_cast<int>(std::lround(std::cos(a) * (r + 4)));
@@ -109,7 +144,7 @@ void TB303ControlRenderer::drawKnob(Graphics& g, const Control& ctrl, const Font
     drawLabel(g, font, ctrl, cy - r - kLabelGap);
 }
 
-void TB303ControlRenderer::drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) {
+void RetroSkin::drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) {
     const int cx = ctrl.x;
     const int cy = ctrl.y;
     bool isSquare = (ctrl.currentVal >= 0.5);

@@ -14,7 +14,7 @@
 #include <string>
 #include "Font.hpp"
 #include "FileDialog.hpp"
-#include "IControlRenderer.hpp"
+#include "IGuiSkin.hpp"
 
 namespace acidus {
 
@@ -41,6 +41,10 @@ struct Control {
 
 class GuiWindow {
 public:
+    // The panel's fixed size, as reported to the host.
+    static constexpr uint32_t kDefaultWidth = 854;
+    static constexpr uint32_t kDefaultHeight = 180;
+
     explicit GuiWindow(AcidusClap* plugin);
     ~GuiWindow();
 
@@ -66,9 +70,10 @@ public:
     void setFont(const Font& font) { font_ = font; staticKey_.clear(); overlayValid_ = false; }
     const Font& getFont() const { return font_; }
 
-    void setControlRenderer(std::unique_ptr<IControlRenderer> renderer) {
-        if (renderer) {
-            controlRenderer_ = std::move(renderer);
+    // Replace the build's skin (tests).
+    void setSkin(std::unique_ptr<IGuiSkin> skin) {
+        if (skin) {
+            skin_ = std::move(skin);
             staticKey_.clear();
         }
     }
@@ -114,8 +119,8 @@ public:
 
 private:
     AcidusClap* plugin_{nullptr};
-    uint32_t width_{1070};
-    uint32_t height_{180};
+    uint32_t width_{kDefaultWidth};
+    uint32_t height_{kDefaultHeight};
 
     // The host's UI thread (show/setSize/...) and the window's own event
     // thread both render and handle input; this serialises them.
@@ -142,7 +147,7 @@ private:
     bool lastShiftState_{false};
 
     Font font_{Font::classic5x7()};
-    std::unique_ptr<IControlRenderer> controlRenderer_;
+    std::unique_ptr<IGuiSkin> skin_;
 
     int activeControlIndex_{-1};
 

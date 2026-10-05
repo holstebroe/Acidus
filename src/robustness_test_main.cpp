@@ -355,7 +355,7 @@ static void testGui() {
     gui.renderFrame();
     gui.advanceAnimation(std::numeric_limits<double>::quiet_NaN());
     gui.advanceAnimation(1.0e300);
-    gui.setSize(1070, 180);
+    gui.setSize(acidus::GuiWindow::kDefaultWidth, acidus::GuiWindow::kDefaultHeight);
     gui.renderFrame();
     const int coords[] = { -1000000, -1, 0, 5000, 1000000, 2147483647, -2147483647 };
     for (int x : coords) for (int y : coords) {

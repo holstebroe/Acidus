@@ -2,7 +2,7 @@
 #include "gui/GuiWindow.hpp"
 #include "gui/Graphics.hpp"
 #include "gui/Font.hpp"
-#include "gui/IControlRenderer.hpp"
+#include "gui/IGuiSkin.hpp"
 #include "core/CalibrationPresets.hpp"
 #include "core/CalibrationProfile.hpp"
 #include <cstdio>
@@ -59,8 +59,8 @@ int main() {
     mockOutList.ctx = &testCtx;
     mockOutList.try_push = TestOutEvents::tryPush;
 
-    gui.handleMouseDown(140, 100, false);
-    gui.handleMouseDrag(140, 20, false); // Drag up 80 pixels
+    gui.handleMouseDown(120, 100, false);
+    gui.handleMouseDrag(120, 20, false); // Drag up 80 pixels
     gui.handleMouseUp();
 
     double valNormal = 0.0;
@@ -76,8 +76,8 @@ int main() {
     assert(testCtx.paramIds.front() == acidus::PARAM_CUTOFF);
     std::cout << "GUI output event gesture queue test passed successfully! Events recorded: " << testCtx.types.size() << std::endl;
 
-    gui.handleMouseDown(232, 100, true); // Resonance knob at (232, 100) with Shift
-    gui.handleMouseDrag(232, 20, true);  // Drag up 80 pixels with Shift
+    gui.handleMouseDown(186, 100, true); // Resonance knob at (186, 100) with Shift
+    gui.handleMouseDrag(186, 20, true);  // Drag up 80 pixels with Shift
     gui.handleMouseUp();
 
     double valFine = 0.0;
@@ -86,10 +86,10 @@ int main() {
     assert(std::abs(valFine - 0.70) < 0.01);
 
     // Double-click on a knob resets it to its default, without dragging.
-    gui.handleMouseDown(232, 100, false);
+    gui.handleMouseDown(186, 100, false);
     gui.handleMouseUp();
-    gui.handleMouseDown(232, 100, false);
-    gui.handleMouseDrag(232, 20, false);   // ignored: the double-click started no drag
+    gui.handleMouseDown(186, 100, false);
+    gui.handleMouseDrag(186, 20, false);   // ignored: the double-click started no drag
     gui.handleMouseUp();
     double valReset = 0.0, resDefault = -1.0;
     plugin.paramsValue(acidus::PARAM_RESONANCE, &valReset);
@@ -155,8 +155,9 @@ int main() {
     gui.setFont(customFont);
     assert(gui.getFont().getWidth() == 6);
 
-    class TestCustomRenderer : public acidus::IControlRenderer {
+    class TestCustomRenderer : public acidus::IGuiSkin {
     public:
+        bool panelDrawn = false;
         bool knobDrawn = false;
         bool switchDrawn = false;
         void drawKnob(acidus::Graphics& g, const acidus::Control& ctrl, const acidus::Font& font) override {
@@ -165,15 +166,19 @@ int main() {
         void drawToggleSwitch(acidus::Graphics& g, const acidus::Control& ctrl, const acidus::Font& font) override {
             switchDrawn = true;
         }
+        void drawPanel(acidus::Graphics& g, int width, int height, int dividerX) override {
+            panelDrawn = true;
+        }
     };
 
     auto customRenderer = std::make_unique<TestCustomRenderer>();
     auto* rawPtr = customRenderer.get();
-    gui.setControlRenderer(std::move(customRenderer));
+    gui.setSkin(std::move(customRenderer));
     gui.renderFrame();
+    assert(rawPtr->panelDrawn);
     assert(rawPtr->knobDrawn);
     assert(rawPtr->switchDrawn);
-    std::cout << "Custom Font and IControlRenderer interface tests passed successfully!" << std::endl;
+    std::cout << "Custom Font and IGuiSkin interface tests passed successfully!" << std::endl;
 
     {
         // Logo plate bubbles: more Cutoff, more bubbles.
@@ -522,6 +527,29 @@ int main() {
         p.process(&proc);
         check(!p.transportBarPhase(phase), "stopped transport: free-running pulse");
         std::cout << "Accent smiley and bar-synced glow tests passed" << std::endl;
+    }
+
+    {
+        // Skins may cache what they draw (the modern one keeps each knob's
+        // pixels by value): turning a knob away and back must give the same
+        // frame as before, and a moved knob must actually look different.
+        acidus::AcidusClap p(nullptr);
+        acidus::GuiWindow w(&p);
+        auto check = [](bool ok, const char* what) {
+            if (!ok) { std::cerr << "FAIL: " << what << std::endl; std::exit(1); }
+        };
+        w.setAnimationFrozen(true);
+        w.renderFrame();
+        const auto original = w.getPixelBuffer();
+        double cutoff = 0.0;
+        p.paramsValue(acidus::PARAM_CUTOFF, &cutoff);
+        p.setParamValueFromGui(acidus::PARAM_CUTOFF, cutoff > 0.5 ? 0.1 : 0.9);
+        w.renderFrame();
+        check(w.getPixelBuffer() != original, "a turned knob redraws");
+        p.setParamValueFromGui(acidus::PARAM_CUTOFF, cutoff);
+        w.renderFrame();
+        check(w.getPixelBuffer() == original, "turning it back restores the same frame");
+        std::cout << "Skin redraw consistency test passed" << std::endl;
     }
 
     std::cout << "All Acidus GUI tests passed successfully!" << std::endl;

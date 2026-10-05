@@ -27,6 +27,11 @@ public:
     // Blend one pixel in buffer coordinates (logical x scale), no scaling.
     void blendPixel(int bx, int by, uint32_t srcColor);
 
+    // Supersampling factor and raw buffer, for skins that shade per buffer
+    // pixel (see blendPixel).
+    int getScale() const { return scale_; }
+    uint32_t* getBuffer() { return buffer_; }
+
     uint32_t getWidth() const { return logicalWidth_; }
     uint32_t getHeight() const { return logicalHeight_; }
 

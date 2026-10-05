@@ -1,7 +1,6 @@
 #include "GuiWindow.hpp"
 #include <cstdio>
 #include "Graphics.hpp"
-#include "ControlRenderer.hpp"
 #include "clap/AcidusClap.hpp"
 #include <cmath>
 #include <cstring>
@@ -24,7 +23,7 @@
 namespace acidus {
 
 GuiWindow::GuiWindow(AcidusClap* plugin)
-    : plugin_(plugin), controlRenderer_(std::make_unique<TB303ControlRenderer>()) {
+    : plugin_(plugin), skin_(createGuiSkin()) {
     pixelBuffer_.resize(width_ * height_, 0xFFDBDFE1);
     initControls();
 }
@@ -37,30 +36,30 @@ void GuiWindow::initControls() {
     controls_.clear();
 
     // Waveform selector leads the panel, rendered as a symbolic saw/square switch.
-    controls_.push_back({ PARAM_WAVEFORM, "WAVEFORM", ControlType::ToggleSwitch, 56, 100, 17, 0.0, 1.0, 0.0, true });
+    controls_.push_back({ PARAM_WAVEFORM, "WAVEFORM", ControlType::ToggleSwitch, 50, 100, 17, 0.0, 1.0, 0.0, true });
 
     // 5 Main Knobs, labelled as on the TB-303 panel.
-    controls_.push_back({ PARAM_CUTOFF, "CUT OFF FREQ", ControlType::Knob, 150, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_RESONANCE, "RESONANCE", ControlType::Knob, 240, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 330, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 420, 100, 20, 0.0, 1.0, 0.5, false });
-    controls_.push_back({ PARAM_ACCENT, "ACCENT", ControlType::Knob, 510, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_CUTOFF, "CUT OFF FREQ", ControlType::Knob, 120, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_RESONANCE, "RESONANCE", ControlType::Knob, 186, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_ENV_MOD, "ENV MOD", ControlType::Knob, 252, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_DECAY, "DECAY", ControlType::Knob, 318, 100, 20, 0.0, 1.0, 0.5, false });
+    controls_.push_back({ PARAM_ACCENT, "ACCENT", ControlType::Knob, 384, 100, 20, 0.0, 1.0, 0.5, false });
 
     // Tuning trim, a real front-panel-equivalent control (TB303_RESEARCH_
     // COMPENDIUM.md documents a 50 kΩ "B" Tuning pot alongside Cutoff/Env
     // Mod/Decay/Accent) -- range matches the hardware's documented ±700
     // cent trim travel, for nudging the plugin into tune against a
     // reference recording that's itself slightly off-pitch.
-    controls_.push_back({ PARAM_TUNE, "TUNING", ControlType::Knob, 610, 100, 20, -700.0, 700.0, 0.0, false });
+    controls_.push_back({ PARAM_TUNE, "TUNING", ControlType::Knob, 456, 100, 20, -700.0, 700.0, 0.0, false });
 
     // Panel order follows the signal: the 303's Volume, then the pedal it
     // drives. Master Volume Knob, set apart with its own accent color.
-    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 710, 100, 20, 0.0, 1.0, 0.8, false });
+    controls_.push_back({ PARAM_VOLUME, "VOLUME", ControlType::Knob, 528, 100, 20, 0.0, 1.0, 0.8, false });
     controls_.back().accentColor = 0xFF6B4A22; // warm amber, distinct from the graphite knobs
 
     // MXR Distortion+ drive, capped in the pedal's yellow. Fully
     // counter-clockwise (0.0) bypasses the pedal entirely.
-    controls_.push_back({ PARAM_DRIVE, "DRIVE", ControlType::Knob, 810, 100, 20, 0.0, 1.0, 0.0, false });
+    controls_.push_back({ PARAM_DRIVE, "DRIVE", ControlType::Knob, 594, 100, 20, 0.0, 1.0, 0.0, false });
     controls_.back().accentColor = 0xFFF5C21B; // MXR Distortion+ yellow, marks the pedal
 
     updateKnobValuesFromPlugin();
@@ -362,29 +361,14 @@ void GuiWindow::renderFrame() {
         staticKey_ = key;
         Graphics g(staticBuffer_.data(), width_, height_, 2);
 
-        // 1. Brushed silver panel background
-        g.clear(0xFFDBDFE1);
-
-        // Top & Bottom metallic borders / trims
-        g.drawRect(0, 0, width_, 12, 0xFFC0C4C8);
-        g.drawLine(0, 12, width_, 12, 0xFF808488, 1);
-        g.drawLine(0, 13, width_, 13, 0xFFFFFFFF, 1);
-
-        g.drawLine(0, height_ - 14, width_, height_ - 14, 0xFF808488, 1);
-        g.drawRect(0, height_ - 13, width_, 13, 0xFFC0C4C8);
-
-        // Vertical dividing line separating controls from right title panel
-        int dividerX = static_cast<int>(width_) - 180;
-        g.drawLine(dividerX, 14, dividerX, height_ - 14, 0xFF181818, 2);
-
-        // 2. Draw Controls
-        if (controlRenderer_) {
-            for (const auto& ctrl : controls_) {
-                if (ctrl.type == ControlType::Knob) {
-                    controlRenderer_->drawKnob(g, ctrl, font_);
-                } else if (ctrl.type == ControlType::ToggleSwitch) {
-                    controlRenderer_->drawToggleSwitch(g, ctrl, font_);
-                }
+        // 1. Panel, then the controls, in the build's skin.
+        const int dividerX = static_cast<int>(width_) - 180;
+        skin_->drawPanel(g, static_cast<int>(width_), static_cast<int>(height_), dividerX);
+        for (const auto& ctrl : controls_) {
+            if (ctrl.type == ControlType::Knob) {
+                skin_->drawKnob(g, ctrl, font_);
+            } else if (ctrl.type == ControlType::ToggleSwitch) {
+                skin_->drawToggleSwitch(g, ctrl, font_);
             }
         }
         drawAcidusTitle(g, titleX, titleY, kTitlePlate);
@@ -1105,8 +1089,8 @@ const clap_plugin_gui_t g_acidusGuiExtension = {
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
         if (!width || !height) return false;
-        *width = 1070;
-        *height = 180;
+        *width = GuiWindow::kDefaultWidth;
+        *height = GuiWindow::kDefaultHeight;
         return true;
     },
     [](const clap_plugin_t* plugin) -> bool {
@@ -1117,8 +1101,8 @@ const clap_plugin_gui_t g_acidusGuiExtension = {
     },
     [](const clap_plugin_t* plugin, uint32_t* width, uint32_t* height) -> bool {
         if (!width || !height) return false;
-        *width = 1070;
-        *height = 180;
+        *width = GuiWindow::kDefaultWidth;
+        *height = GuiWindow::kDefaultHeight;
         return true;
     },
     [](const clap_plugin_t* plugin, uint32_t width, uint32_t height) -> bool {

@@ -1,4 +1,7 @@
 build/
+build-modern/
+build-retro/
+build-default/
 dsp_test
 calibration_results/
 build-cal/

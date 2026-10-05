@@ -12,7 +12,7 @@
 - **Calibrated against hardware**: fitted to 400 recorded notes of a real TB-303 and checked against the service-manual schematics (see below).
 - **Four calibration presets**: two measured units, the schematic, and Hell Fish, a modded "ultimate 303".
 - **MXR Distortion+ stage**: a circuit model of the pedal after the 303's audio-taper Volume knob, so Volume drives the pedal as on hardware, with an automatic output trim.
-- **Custom Native Vector/Pixel GUI**: Lightweight pixel-rendered front panel featuring controls for Cutoff, Resonance, Env Mod, Decay, Accent, Waveform, Tuning, Volume, and Drive, plus a custom Acid Green logo with multi-layer glow.
+- **Custom Native Vector/Pixel GUI**: Lightweight pixel-rendered front panel featuring controls for Cutoff, Resonance, Env Mod, Decay, Accent, Waveform, Tuning, Volume, and Drive, plus a custom Acid Green logo with multi-layer glow. Two looks, chosen at build time: a **modern** one with shaded 303-style knobs and anti-aliased lettering (default) or the small **retro** panel (see [GUI style](#gui-style)).
 - **CLAP Standard Support**: Full support for CLAP parameter automation, state save/restore, and host event flushing.
 - **VST3 too**: both plugins are also built as VST3 (`acidus.vst3`, `burette.vst3`) by wrapping the same CLAP code with [clap-wrapper](https://github.com/free-audio/clap-wrapper).
 - **Cross-Platform Support**: Linux (X11), Windows (Win32), and macOS (Cocoa).
@@ -296,6 +296,54 @@ the VST3 SDK (MIT licensed) from GitHub; to use a local copy instead, pass
 `-DVST3_SDK_ROOT=/path/to/vst3sdk`. To build only the CLAPs, pass
 `-DACIDUS_BUILD_VST3=OFF`.
 
+### GUI style
+
+Both plugins come in two looks, picked with one CMake option:
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release                                # MODERN (default)
+cmake -B build-retro -DCMAKE_BUILD_TYPE=Release -DACIDUS_GUI_STYLE=RETRO
+```
+
+- **MODERN** (default): a worn, silver-painted 303 panel (brushed grain,
+  grime, stains, paint rubbed thin at the edges, flaked chips, scratches).
+  Acidus's knobs are shaded per pixel like the 303's: dark foot ring,
+  knurled grip with a pointer nub, polished chamfer and a spun-metal top
+  with an incised pointer line, lit from the upper left with soft shadows.
+  Burette has backlit green keys for the notes and the edited pattern,
+  glowing octave, accent and slide symbols in recessed wells, blue buttons
+  and a glowing playhead. Lettering is anti-aliased Liberation Sans (SIL OFL
+  1.1), pre-rasterized by `tools/gen_gui_fonts.py`. About 35 KB larger
+  (Acidus) and 65 KB larger (Burette) than RETRO.
+
+  ![Modern GUI](docs/images/gui_modern.png)
+
+  ![Modern Burette](docs/images/burette_modern.png)
+
+- **RETRO**: the small pixel-drawn panels, flat shading and a 5x7 pixel
+  font. The smallest binaries.
+
+  ![Retro GUI](docs/images/gui_retro.png)
+
+  ![Retro Burette](docs/images/burette_retro.png)
+
+Each plugin draws through a skin interface: `IGuiSkin`
+(`src/gui/IGuiSkin.hpp`: panel background, knobs, waveform switch) and
+`ISequencerSkin` (`src/sequencer/SequencerSkin.hpp`: the whole editor
+window). `GuiWindow` and `SequencerGui` keep the layout, input and (Acidus)
+the animated logo plate. Only the chosen skins' sources are compiled in
+(`RetroSkin.cpp`/`RetroSequencerSkin.cpp`, or `modern/ModernSkin.cpp`,
+`ModernSequencerSkin.cpp` and the shared `modern/ModernDraw.cpp`), so a
+retro build carries no modern code or font data. A new look is one more
+implementation of each interface, added to the option in `CMakeLists.txt`.
+
+The modern skins paint at 2x and filter down, and cache what does not
+change (the panel texture, each knob and grid cell by value), so a redraw
+re-shades only what moved. `acidus_gui_perf_test` and
+`burette_gui_perf_test` time the GUIs' frames (first frame, idle, knob
+drag, automation, Burette step change and pattern switch) and fail when a
+frame goes over budget; CI runs them on Linux.
+
 ### Calibration build
 
 By default the plugin only exposes the eight front-panel controls (including
@@ -385,6 +433,7 @@ Results go to `calibration_results/<timestamp>/`:
 ./build/acidus_gui_test
 ./build/acidus_reference_test    # checks the DSP against docs/TB-303 Reference/TB303_REFERENCE.md
 ./build/burette_test             # sequencer timing, host sync, state and GUI editing
+./build/acidus_gui_perf_test     # GUI frame times against budgets (also burette_gui_perf_test)
 ```
 
 `acidus_reference_test` measures frequency response, resonance-loop
