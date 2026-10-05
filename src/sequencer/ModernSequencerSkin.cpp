@@ -36,6 +36,8 @@ constexpr float kLabelCap = 7.f;
 // The playing step's column: a tint behind its cells and a glowing frame
 // round it. Raise the alphas (0..1) to make the playhead stand out more.
 const Color kPlayhead{ 0.22f, 0.43f, 0.64f };
+// Steps past the pattern length fade this far (0..1) into the panel.
+constexpr float kInactiveFade = 0.75f;
 constexpr float kPlayheadTint = 0.4f;        // behind the cells
 constexpr float kPlayheadFrame = 0.85f;       // the frame line
 constexpr float kPlayheadGlow = 0.6f;        // its glow outside the column
@@ -474,12 +476,22 @@ void ModernSequencerSkin::draw(Graphics& g, const SequencerView& v) {
         drawLineAA(g, gx1, by - 3.f, gx1, by, 1.2f, kDimInk);
     }
 
-    // Steps past the pattern length are inactive: shaded over.
+    // Steps past the pattern length are inactive: faded most of the way back
+    // into the panel (its own texture), so they read as unavailable ghosts.
     if (length < kMaxSteps) {
-        const float sx = static_cast<float>(kGridX + length * kCellW);
-        shadeBox(g, sx, kGridY - 1.f, static_cast<float>(gridRight), gridBottom + 1.f, [](float, float) {
-            return toArgb({ 0.10f, 0.10f, 0.09f }, 0.55f);
-        });
+        const int x0 = (kGridX + length * kCellW) * ss, x1 = gridRight * ss;
+        const int y0 = (kGridY - 1) * ss, y1 = (gridBottom + 6) * ss;
+        const uint32_t keep = static_cast<uint32_t>(256 * (1.f - kInactiveFade));
+        uint32_t* buffer = g.getBuffer();
+        for (int py = y0; py < y1; ++py) {
+            for (int px = x0; px < x1; ++px) {
+                const size_t i = static_cast<size_t>(py) * bufW + px;
+                const uint32_t c = buffer[i], p = panel_[i];
+                const uint32_t rb = ((p & 0xFF00FFu) * (256 - keep) + (c & 0xFF00FFu) * keep) >> 8;
+                const uint32_t gr = ((p & 0x00FF00u) * (256 - keep) + (c & 0x00FF00u) * keep) >> 8;
+                buffer[i] = 0xFF000000u | (rb & 0xFF00FFu) | (gr & 0x00FF00u);
+            }
+        }
     }
 
     // --- Pattern setup row --------------------------------------------------------
