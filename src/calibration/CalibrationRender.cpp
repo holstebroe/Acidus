@@ -11,6 +11,7 @@
 #include "core/SynthEngine.hpp"
 
 #include <cstddef>
+#include <cstring>
 #include <vector>
 
 #if defined(_WIN32)
@@ -62,6 +63,8 @@ const ParamEntry kParams[] = {
     ACIDUS_PARAM(vcaResTapRatio),
     ACIDUS_PARAM(vcoOctaveScale),
     ACIDUS_PARAM(filterLadderTopology),
+    ACIDUS_PARAM(filterCouplingNetwork),
+    ACIDUS_PARAM(filterNetworkTimeScale),
     // Offline-calibration constants
     ACIDUS_PARAM(cutoffBaseHz),
     ACIDUS_PARAM(cutoffSpanOct),
@@ -113,6 +116,19 @@ ACIDUS_CALIB_API const char* acidus_calib_param_name(int index) {
 
 ACIDUS_CALIB_API double acidus_calib_param_default(int index) {
     return (index >= 0 && index < kNumParams) ? static_cast<double>(kDefaults.*(kParams[index].member)) : 0.0;
+}
+
+// Sets one SynthParameters field by name on `params` (a SynthParameters*).
+// Returns 0 on success, non-zero for an unknown name. Used by
+// acidus_reference_test --params to run the checks on any profile.
+ACIDUS_CALIB_API int acidus_calib_set_field(void* params, const char* name, double value) {
+    for (int i = 0; i < kNumParams; ++i) {
+        if (std::strcmp(kParams[i].name, name) == 0) {
+            static_cast<SynthParameters*>(params)->*(kParams[i].member) = static_cast<float>(value);
+            return 0;
+        }
+    }
+    return 1;
 }
 
 // Renders one note from silence: note-on at sample 0, note-off at

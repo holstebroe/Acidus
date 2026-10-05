@@ -72,6 +72,8 @@ const ParamRange kParamRanges[] = {
     {&SynthParameters::filterCapScale4, 0.2f, 4.0f},
     {&SynthParameters::filterLadderInputScale, 0.005f, 1.0f},
     {&SynthParameters::filterLadderTopology, 0.0f, 1.0f},
+    {&SynthParameters::filterCouplingNetwork, 0.0f, 1.0f},
+    {&SynthParameters::filterNetworkTimeScale, 0.25f, 4.0f},
     {&SynthParameters::vegDecaySec, 0.05f, 30.0f},
     {&SynthParameters::vcaGateOffMs, 0.05f, 1000.0f},
     {&SynthParameters::vcaGateOffAccentMs, 0.05f, 1000.0f},
@@ -209,6 +211,8 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
     filter_.setCapScale4(p.filterCapScale4);
     filter_.setLadderInputScale(p.filterLadderInputScale);
     filter_.setLadderTopology(p.filterLadderTopology >= 0.5f ? 1 : 0);
+    filter_.setCouplingNetwork(p.filterCouplingNetwork >= 0.5f ? 1 : 0);
+    filter_.setNetworkTimeScale(p.filterNetworkTimeScale);
     env_.setVegDecaySec(p.vegDecaySec);
     env_.setVcaGateOffMs(p.vcaGateOffMs);
     env_.setVcaGateOffAccentMs(p.vcaGateOffAccentMs);

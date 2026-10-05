@@ -172,6 +172,7 @@ add_executable(acidus_filter_stability_test
 # loop stability margin, envelope/slide time constants, control laws).
 add_executable(acidus_reference_test
     ${CORE_SOURCES}
+    src/calibration/CalibrationRender.cpp
     src/reference_conformance_test_main.cpp
 )
 

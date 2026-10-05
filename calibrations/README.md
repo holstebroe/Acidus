@@ -10,7 +10,8 @@ flavour, plus notes on where it came from.
 |---|---|---|
 | `x0x` | dinsync.info reference recordings (`test/resources/x0x-reference`, 400 notes, one ~40-year-old unit) | **Default.** Fitted with the resonant-peak sweep tracker, see `docs/X0X_CALIBRATION_2026-09-28.md`. |
 | `acidvoice` | Acidvoice single-note samples (`test/resources/303_saw-*.wav`, 13 notes, a second unit) | Fitted: the `x0x` model with the constants that differ between units refitted to Acidvoice. |
-| `factory` | None: every value the schematic or service manual fixes, the rest from `x0x` | The schematic reference. |
+| `factory` | None: every value the schematic or service manual fixes, the rest from `x0x` | The schematic reference, on Stinchcombe's full coupling network. |
+| `x0x-circuit` | The x0x set, refitted on Stinchcombe's full coupling network with schematic ladder capacitors | Candidate to replace `x0x`; see `docs/STINCHCOMBE_NETWORK_2026-10-03.md`. |
 | `hellfish` | None: `factory` with Devil Fish ranges and community mods | The ultimate 303, tuned for sound. |
 
 ## Scores
@@ -24,7 +25,8 @@ schematic conformance test.
 |---|---|---|---|
 | `x0x` | **2.61** | 7.00 | 24 / 34 |
 | `acidvoice` | 3.36 | **2.07** | 24 / 34 |
-| `factory` | 3.87 | 3.54 | **30 / 34** |
+| `factory` | 3.75 | 3.40 | **32 / 34** |
+| `x0x-circuit` | 2.72 | 8.17 | 28 / 34 |
 | `hellfish` | - | - | 22 / 34 (by design; not a model of a unit) |
 
 The two measured units are each best fitted by their own profile. The
@@ -49,8 +51,11 @@ which adds the resonant-peak sweep track to the score).
 
 `factory` fails four conformance checks: B4 (resonant peak height), B6
 (low-frequency shape), C5 (square edge ringing) and E9 (fast MEG term in
-the VCA). They come from the empirical coupling network around the filter,
-not from calibration choices. The measured units fail six more each, all
+the VCA). B4 and B6 come from the empirical coupling network around the
+filter, C5 and E9 from the oscillator and VCA models; none from
+calibration choices. With Stinchcombe's network (`filterCouplingNetwork`
+1), `factory` passes B4 and B6
+([`STINCHCOMBE_NETWORK_2026-10-03.md`](../docs/STINCHCOMBE_NETWORK_2026-10-03.md)). The measured units fail six more each, all
 where the unit differs from a new one: the cutoff trim (both), a slow VEG
 (both), the full-Env-Mod peak and a long held-note decay (x0x), and a
 weaker Env Mod bias shift and a stronger oscillator-side high-pass

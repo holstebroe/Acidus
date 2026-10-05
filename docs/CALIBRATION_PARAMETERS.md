@@ -264,10 +264,12 @@ Fixed in code, not calibration parameters:
 ### 3.3 Coupling network around the filter
 
 The real VCF has about seven coupling capacitors, several inside the
-resonance loop (§11). Acidus uses Open303's empirical stand-in for them
-(§11.3 option 2), not the full Stinchcombe network. That is the biggest
-structural simplification in the model, and the reason several values below
-are emulator choices rather than schematic values.
+resonance loop (§11). The shipped profiles use Open303's empirical stand-in
+for them (§11.3 option 2). `filterCouplingNetwork` 1 switches to
+Stinchcombe's full network instead (§11.3 option 1); see
+[`STINCHCOMBE_NETWORK_2026-10-03.md`](STINCHCOMBE_NETWORK_2026-10-03.md) for
+how it compares against the recordings. With the Open303 topology, several
+values below are emulator choices rather than schematic values.
 
 | Parameter | Value | Source | What it is and does |
 |---|---|---|---|
@@ -277,6 +279,8 @@ are emulator choices rather than schematic values.
 | `filterNotchHz`, `filterNotchBandwidthHz` | 7.5 Hz, 4.7 oct | I | Open303's sub-audio notch. Reproduces the low-frequency phase and level of the real network in recordings. Not a circuit part. |
 | `filterAllpassHz` | 14 Hz | I | Open303's sub-audio all-pass; same role. |
 | `filterOutputCouplingHz` | 20 kHz | E | A low-pass for stray capacitance and buffer bandwidth. |
+| `filterCouplingNetwork` | 0 (all profiles) | A for 1 | 0 = the Open303 topology above. 1 = Stinchcombe's 10-pole / 6-zero network: a 5-section input network and a 6-section network in the feedback loop, solved with the ladder; the output stage's inversion is applied at the filter output. With 1, `resCouplingHz`, `filterInputCouplingHz`, the notch and the all-pass are unused, and his model puts the feedback ceiling at 18.7. `factory` with 1 (ceiling 18.7, limit 0.98) passes 32 of 34 conformance checks. |
+| `filterNetworkTimeScale` | 1.0 | S = 1.0 | Network 1 only: multiplies every RC time constant of the network (its 1 uF electrolytics are +-20 %). A fit to the x0x set lands at ~0.9. |
 
 ### 3.4 Envelopes: MEG (filter envelope)
 

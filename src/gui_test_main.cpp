@@ -235,6 +235,17 @@ int main() {
         check(std::string(calPlugin.calibrationPresetName()) == "HELL FISH", "HELL FISH preset");
         check(std::abs(calPlugin.getEngine().getParams().vcaAttackMs - presets[3].params.vcaAttackMs) < 1e-5f,
               "non-default constant applied");
+        for (int i = 0; i < acidus::AcidusClap::calibrationPresetCount(); ++i) {
+            calPlugin.selectCalibrationPreset(i, true);
+            calGui.renderFrame();
+            calGui.getPresetLabelRect(lx, ly, lw, lh);
+            check(lx >= px && ly >= py && lx + lw <= px + pw && ly + lh <= py + ph,
+                  "every preset's label fits inside the logo plate");
+        }
+        calPlugin.selectCalibrationPreset(4, true);
+        check(std::string(calPlugin.calibrationPresetName()) == "X0X CIRCUIT", "X0X CIRCUIT preset");
+        check(calPlugin.getEngine().getParams().filterCouplingNetwork == 1.0f, "X0X CIRCUIT uses Stinchcombe's network");
+        calPlugin.selectCalibrationPreset(3, true);
 
 #ifdef ACIDUS_CALIBRATION_BUILD
         TestOutEvents presetEvents;
