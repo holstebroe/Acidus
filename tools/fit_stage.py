@@ -393,6 +393,15 @@ def repeat_diagnosis(x, sr, n1, n2, offset, floor):
     fa, fb = (cr.compute_features(s_[:spec.n], spec) for s_ in segs)
     out.append(f"peak level {np.max(fb['env']) - np.max(fa['env']):+.2f} dB")
     steady = [s_[int(0.4 * sr):int(min(1.2, n1['gate_ms'] / 1000.0 - 0.05) * sr)] for s_ in segs]
+    # Where the resonant peak sits: early (the envelope sweep) and settled.
+    tracks = [peak_track(s_, sr, f0, n1["gate_ms"]) for s_ in segs]
+    for t0, t1, label in ((20, 200, "early"), (400, n1["gate_ms"] - 50, "settled")):
+        a_, b_ = (t[int(t0 / 10):int(t1 / 10)] for t in tracks)
+        k = min(len(a_), len(b_))
+        d = 12.0 * (b_[:k] - a_[:k])
+        d = d[np.isfinite(d)]
+        if len(d) >= 3:
+            out.append(f"resonant peak {label} {float(np.median(d)):+.2f} st")
     if min(map(len, steady)) > sr // 10:
         p1, p2 = (cr.estimate_f0(s_, sr, f0) for s_ in steady)
         out.append(f"pitch {1200 * np.log2(p2 / p1):+.1f} cents")
@@ -544,7 +553,9 @@ def probe_report(x, sim, sr, notes, offset, out_path):
             lines += ["The fit needs a repeatable source: two identical notes should match to well under",
                       "0.5 dB. A level difference points at drift or random variation; a pitch",
                       "difference at oscillator drift; differences only in the top bands at noise or",
-                      "random phase. A difference near the filter's frequency that fades over the",
+                      "random phase. A resonant peak that moves between the two notes, with level and",
+                      "pitch equal, is a filter that varies per note (an \"analog\" or component-",
+                      "tolerance option): turn it off. A difference near the filter's frequency that fades over the",
                       "note is a knob still moving when the note starts: the first P12 note follows",
                       "a knob change, the second does not. Check that the emulation (or the DAW's",
                       "MIDI learn) does not smooth CC changes, or regenerate the MIDI files (the",
