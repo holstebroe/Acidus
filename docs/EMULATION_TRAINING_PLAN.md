@@ -16,13 +16,13 @@ MIDI file for stage N  ->  DAW: import, MIDI-learn the knobs, render one WAV
 
 | Stage | Notes | Length | What it adds |
 |---|---|---|---|
-| 0: separability probes | 48 | 2.6 min | Which knob pairs you can skip crossing (a report, no fit) |
+| 0: separability probes | 44 | 2.4 min | Which knob pairs you can skip crossing (a report, no fit) |
 | 1: what you hear first | 24 | 1.3 min | Cutoff range, resonance, Env Mod depth, decay range, accent amount, levels |
 | 2: knob laws | 37 | 2.0 min | The curve of each knob between its end points |
 | 3: detail | 36 | 1.9 min | Accent network, square, pitch, VCA timing |
 | 4: sequences | 16 clips | 0.8 min | Slides, accent stacking, retrigger: for listening (not fitted yet) |
 
-That is 145 single notes in total, against 400 for the dinsync.info protocol
+That is 141 single notes in total, against 400 for the dinsync.info protocol
 and about 50,000 for a full five-knob, two-waveform, two-accent, four-pitch
 grid.
 
@@ -135,7 +135,7 @@ and works out the offset itself. Two things do matter:
 
 ---
 
-## 3. Stage 0: separability probes (48 notes, no fit)
+## 3. Stage 0: separability probes (44 notes, no fit)
 
 ```bash
 python3 tools/fit_stage.py <src> 0 --wav stage0.wav     # -> test/resources/<src>/stage0/probes.md
@@ -171,7 +171,7 @@ nonlinearity, coupling filters, the accent switch) are already in the model.
 | P09 | waveform x Env Mod (25, 100) | Cut 75, Reso 75, Dec 50 | peak track | < 2 st (the square tracks less cleanly) |
 | P10 | accent x Cutoff (50, 100) | Reso 100, Env 0, Dec 50, Acc 100 | peak track | < 1 st |
 | P11 | Accent knob (0, 100), unaccented | Cut 25, Reso 75, Env 50, Dec 50 | spectrogram | < 0.5 dB |
-| P12 | the same note twice | Cut 50, Reso 75, Env 50, Dec 50 | spectrogram | < 0.1 dB: the source is repeatable |
+| P12 | the same note twice | Cut 50, Reso 75, Env 50, Dec 50 | spectrogram | < 0.5 dB: the source is repeatable. P08 and P11 count only what exceeds it |
 
 The tracked probes sit at Resonance 75-100 %, Cutoff 50-100 % and C1/C2.
 Those settings keep the resonant peak clearly above the low harmonics, so it
@@ -190,8 +190,18 @@ two knobs. The report says which: for example, a failed P02 means repeat set
 2B at C1. Edit `note_sets()` in `tools/emulation_training_set.py` and write
 the MIDI files again; stages you have rendered keep the same notes. If P01
 shows key tracking, Acidus has no constant for it, and no amount of data
-will fit it. Keep the later stages at C2 and note the gap. If P12 fails,
-find the randomisation switch before going on.
+will fit it. Keep the later stages at C2 and note the gap.
+
+**Check P12 first.** It renders one note twice, so it measures how
+repeatable the source is, and every other probe and the fit depend on that.
+The spectrogram comparisons skip cells near the source's noise floor,
+measured in the silences between notes, so steady hiss alone does not fail
+it. Under the table the report says how the two notes differ: level (drift,
+random variation per note), pitch (oscillator drift), or only certain bands
+(random phase, noise). Turn off the emulation's "analog" variation, drift or
+humanise options and render stage 0 again. P08 and P11 count only what
+exceeds P12, and the peak-track probes get noisier with it too, so judge them
+after P12 passes.
 
 The probe notes stay out of the fits (`--with-probes` adds them). They hold
 little information the stages don't, and they would make every fit about

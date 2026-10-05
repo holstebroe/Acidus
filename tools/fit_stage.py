@@ -217,14 +217,16 @@ def onset_ms(x, sr, start_ms, stop_ms):
 
 def sound_starts(x, sr, rel_db=-50.0, quiet_ms=200):
     """Start times (ms) of the sounds in x: 1 ms frames above rel_db of the
-    peak, after at least quiet_ms of frames below it. The stage files leave
+    peak (and the noise floor), after at least quiet_ms of frames below it. The stage files leave
     1.5 s or more of silence between notes, so each note is one sound."""
     hop = max(1, sr // 1000)
     n = len(x) // hop
     if n == 0:
         return np.zeros(0)
     frames = np.abs(x[:n * hop]).reshape(n, hop).max(axis=1)
-    loud = frames > frames.max() * 10 ** (rel_db / 20.0)
+    # Above rel_db of the peak, and well above the source's own noise: the
+    # quietest fifth of the frames is silence between notes.
+    loud = frames > max(frames.max() * 10 ** (rel_db / 20.0), 6.0 * np.percentile(frames, 20))
     starts, quiet = [], quiet_ms
     for i, is_loud in enumerate(loud):
         if is_loud and quiet >= quiet_ms:
@@ -349,10 +351,63 @@ def track_interaction(f, t1=800.0):
     return (d - c) - (b - a)
 
 
-def stft_rms(fa, fb, t1=800.0, top_db=50.0):
+def stft_rms(fa, fb, t1=800.0, top_db=50.0, floor=None):
+    """RMS dB difference of two notes' 1/3-octave spectrograms over the first
+    t1 ms, on the cells within top_db of the loudest and, given the source's
+    noise floor per band, at least 10 dB above it (noise cells differ at
+    random)."""
     a, b = _cut(_window(fa, 0, t1, "stft"), _window(fb, 0, t1, "stft"))
     m = (a > a.max() - top_db) & (b > b.max() - top_db)
+    if floor is not None:
+        m &= (a > floor[None, :] + 10.0) & (b > floor[None, :] + 10.0)
     return float(np.sqrt(np.mean((a[m] - b[m]) ** 2))) if m.any() else float("nan")
+
+
+def noise_floor(x, sr, notes, offset):
+    """The source's noise per 1/3-octave band (dB, as in the spectrogram
+    features), from the silences between notes: from 1.2 s after a gate ends
+    to 250 ms before the next note."""
+    rows = []
+    for n, m in zip(notes[:-1], notes[1:]):
+        a = max(0, int((n["on_ms"] + n["gate_ms"] + 1200.0 + offset) * sr / 1000.0))
+        b = min(len(x), int((m["on_ms"] - 250.0 + offset) * sr / 1000.0))
+        if b - a >= 4096:
+            spec = cr.FeatureSpec(SimpleNamespace(sr=sr, n=b - a), 65.4, 16000.0, 1 << 12)
+            rows.append(cr.compute_features(x[a:b], spec)["stft"])
+    if not rows:
+        return None
+    return cr.db(np.mean(10.0 ** (np.concatenate(rows) / 10.0), axis=0))
+
+
+def repeat_diagnosis(x, sr, n1, n2, offset, floor):
+    """What differs between two renders of the same note: level, pitch, and
+    the bands where the spectrogram differs most."""
+    out = []
+    segs = []
+    for n in (n1, n2):
+        a = int((n["on_ms"] + offset) * sr / 1000.0)
+        segs.append(x[a:a + int((n["gate_ms"] + TAIL_MS) * sr / 1000.0)])
+    f0 = cr.midi_to_hz(n1["midi"])
+    spec = cr.FeatureSpec(SimpleNamespace(sr=sr, n=min(map(len, segs))), f0, 16000.0, 1 << 16)
+    fa, fb = (cr.compute_features(s_[:spec.n], spec) for s_ in segs)
+    out.append(f"peak level {np.max(fb['env']) - np.max(fa['env']):+.2f} dB")
+    steady = [s_[int(0.4 * sr):int(min(1.2, n1['gate_ms'] / 1000.0 - 0.05) * sr)] for s_ in segs]
+    if min(map(len, steady)) > sr // 10:
+        p1, p2 = (cr.estimate_f0(s_, sr, f0) for s_ in steady)
+        out.append(f"pitch {1200 * np.log2(p2 / p1):+.1f} cents")
+    a, b = _cut(fa["stft"], fb["stft"])
+    m = (a > a.max() - 50.0) & (b > b.max() - 50.0)
+    if floor is not None:
+        m &= (a > floor[None, :] + 10.0) & (b > floor[None, :] + 10.0)
+    fb_hz = sr / spec.st_frame
+    centres = np.sqrt(spec.st_edges[:-1] * spec.st_edges[1:]) * fb_hz
+    d = np.where(m, np.abs(a - b), np.nan)
+    with np.errstate(all="ignore"):
+        per_band = np.nanmean(d, axis=0)
+    worst = [i for i in np.argsort(np.nan_to_num(per_band, nan=-1.0))[::-1][:3] if np.isfinite(per_band[i])]
+    if worst:
+        out.append("most different around " + ", ".join(f"{centres[i]:.0f} Hz ({per_band[i]:.1f} dB)" for i in worst))
+    return "; ".join(out)
 
 
 def decay_fit(f):
@@ -383,6 +438,8 @@ def probe_report(x, sim, sr, notes, offset, out_path):
         if n["set"].startswith("P"):
             S.setdefault(n["set"], []).append(probe_features(x, sr, n, n["on_ms"] + offset))
             A.setdefault(n["set"], []).append(probe_features(sim, sr, n, n["on_ms"]))
+    floor = noise_floor(x, sr, notes, offset)
+    peak_db = 20 * np.log10(max(1e-12, float(np.max(np.abs(x)))))
     rows = []
 
     def add(pid, what, src, acid, value, unit, limit, ok, action):
@@ -433,29 +490,48 @@ def probe_report(x, sim, sr, notes, offset, out_path):
             s_, a_ = ratio(S[pid]), ratio(A[pid])
             add(pid, what + ", tau change %", s_, a_, abs(s_ - a_), "%", "< 15 %", abs(s_ - a_) < 15.0, action)
     pair("P07", "Resonance x Env Mod, peak track", "repeat 2B at Resonance 100")
+    # P12 (the same note twice) is the source's repeatability: P08 and P11
+    # compare two notes that should be identical too, so only what they
+    # differ by beyond it counts.
+    repeat = stft_rms(S["P12"][0], S["P12"][1], 1300.0, floor=floor) if "P12" in S else float("nan")
+    base = repeat if np.isfinite(repeat) else 0.0
     if "P08" in S:   # (150 ms, no), (150, acc), (1300, no), (1300, acc): the first 140 ms must match
-        v = max(stft_rms(S["P08"][0], S["P08"][2], 140.0), stft_rms(S["P08"][1], S["P08"][3], 140.0))
-        add("P08", "gate length changes the note before gate-off", v, 0.0, v, "dB", "< 1 dB", v < 1.0,
-            "the source looks ahead to the gate (or isn't one-shot): keep gates the same everywhere")
+        v = max(stft_rms(S["P08"][0], S["P08"][2], 140.0, floor=floor),
+                stft_rms(S["P08"][1], S["P08"][3], 140.0, floor=floor))
+        add("P08", "gate length changes the note before gate-off", v, 0.0, max(0.0, v - base), "dB", "< 1 dB",
+            v - base < 1.0, "the source looks ahead to the gate (or isn't one-shot): keep gates the same everywhere")
     # The square's missing even harmonics make its peak track ~1 st noisier.
     pair("P09", "waveform x Env Mod, peak track", "add square notes to 2B", limit=2.0)
     pair("P10", "accent sweep vs Cutoff, peak track", "repeat 3A at Cutoff 75")
-    for pid, what, lim, action in (
-            ("P11", "Accent knob on an unaccented note", 0.5,
-             "the knob acts without accent: add unaccented notes to the 3A Accent knob sweep"),
-            ("P12", "the same note twice", 0.1,
-             "the source is not repeatable: turn off drift / analog variation / random phase")):
-        if pid in S:
-            v = stft_rms(S[pid][0], S[pid][1], 1300.0)
-            add(pid, what, v, 0.0, v, "dB", f"< {lim:g} dB", v < lim, action)
+    if "P11" in S:
+        v = stft_rms(S["P11"][0], S["P11"][1], 1300.0, floor=floor)
+        add("P11", "Accent knob on an unaccented note", v, 0.0, max(0.0, v - base), "dB", "< 0.5 dB",
+            v - base < 0.5, "the knob acts without accent: add unaccented notes to the 3A Accent knob sweep")
+    if "P12" in S:
+        add("P12", "the same note twice (repeatability)", repeat, 0.0, repeat, "dB", "< 0.5 dB", repeat < 0.5,
+            "the source is not repeatable: turn off noise / drift / analog variation, see below")
+    notes_p12 = [n for n in notes if n["set"] == "P12"]
 
     lines = ["# Stage 0: separability probes", "",
              f"WAV offset against the MIDI: {offset:+.1f} ms. `source` and `Acidus` are the interaction",
              "measured in each; `left over` is what the source has that Acidus's structure doesn't",
-             "(peak tracks: median over frames, semitones). P04, P08, P11, P12 must be zero in the source.", "",
+             "(peak tracks: median over frames, semitones). P04, P08, P11, P12 should be zero in the source;",
+             "P08 and P11 count only what exceeds P12, the source's own note-to-note difference.", "",
              "| probe | what | source | Acidus | left over | limit | verdict | if it interacts |",
              "|---|---|---|---|---|---|---|---|"]
     lines += [f"| {' | '.join(r)} |" for r in rows]
+    lines += [""]
+    if floor is not None:
+        lines.append(f"Source noise floor between notes: loudest band {float(np.max(floor)) - peak_db:+.0f} dB "
+                     "against the peak sample (spectrogram cells within 10 dB of it are not compared).")
+    if len(notes_p12) == 2:
+        lines.append(f"P12, second note against the first: {repeat_diagnosis(x, sr, notes_p12[0], notes_p12[1], offset, floor)}.")
+        if np.isfinite(repeat) and repeat >= 0.5:
+            lines += ["The fit needs a repeatable source: two identical notes should match to well under",
+                      "0.5 dB. A level difference points at drift or random variation; a pitch",
+                      "difference at oscillator drift; differences only in the top bands at noise or",
+                      "random phase. P08 and P11 only count what they exceed P12 by, so they are",
+                      "unreliable until P12 passes."]
     lines += ["", "\"inconclusive\": no clear resonant peak in one of the corners, or (P05, P06) a Decay",
               "time constant longer than the gate or a peak lost for most of the note. Nothing",
               "contradicts the 303 structure there; keep the plan as it is.",
@@ -542,7 +618,7 @@ def main():
     ap.add_argument("--tune-cents", type=float, default=0.0, help="the source's tuning offset (default 0)")
     ap.add_argument("--alone", action="store_true", help="fit this stage's notes only, not earlier stages too")
     ap.add_argument("--with-probes", action="store_true",
-                    help="also fit the stage 0 probe notes (48 more notes: slower, little new information)")
+                    help="also fit the stage 0 probe notes (44 more notes: slower, little new information)")
     ap.add_argument("--minutes", type=float, default=30.0, help="fit time cap (default 30)")
     ap.add_argument("--patience", type=float, default=None,
                     help="stop after this many minutes without progress (default: a third of --minutes)")
@@ -584,6 +660,10 @@ def main():
     acidus = Acidus(start, args.tune_cents)
     offset = align(x, sr, notes, acidus)
     print(f"WAV offset against the MIDI: {offset:+.1f} ms, peak {20 * np.log10(peak):.1f} dBFS")
+    if peak > 10 ** (-3.0 / 20.0):
+        print("warning: the render peaks above -3 dBFS. If the emulation or the DAW limits or clips anywhere, "
+              "the loudest notes are bent; lower the output so the peak sits near -12 dBFS (and keep that "
+              "level for every later stage)")
     write_manifest(work, src, stage, notes, wav_name, offset, args.tune_cents)
 
     if stage == 0:
