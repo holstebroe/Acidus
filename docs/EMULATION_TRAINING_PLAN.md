@@ -112,10 +112,26 @@ knobs from these text events, so it doesn't depend on the CC map. CC is
 snapped to the nearest CC value, and the text event records the position that
 value really sets (25 % -> CC 32 -> 25.197 %).
 
-**Rendering.** Import `<src>-stage<N>.mid`, then render (bounce) the whole
-song from the start as one WAV: mono or stereo, 24-bit or 32-bit float, no
-normalising, no dither and no fades. The fitter aligns the WAV with the MIDI
-by itself and stops with an error if the tempo or sample rate is wrong.
+**The notes don't sit on the bars**, and that is intended. The grid is in
+milliseconds, not beats: every note's slot is at least 3 s (6.25 beats at
+125 BPM), so each note and its release die away before the next one. The
+first note starts at 500 ms (just over one beat), after its knob CCs at
+200 ms. The tempo still matters, because the DAW plays the file in beats:
+**set the project to 125 BPM**. Some DAWs take the tempo from the file on
+import, and others keep the project's.
+
+**Rendering.** Import `<src>-stage<N>.mid`, then render (bounce) it as one
+WAV: mono or stereo, 24-bit or 32-bit float, no normalising, no dither and
+no fades. Where the clip sits in the project, and how much silence the
+render has before it, don't matter: the fitter finds the notes in the audio
+and works out the offset itself. Two things do matter:
+
+- Start the render at or before the clip's start. The first note's knob CCs
+  come 300 ms before it, and a render that starts after them plays that note
+  with the previous knob settings.
+- Render at 125 BPM. The fitter compares the spacing of the notes with the
+  MIDI. If they don't match, it stops and tells you the tempo the render was
+  actually played at (for example "spaced as if played at 120.00 BPM").
 
 ---
 

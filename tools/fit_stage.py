@@ -215,17 +215,52 @@ def onset_ms(x, sr, start_ms, stop_ms):
     return float(np.argmax(w > 0.05 * w.max())) * 1000.0 / sr + (a * 1000.0 / sr - start_ms)
 
 
+def sound_starts(x, sr, rel_db=-50.0, quiet_ms=200):
+    """Start times (ms) of the sounds in x: 1 ms frames above rel_db of the
+    peak, after at least quiet_ms of frames below it. The stage files leave
+    1.5 s or more of silence between notes, so each note is one sound."""
+    hop = max(1, sr // 1000)
+    n = len(x) // hop
+    if n == 0:
+        return np.zeros(0)
+    frames = np.abs(x[:n * hop]).reshape(n, hop).max(axis=1)
+    loud = frames > frames.max() * 10 ** (rel_db / 20.0)
+    starts, quiet = [], quiet_ms
+    for i, is_loud in enumerate(loud):
+        if is_loud and quiet >= quiet_ms:
+            starts.append(i * hop * 1000.0 / sr)
+        quiet = 0 if is_loud else quiet + 1
+    return np.array(starts)
+
+
 def align(x, sr, notes, acidus):
-    """Offset (ms) of the WAV against the MIDI, from each note's onset in the
-    WAV minus its onset in an Acidus render of the same note, so a source
-    whose unaccented notes open late isn't shifted for it."""
+    """Offset (ms) of the WAV against the MIDI. Where the clip sits in the
+    project, and where the render starts, don't matter: the notes are found
+    in the audio first. Then each note's onset in the WAV is compared with its
+    onset in an Acidus render of the same note, so a source whose unaccented
+    notes open late isn't shifted for it."""
+    midi_on = np.array([n["on_ms"] for n in notes])
+    starts = sound_starts(x, sr)
+    if len(starts) == 0:
+        fail("the WAV is silent")
+    if len(starts) == len(notes):
+        # One sound per note: their spacing gives the tempo the DAW played at.
+        slope, coarse = np.polyfit(midi_on, starts, 1)
+        if abs(slope - 1.0) > 0.002:
+            fail(f"the notes are spaced as if played at {125.0 / slope:.2f} BPM: set the project tempo to "
+                 "125 BPM (the MIDI file's tempo) and render again")
+    else:
+        print(f"note: found {len(starts)} sounds for {len(notes)} notes (effects or noise in the render?); "
+              "aligning on the first note")
+        coarse = starts[0] - midi_on[0]
     offs = []
     for n in notes:
         ref = acidus.note(dict(n, gate_ms=min(n["gate_ms"], 250.0)), sr, length_ms=300.0)
         o_ref = onset_ms(ref, sr, 0.0, 300.0)
-        o_src = onset_ms(x, sr, n["on_ms"] - 150.0, n["on_ms"] + 300.0)
+        at = n["on_ms"] + coarse
+        o_src = onset_ms(x, sr, at - 150.0, at + 300.0)
         if o_ref is not None and o_src is not None:
-            offs.append(o_src - 150.0 - o_ref)
+            offs.append(coarse + o_src - 150.0 - o_ref)
     if len(offs) < 3:
         fail("could not find the notes in the WAV: is it the render of this stage's MIDI file?")
     offs = np.array(offs)
@@ -233,7 +268,7 @@ def align(x, sr, notes, acidus):
     drift = float(np.median(offs[-k:]) - np.median(offs[:k]))
     if abs(drift) > 5.0:
         fail(f"the notes drift {drift:+.0f} ms from the start to the end of the WAV: render at 125 BPM "
-             "(the MIDI file's tempo) at the WAV's own sample rate, from the start of the project")
+             "(the MIDI file's tempo), at the WAV's own sample rate")
     return float(np.median(offs))
 
 
