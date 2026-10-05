@@ -129,6 +129,11 @@ and works out the offset itself. Two things do matter:
 - Start the render at or before the clip's start. The first note's knob CCs
   come 1.2 s before it, and a render that starts after them plays that note
   with the previous knob settings.
+- Mono, or stereo with identical channels. The tools mix the channels to
+  mono. If the emulation has a chorus, stereo width, unison or separate
+  oscillators per side, the mix changes from note to note. `fit_stage.py`
+  prints a stereo check. Turn such effects off, or analyse one side with
+  `--channel left` (then use it for every stage).
 - Render at 125 BPM. The fitter compares the spacing of the notes with the
   MIDI. If they don't match, it stops and tells you the tempo the render was
   actually played at (for example "spaced as if played at 120.00 BPM").

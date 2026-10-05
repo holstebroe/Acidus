@@ -209,7 +209,9 @@ def midi_to_hz(m):
     return 440.0 * 2.0 ** ((m - 69) / 12.0)
 
 
-def read_wav(path):
+def read_wav(path, mix=True):
+    """Samples as float64 and the sample rate. Several channels are averaged,
+    unless mix=False, which returns them as columns (frames x channels)."""
     data = Path(path).read_bytes()
     if data[0:4] != b"RIFF" or data[8:12] != b"WAVE":
         raise ValueError(f"{path}: not a RIFF/WAVE file")
@@ -242,7 +244,9 @@ def read_wav(path):
         raise ValueError(f"{path}: unsupported WAV format tag={tag} bits={bits}")
     x = np.asarray(x, dtype=np.float64)
     if ch > 1:
-        x = x[: len(x) // ch * ch].reshape(-1, ch).mean(axis=1)
+        x = x[: len(x) // ch * ch].reshape(-1, ch)
+        if mix:
+            x = x.mean(axis=1)
     return x, sr
 
 

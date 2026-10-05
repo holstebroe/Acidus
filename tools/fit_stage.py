@@ -33,6 +33,7 @@ import csv
 import datetime
 import json
 import shutil
+import struct
 import subprocess
 import sys
 import warnings
@@ -618,6 +619,40 @@ def default_start(src, stage):
     return REPO / "calibrations" / "x0x.json"
 
 
+def write_float_wav(path, x, sr):
+    """Mono 32-bit float WAV (no rounding of the source's samples)."""
+    data = np.asarray(x, dtype="<f4").tobytes()
+    with open(path, "wb") as f:
+        f.write(b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVE")
+        f.write(b"fmt " + struct.pack("<IHHIIHH", 16, 3, 1, sr, sr * 4, 4, 32))
+        f.write(b"data" + struct.pack("<I", len(data)) + data)
+
+
+def check_channels(path, channel):
+    """A stereo render whose channels differ is mixed to mono by the tools,
+    and if the two sides' phase relation changes from note to note (a chorus,
+    stereo width, separate oscillators per side) the mix changes too. Report
+    how different the sides are; with --channel keep one side only."""
+    xs, sr = cr.read_wav(path, mix=False)
+    if xs.ndim == 1 or xs.shape[1] < 2:
+        if channel != "mix":
+            print(f"note: the render is mono, --channel {channel} has nothing to pick")
+        return
+    left, right = xs[:, 0], xs[:, 1]
+    mid = float(np.sqrt(np.mean((left + right) ** 2)))
+    side = float(np.sqrt(np.mean((left - right) ** 2)))
+    ratio = 20 * np.log10(max(side, 1e-12) / max(mid, 1e-12))
+    print(f"stereo check: left - right is {ratio:.1f} dB below left + right"
+          + (" (the channels are identical)" if ratio < -80 else ""))
+    if ratio > -40 and channel == "mix":
+        print("warning: the left and right channels differ. The tools mix them to mono, so a stereo effect "
+              "(chorus, width, unison, separate oscillators per side) in the emulation changes the notes from "
+              "one to the next. Turn it off and render again, or analyse one side with --channel left")
+    if channel in ("left", "right"):
+        write_float_wav(path, left if channel == "left" else right, sr)
+        print(f"using the {channel} channel only")
+
+
 def write_ab(path, x, sr, notes, offset, acidus, gain):
     """Source note, 300 ms gap, Acidus note, 700 ms gap; one shared scale."""
     pre = int(0.05 * sr)
@@ -644,6 +679,8 @@ def main():
     ap.add_argument("--start", help="profile to start from, e.g. one exported from the plugin (default: the "
                     "newest calibrations/<src>-stage<N-1>*.json, so a trimmed export of the previous stage wins; "
                     "else calibrations/x0x.json)")
+    ap.add_argument("--channel", choices=("mix", "left", "right"), default="mix",
+                    help="which channel of a stereo render to analyse (default: the mix of both)")
     ap.add_argument("--tune-cents", type=float, default=0.0, help="the source's tuning offset (default 0)")
     ap.add_argument("--alone", action="store_true", help="fit this stage's notes only, not earlier stages too")
     ap.add_argument("--with-probes", action="store_true",
@@ -679,6 +716,7 @@ def main():
         print(f"rehearsal: rendered the stage through Acidus with {args.rehearse}")
     elif Path(args.wav).resolve() != (work / wav_name).resolve():
         shutil.copyfile(args.wav, work / wav_name)
+    check_channels(work / wav_name, args.channel)
     x, sr = cr.read_wav(work / wav_name)
     peak = float(np.max(np.abs(x)))
     if peak >= 0.999:
