@@ -12,7 +12,7 @@
 #include <chrono>
 #include <random>
 #include "Font.hpp"
-#include "IControlRenderer.hpp"
+#include "IGuiSkin.hpp"
 
 namespace acidus {
 
@@ -63,9 +63,10 @@ public:
     void setFont(const Font& font) { font_ = font; staticKey_.clear(); overlayValid_ = false; }
     const Font& getFont() const { return font_; }
 
-    void setControlRenderer(std::unique_ptr<IControlRenderer> renderer) {
-        if (renderer) {
-            controlRenderer_ = std::move(renderer);
+    // Replace the build's skin (tests).
+    void setSkin(std::unique_ptr<IGuiSkin> skin) {
+        if (skin) {
+            skin_ = std::move(skin);
             staticKey_.clear();
         }
     }
@@ -116,7 +117,7 @@ private:
     bool lastShiftState_{false};
 
     Font font_{Font::classic5x7()};
-    std::unique_ptr<IControlRenderer> controlRenderer_;
+    std::unique_ptr<IGuiSkin> skin_;
 
     int activeControlIndex_{-1};
     int logoPlateX_{0}, logoPlateY_{0}, logoPlateW_{0}, logoPlateH_{0}; // set by drawAcidusTitle

@@ -31,6 +31,24 @@ jobs:
     - name: Build
       run: cmake --build build --config Release
 
+    # The MODERN GUI skin (see ACIDUS_GUI_STYLE in CMakeLists.txt), built
+    # alongside so it keeps compiling; the release ships the RETRO build.
+    - name: Build Modern GUI Variant
+      run: |
+        cmake -B build-modern -DCMAKE_BUILD_TYPE=Release -DACIDUS_GUI_STYLE=MODERN
+        cmake --build build-modern --config Release --target acidus acidus_vst3 acidus_gui_test
+
+    - name: Upload Modern GUI Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: acidus-modern-gui-${{ runner.os }}
+        path: |
+          build-modern/acidus.clap
+          build-modern/Release/acidus.clap
+          build-modern/acidus.vst3
+          build-modern/Release/acidus.vst3
+        if-no-files-found: ignore
+
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:

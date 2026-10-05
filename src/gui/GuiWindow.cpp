@@ -1,7 +1,6 @@
 #include "GuiWindow.hpp"
 #include <cstdio>
 #include "Graphics.hpp"
-#include "ControlRenderer.hpp"
 #include "clap/AcidusClap.hpp"
 #include <cmath>
 #include <cstring>
@@ -23,7 +22,7 @@
 namespace acidus {
 
 GuiWindow::GuiWindow(AcidusClap* plugin)
-    : plugin_(plugin), controlRenderer_(std::make_unique<TB303ControlRenderer>()) {
+    : plugin_(plugin), skin_(createGuiSkin()) {
     pixelBuffer_.resize(width_ * height_, 0xFFDBDFE1);
     initControls();
 }
@@ -358,29 +357,14 @@ void GuiWindow::renderFrame() {
         staticKey_ = key;
         Graphics g(staticBuffer_.data(), width_, height_, 2);
 
-        // 1. Brushed silver panel background
-        g.clear(0xFFDBDFE1);
-
-        // Top & Bottom metallic borders / trims
-        g.drawRect(0, 0, width_, 12, 0xFFC0C4C8);
-        g.drawLine(0, 12, width_, 12, 0xFF808488, 1);
-        g.drawLine(0, 13, width_, 13, 0xFFFFFFFF, 1);
-
-        g.drawLine(0, height_ - 14, width_, height_ - 14, 0xFF808488, 1);
-        g.drawRect(0, height_ - 13, width_, 13, 0xFFC0C4C8);
-
-        // Vertical dividing line separating controls from right title panel
-        int dividerX = static_cast<int>(width_) - 180;
-        g.drawLine(dividerX, 14, dividerX, height_ - 14, 0xFF181818, 2);
-
-        // 2. Draw Controls
-        if (controlRenderer_) {
-            for (const auto& ctrl : controls_) {
-                if (ctrl.type == ControlType::Knob) {
-                    controlRenderer_->drawKnob(g, ctrl, font_);
-                } else if (ctrl.type == ControlType::ToggleSwitch) {
-                    controlRenderer_->drawToggleSwitch(g, ctrl, font_);
-                }
+        // 1. Panel, then the controls, in the build's skin.
+        const int dividerX = static_cast<int>(width_) - 180;
+        skin_->drawPanel(g, static_cast<int>(width_), static_cast<int>(height_), dividerX);
+        for (const auto& ctrl : controls_) {
+            if (ctrl.type == ControlType::Knob) {
+                skin_->drawKnob(g, ctrl, font_);
+            } else if (ctrl.type == ControlType::ToggleSwitch) {
+                skin_->drawToggleSwitch(g, ctrl, font_);
             }
         }
         drawAcidusTitle(g, titleX, titleY, kTitlePlate);

@@ -12,7 +12,7 @@
 - **Calibrated against hardware**: fitted to 400 recorded notes of a real TB-303 and checked against the service-manual schematics (see below).
 - **Four calibration presets**: two measured units, the schematic, and Hell Fish, a modded "ultimate 303".
 - **MXR Distortion+ stage**: a circuit model of the pedal after the 303's audio-taper Volume knob, so Volume drives the pedal as on hardware, with an automatic output trim.
-- **Custom Native Vector/Pixel GUI**: Lightweight pixel-rendered front panel featuring controls for Cutoff, Resonance, Env Mod, Decay, Accent, Waveform, Tuning, Volume, and Drive, plus a custom Acid Green logo with multi-layer glow.
+- **Custom Native Vector/Pixel GUI**: Lightweight pixel-rendered front panel featuring controls for Cutoff, Resonance, Env Mod, Decay, Accent, Waveform, Tuning, Volume, and Drive, plus a custom Acid Green logo with multi-layer glow. Two looks, chosen at build time: the small **retro** panel (default) or a **modern** one with shaded 303-style knobs and anti-aliased lettering (see [GUI style](#gui-style)).
 - **CLAP Standard Support**: Full support for CLAP parameter automation, state save/restore, and host event flushing.
 - **VST3 too**: both plugins are also built as VST3 (`acidus.vst3`, `burette.vst3`) by wrapping the same CLAP code with [clap-wrapper](https://github.com/free-audio/clap-wrapper).
 - **Cross-Platform Support**: Linux (X11), Windows (Win32), and macOS (Cocoa).
@@ -289,6 +289,37 @@ that address VST3 poly pressure without a note id by its pitch. Configuring down
 the VST3 SDK (MIT licensed) from GitHub; to use a local copy instead, pass
 `-DVST3_SDK_ROOT=/path/to/vst3sdk`. To build only the CLAPs, pass
 `-DACIDUS_BUILD_VST3=OFF`.
+
+### GUI style
+
+The panel comes in two looks, picked with one CMake option:
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release                               # RETRO (default)
+cmake -B build-modern -DCMAKE_BUILD_TYPE=Release -DACIDUS_GUI_STYLE=MODERN
+```
+
+- **RETRO**: the small pixel-drawn panel, flat-shaded knobs and a 5x7 pixel font.
+  The smallest binary.
+
+  ![Retro GUI](docs/images/gui_retro.png)
+
+- **MODERN**: a worn, silver-painted 303 panel (brushed grain, grime,
+  scratches) with knobs shaded per pixel like the 303's: dark foot ring,
+  knurled grip with a pointer nub, polished chamfer and a spun-metal top
+  with an incised pointer line, lit from the upper left with soft shadows.
+  Labels are anti-aliased Liberation Sans Bold (SIL OFL 1.1), pre-rasterized
+  by `tools/gen_label_font.py`. About 23 KB larger.
+
+  ![Modern GUI](docs/images/gui_modern.png)
+
+Both draw through the `IGuiSkin` interface (`src/gui/IGuiSkin.hpp`): the
+panel background, knobs and waveform switch. `GuiWindow` keeps the layout,
+mouse handling and the animated logo plate. Only the chosen skin's source
+(`src/gui/RetroSkin.cpp` or `src/gui/modern/ModernSkin.cpp`) is compiled in,
+so a retro build carries no modern code or font data. A new look is one
+more `IGuiSkin` implementation with its own `createGuiSkin()`, added to the
+option in `CMakeLists.txt`.
 
 ### Calibration build
 

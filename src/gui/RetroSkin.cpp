@@ -1,4 +1,4 @@
-#include "ControlRenderer.hpp"
+#include "IGuiSkin.hpp"
 #include "Graphics.hpp"
 #include "Font.hpp"
 #include "GuiWindow.hpp"
@@ -49,9 +49,38 @@ void drawShadow(Graphics& g, int cx, int cy, int r) {
 
 constexpr double kPi = 3.14159265358979323846;
 
+// The retro skin: flat-shaded silver panel and knobs drawn from circles and
+// lines, labels in the 5x7 pixel font. The smallest build.
+class RetroSkin : public IGuiSkin {
+public:
+    void drawPanel(Graphics& g, int width, int height, int dividerX) override;
+    void drawKnob(Graphics& g, const Control& ctrl, const Font& font) override;
+    void drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) override;
+};
+
 } // namespace
 
-void TB303ControlRenderer::drawKnob(Graphics& g, const Control& ctrl, const Font& font) {
+std::unique_ptr<IGuiSkin> createGuiSkin() {
+    return std::make_unique<RetroSkin>();
+}
+
+void RetroSkin::drawPanel(Graphics& g, int width, int height, int dividerX) {
+    // Brushed silver panel background
+    g.clear(0xFFDBDFE1);
+
+    // Top & Bottom metallic borders / trims
+    g.drawRect(0, 0, width, 12, 0xFFC0C4C8);
+    g.drawLine(0, 12, width, 12, 0xFF808488, 1);
+    g.drawLine(0, 13, width, 13, 0xFFFFFFFF, 1);
+
+    g.drawLine(0, height - 14, width, height - 14, 0xFF808488, 1);
+    g.drawRect(0, height - 13, width, 13, 0xFFC0C4C8);
+
+    // Vertical dividing line separating controls from right title panel
+    g.drawLine(dividerX, 14, dividerX, height - 14, 0xFF181818, 2);
+}
+
+void RetroSkin::drawKnob(Graphics& g, const Control& ctrl, const Font& font) {
     const int cx = ctrl.x;
     const int cy = ctrl.y;
     const int r = ctrl.radius;
@@ -109,7 +138,7 @@ void TB303ControlRenderer::drawKnob(Graphics& g, const Control& ctrl, const Font
     drawLabel(g, font, ctrl, cy - r - kLabelGap);
 }
 
-void TB303ControlRenderer::drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) {
+void RetroSkin::drawToggleSwitch(Graphics& g, const Control& ctrl, const Font& font) {
     const int cx = ctrl.x;
     const int cy = ctrl.y;
     bool isSquare = (ctrl.currentVal >= 0.5);

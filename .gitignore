@@ -1,4 +1,5 @@
 build/
+build-modern/
 dsp_test
 calibration_results/
 build-cal/

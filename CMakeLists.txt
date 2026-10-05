@@ -52,10 +52,26 @@ set(CLAP_SOURCES
     src/clap/AcidusClap.cpp
 )
 
+# GUI look: RETRO is the small pixel-drawn panel (the default, smallest
+# binary); MODERN shades the knobs per pixel (knurled grip, chamfer, spun
+# metal top, soft shadows) on a textured, aged panel with anti-aliased
+# lettering. Only the chosen skin's source is compiled in. See IGuiSkin.hpp.
+set(ACIDUS_GUI_STYLE "RETRO" CACHE STRING "Acidus GUI skin: RETRO or MODERN")
+set_property(CACHE ACIDUS_GUI_STYLE PROPERTY STRINGS RETRO MODERN)
+string(TOUPPER "${ACIDUS_GUI_STYLE}" ACIDUS_GUI_STYLE_UPPER)
+if(ACIDUS_GUI_STYLE_UPPER STREQUAL "MODERN")
+    set(GUI_SKIN_SOURCE src/gui/modern/ModernSkin.cpp)
+elseif(ACIDUS_GUI_STYLE_UPPER STREQUAL "RETRO")
+    set(GUI_SKIN_SOURCE src/gui/RetroSkin.cpp)
+else()
+    message(FATAL_ERROR "ACIDUS_GUI_STYLE must be RETRO or MODERN, not '${ACIDUS_GUI_STYLE}'")
+endif()
+message(STATUS "Acidus GUI style: ${ACIDUS_GUI_STYLE_UPPER}")
+
 set(GUI_SOURCES
     src/gui/Font.cpp
     src/gui/Graphics.cpp
-    src/gui/ControlRenderer.cpp
+    ${GUI_SKIN_SOURCE}
     src/gui/GuiWindow.cpp
 )
 
