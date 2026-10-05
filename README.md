@@ -228,6 +228,12 @@ positions, and the preset is saved with the project. In the calibration
 build, a star after the name means a calibration parameter was changed
 after the preset was loaded.
 
+**Right-click the logo plate** for the calibration menu: export the
+calibration that plays now (with any edits) as a profile JSON, import one
+into a custom slot after the four presets, or pick a slot. An imported
+calibration is saved with the project. This is how a fitted profile is
+trimmed by ear between fitting rounds (`docs/EMULATION_TRAINING_PLAN.md`).
+
 | Profile | What it is |
 |---|---|
 | `x0x` (default) | The dinsync.info unit as recorded: 40 years old, low cutoff trim, aged C13. Best fit to its 400 notes. |

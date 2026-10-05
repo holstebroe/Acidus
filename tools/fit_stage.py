@@ -9,7 +9,11 @@ The loop (docs/EMULATION_TRAINING_PLAN.md):
   3. python3 tools/fit_stage.py <src> <N> --wav <render.wav>
   4. listen to <dir>/stage<N>/ab.wav (source note, then Acidus, note by note)
      or put <dir>/stage<N>/acidus.wav next to the render in the DAW
-  5. happy: render stage N+1 and repeat; it starts from this stage's profile
+  5. optional: import calibrations/<src>-stage<N>.json into the plugin (right-
+     click the logo plate), trim by ear, export it as
+     calibrations/<src>-stage<N>-trimmed.json
+  6. happy: render stage N+1 and repeat; it starts from the newest
+     calibrations/<src>-stage<N>*.json, so the trimmed export if there is one
 
 The MIDI file alone describes the stage: notes, velocity (accent), gate, and a
 text event per note with the knob positions. This script aligns the MIDI to
@@ -462,6 +466,18 @@ def merged_manifest(base, src, stage, alone, with_probes):
     return out, len(clips)
 
 
+def default_start(src, stage):
+    """The profile the next round starts from: the newest of the previous
+    stage's fit and any trimmed version of it exported from the plugin
+    (calibrations/<src>-stage<N-1>*.json, e.g. <src>-stage1-trimmed.json),
+    else an earlier stage's, else the x0x profile."""
+    for k in range(stage - 1, 0, -1):
+        found = sorted((REPO / "calibrations").glob(f"{src}-stage{k}*.json"), key=lambda p: p.stat().st_mtime)
+        if found:
+            return found[-1]
+    return REPO / "calibrations" / "x0x.json"
+
+
 def write_ab(path, x, sr, notes, offset, acidus, gain):
     """Source note, 300 ms gap, Acidus note, 700 ms gap; one shared scale."""
     pre = int(0.05 * sr)
@@ -485,7 +501,8 @@ def main():
                     help="dry run: render the stage through Acidus with this profile instead of --wav")
     ap.add_argument("--dir", help="working folder (default test/resources/<src>)")
     ap.add_argument("--midi", help="stage MIDI file (default <dir>/<src>-stage<N>.mid)")
-    ap.add_argument("--start", help="profile to start from (default: the previous stage's fit, "
+    ap.add_argument("--start", help="profile to start from, e.g. one exported from the plugin (default: the "
+                    "newest calibrations/<src>-stage<N-1>*.json, so a trimmed export of the previous stage wins; "
                     "else calibrations/x0x.json)")
     ap.add_argument("--tune-cents", type=float, default=0.0, help="the source's tuning offset (default 0)")
     ap.add_argument("--alone", action="store_true", help="fit this stage's notes only, not earlier stages too")
@@ -507,9 +524,7 @@ def main():
              "and the slide time is fixed. Use it for listening only.")
     if bool(args.wav) == bool(args.rehearse):
         fail("give exactly one of --wav and --rehearse")
-    prev = [REPO / "calibrations" / f"{src}-stage{k}.json" for k in range(stage - 1, 0, -1)]
-    start = Path(args.start) if args.start else next((p for p in prev if p.exists()),
-                                                     REPO / "calibrations" / "x0x.json")
+    start = Path(args.start) if args.start else default_start(src, stage)
     notes = stage_notes(mid)
     work = base / f"stage{stage}"
     work.mkdir(parents=True, exist_ok=True)
@@ -559,7 +574,7 @@ def main():
     ckpt = fit_dir / "checkpoint.json"
     prof = json.loads((ckpt if ckpt.exists() and not args.evaluate_only else start).read_text())
     prof.pop("checkpoint", None)
-    prof.update({"source": f"{src}, stage {stage} of docs/EMULATION_TRAINING_PLAN.md (tools/fit_stage.py)",
+    prof.update({"name": f"{src}-stage{stage}","source": f"{src}, stage {stage} of docs/EMULATION_TRAINING_PLAN.md (tools/fit_stage.py)",
                  "fitted": datetime.date.today().isoformat(), "reference_set": str(manifest.relative_to(REPO))
                  if manifest.is_relative_to(REPO) else str(manifest), "started_from": str(start)})
     out_prof = REPO / "calibrations" / f"{src}-stage{stage}.json"

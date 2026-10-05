@@ -178,6 +178,34 @@ preset. Loading a preset again clears the star. This replaces the old
 Ctrl-click reset. A Release build has no calibration parameters, so it
 never shows a star.
 
+### Export and import
+
+Right-click the logo plate for the calibration menu:
+
+- **EXPORT CALIBRATION...** writes the calibration that plays now as a
+  profile in this folder's format (`name`, `source`, `parameters` with all
+  53 constants). In the calibration build that includes your parameter
+  edits.
+- **IMPORT CALIBRATION...** reads a profile into a custom slot after the
+  four presets, named after the profile's `name` or the file name, and
+  selects it. Constants the file lacks keep the value that was playing, so
+  a file with just `{"parameters": {"cutoffBaseHz": 260}}` works. Unknown
+  keys are ignored. A file that does not parse, or names no known
+  constant, changes nothing.
+- The slots, the current one marked: picking one is the same as clicking
+  the display.
+
+The custom slot is saved with the project. Fitted profiles
+(`calibrate_reference.py`, `fit_stage.py`) import directly, and exported
+files are valid `--calibration` / `--start` profiles for the tools. On
+Linux the file dialog is zenity or kdialog, as for Burette's banks.
+
+To trim a calibration by ear, use the calibration build. There, 48 of the
+53 constants are CLAP parameters: all but the oscillator's saw low-pass and
+bend, square duty and level, and the MEG attack. Import, adjust the
+parameters in the host, and export. A Release build imports and exports
+but has nothing to edit.
+
 The presets are compiled from the JSON files: after changing a profile, or
 the list in `PRESETS` in `tools/calibration_profile.py`, regenerate
 `src/core/CalibrationPresets.hpp` and rebuild:
@@ -232,7 +260,8 @@ without rebuilding:
 | 55 | VCA attack (Devil Fish Soft Attack) | `vcaAttackMs` |
 | 9-31 | Filter couplings and ladder, VEG/VCA, accent VCA depth, resonance limit | `oscCouplingHz`, `filterFeedbackGain`, `filterPostHpHz`, `vegDecaySec`, `filterLadderInputScale`, ... |
 
-Clicking the preset display on the logo plate reloads a preset (see above).
+Clicking the preset display on the logo plate reloads a preset, and the
+right-click menu exports and imports calibrations (see above).
 
 ## Possible extensions
 

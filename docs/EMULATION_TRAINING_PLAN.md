@@ -11,7 +11,7 @@ The loop, one stage at a time:
 ```
 MIDI file for stage N  ->  DAW: import, MIDI-learn the knobs, render one WAV
    ->  tools/fit_stage.py <src> N --wav <render>   (align, manifest, fit, profile, A/B audio)
-   ->  listen  ->  happy? stage N+1 starts from this stage's profile
+   ->  listen, optionally trim by ear in the plugin and export  ->  stage N+1 starts from it
 ```
 
 | Stage | Notes | Length | What it adds |
@@ -267,7 +267,7 @@ files to `test/resources/<src>/stage<N>/`:
 | `ab.wav` | Every note of the stage: the source, 0.3 s of silence, then Acidus with the new profile. Same scale for both and level-matched by the fitted gain |
 | `acidus.wav` | Acidus with the new profile on the render's timeline. Drop it on a track next to your render and switch between them |
 | `fit/report.md` | The calibrator's report: per-set table, parameters at a bound, worst notes |
-| `calibrations/<src>-stage<N>.json` | The new profile; the next stage starts from it |
+| `calibrations/<src>-stage<N>.json` | The new profile; the next stage starts from it (or from your trimmed export of it, below) |
 
 Before you render the next stage:
 
@@ -286,9 +286,28 @@ Before you render the next stage:
    ```
 
 Not happy with a stage? Rerun it with more time (`--minutes 60`), or start
-from another profile (`--start calibrations/factory.json`). To play the
-profile in the plugin, add it to `PRESETS` in
-`tools/calibration_profile.py` and rebuild (cookbook, steps 10-11).
+from another profile (`--start calibrations/factory.json`).
+
+### Trim by ear, then fit the next stage from the trim
+
+1. Load Acidus (the calibration build, `-DACIDUS_CALIBRATION_BUILD=ON`, so
+   the constants are host parameters) next to the emulation, both playing
+   the same MIDI.
+2. Right-click the logo plate, then **IMPORT CALIBRATION...**, and pick
+   `calibrations/<src>-stage<N>.json`. The display shows `<SRC>-STAGE<N>`.
+3. Adjust the constants in the host's parameter list (`Experimental/...`)
+   until it sounds right. The display shows a star while it differs from
+   the imported file.
+4. Right-click, then **EXPORT CALIBRATION...**, and save as
+   `calibrations/<src>-stage<N>-trimmed.json`.
+5. Render stage N+1 and run `fit_stage.py` as usual. With no `--start`, it
+   starts from the newest `calibrations/<src>-stage<N>*.json`, which is now
+   your trim. It prints the profile it starts from. The fit only frees the
+   next stage's parameters plus what it shares with earlier stages. A
+   constant you trimmed that no stage fits keeps your value.
+
+Any profile file works with `--start`, including one exported from a
+release build or edited by hand.
 
 ---
 
