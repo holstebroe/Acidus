@@ -11,12 +11,15 @@
 #include <memory>
 #include <chrono>
 #include <random>
+#include <string>
 #include "Font.hpp"
+#include "FileDialog.hpp"
 #include "IGuiSkin.hpp"
 
 namespace acidus {
 
 class AcidusClap;
+class Graphics;
 
 extern const clap_plugin_gui_t g_acidusGuiExtension;
 
@@ -91,6 +94,29 @@ public:
     void handleMouseDrag(int x, int y, bool isShift = false);
     void handleMouseUp();
 
+    // Calibration menu: a right-click on the logo plate opens it, with
+    // export / import of the calibration (core/CalibrationProfile.hpp) and
+    // every calibration slot. A left click picks an item, anywhere else
+    // closes it.
+    void handleRightClick(int x, int y);
+    void handleMouseMove(int x, int y);   // hover highlight
+    bool isMenuOpen() const { return menuOpen_; }
+    // Tests: the open menu's items.
+    int getMenuItemCount() const { return static_cast<int>(menuItems_.size()); }
+    std::string getMenuItemLabel(int i) const;
+    void getMenuItemRect(int i, int& x, int& y, int& w, int& h) const;
+
+    // Export / import need a file dialog, which the platform layer runs:
+    // takeFileRequest() hands out a request once, finishFileRequest() acts
+    // on the chosen path (empty: cancelled) and shows the outcome.
+    enum class FileRequest { NoFile, Export, Import };
+    FileRequest takeFileRequest();
+    FileDialogOptions fileDialogOptions(FileRequest request) const;
+    void finishFileRequest(FileRequest request, const std::string& path);
+    // A short message in the calibration label for a few seconds.
+    void showStatus(const std::string& text);
+    std::string getStatus() const;
+
 private:
     AcidusClap* plugin_{nullptr};
     uint32_t width_{kDefaultWidth};
@@ -124,6 +150,27 @@ private:
     std::unique_ptr<IGuiSkin> skin_;
 
     int activeControlIndex_{-1};
+
+    // Calibration menu (see handleRightClick).
+    static constexpr int kMenuExport = -1;
+    static constexpr int kMenuImport = -2;
+    static constexpr int kMenuSeparator = -3;
+    struct MenuItem { std::string label; int action; };   // action: a slot index or kMenu*
+    std::vector<MenuItem> menuItems_;
+    bool menuOpen_{false};
+    bool menuDirty_{false};    // the menu was just closed: repaint where it was
+    int menuX_{0}, menuY_{0}, menuW_{0};
+    int menuHover_{-1};
+    static constexpr int kMenuItemH = 13;
+    static constexpr int kMenuSeparatorH = 5;
+    int menuItemAt(int x, int y) const;
+    void openMenu(int x, int y);
+    void closeMenu();
+    void drawMenu(Graphics& g);
+    FileRequest pendingFile_{FileRequest::NoFile};
+    std::string lastDir_;
+    std::string status_;
+    std::chrono::steady_clock::time_point statusUntil_{};
     int logoPlateX_{0}, logoPlateY_{0}, logoPlateW_{0}, logoPlateH_{0}; // set by drawAcidusTitle
     int presetLabelX_{0}, presetLabelY_{0}, presetLabelW_{0}, presetLabelH_{0}; // set by drawAcidusTitle
 
@@ -156,6 +203,7 @@ private:
     void initX11Window();
     void drawX11Frame();
     void eventLoopX11();
+    FileDialogProcess fileDialog_;
 #elif defined(_WIN32)
     void* hwnd_{nullptr};
     void* parentHwnd_{nullptr};

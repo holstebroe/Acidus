@@ -4,6 +4,9 @@
 #include "gui/Font.hpp"
 #include "gui/IGuiSkin.hpp"
 #include "core/CalibrationPresets.hpp"
+#include "core/CalibrationProfile.hpp"
+#include <cstdio>
+#include <filesystem>
 #include <algorithm>
 #include <cstring>
 #include <string>
@@ -207,7 +210,7 @@ int main() {
         acidus::AcidusClap calPlugin(nullptr);
         acidus::GuiWindow calGui(&calPlugin);
         calGui.renderFrame();
-        check(std::string(calPlugin.calibrationPresetName()) == "X0X", "starts on X0X");
+        check(calPlugin.calibrationPresetName() == "X0X", "starts on X0X");
         check(!calPlugin.isCalibrationModified(), "fresh preset not modified");
         calPlugin.onParamValueFromGui(acidus::PARAM_CUTOFF, 0.123);
         check(!calPlugin.isCalibrationModified(), "a front-panel knob is not a calibration change");
@@ -225,22 +228,22 @@ int main() {
         check(calPlugin.calibrationPresetIndex() == 0, "click outside the label does not cycle");
 
         calGui.handleMouseDown(lx + lw / 2, ly + lh / 2);
-        check(std::string(calPlugin.calibrationPresetName()) == "ACIDVOICE", "click cycles to ACIDVOICE");
+        check(calPlugin.calibrationPresetName() == "ACIDVOICE", "click cycles to ACIDVOICE");
         check(std::abs(calPlugin.getEngine().getParams().cutoffBaseHz - presets[1].params.cutoffBaseHz) < 1e-4f,
               "engine uses the preset's constants");
         double v = 0.0;
         calPlugin.paramsValue(acidus::PARAM_CUTOFF, &v);
         check(std::abs(v - 0.123) < 1e-9, "knob position kept");
         check(std::abs(calPlugin.getEngine().getParams().cutoff - 0.123f) < 1e-6f, "engine knob kept");
-        for (int i = 0; i < acidus::AcidusClap::calibrationPresetCount() - 1; ++i) {
+        for (int i = 0; i < calPlugin.calibrationPresetCount() - 1; ++i) {
             calGui.handleMouseDown(lx + lw / 2, ly + lh / 2);
         }
         check(calPlugin.calibrationPresetIndex() == 0, "cycling wraps around to the first preset");
         calPlugin.selectCalibrationPreset(3, true);
-        check(std::string(calPlugin.calibrationPresetName()) == "HELL FISH", "HELL FISH preset");
+        check(calPlugin.calibrationPresetName() == "HELL FISH", "HELL FISH preset");
         check(std::abs(calPlugin.getEngine().getParams().vcaAttackMs - presets[3].params.vcaAttackMs) < 1e-5f,
               "non-default constant applied");
-        for (int i = 0; i < acidus::AcidusClap::calibrationPresetCount(); ++i) {
+        for (int i = 0; i < calPlugin.calibrationPresetCount(); ++i) {
             calPlugin.selectCalibrationPreset(i, true);
             calGui.renderFrame();
             calGui.getPresetLabelRect(lx, ly, lw, lh);
@@ -263,7 +266,7 @@ int main() {
         check(std::abs(v - presets[3].params.vcaAttackMs) < 1e-6, "calibration parameter loaded from the preset");
         // Every preset loads exactly: no calibration parameter is clamped to
         // its range (which would play the preset wrong and show a star).
-        for (int i = 0; i < acidus::AcidusClap::calibrationPresetCount(); ++i) {
+        for (int i = 0; i < calPlugin.calibrationPresetCount(); ++i) {
             calPlugin.selectCalibrationPreset(i, true);
             check(!calPlugin.isCalibrationModified(), "a freshly selected preset is not modified");
             const auto& e = calPlugin.getEngine().getParams();
@@ -322,7 +325,7 @@ int main() {
             check(cycled.stateLoad(&ais) && cycled.isCalibrationModified(), "edit survives a project load");
             cycled.cycleCalibrationPresetFromGui();
             check(!cycled.isCalibrationModified(), "cycling presets resets the calibration");
-            for (int i = 1; i < acidus::AcidusClap::calibrationPresetCount(); ++i) cycled.cycleCalibrationPresetFromGui();
+            for (int i = 1; i < cycled.calibrationPresetCount(); ++i) cycled.cycleCalibrationPresetFromGui();
             check(cycled.calibrationPresetIndex() == 3 && !cycled.isCalibrationModified(),
                   "cycling back to the saved preset gives the preset, not the edit");
         }
@@ -340,8 +343,128 @@ int main() {
         check(restored.calibrationPresetIndex() == 0, "legacy state uses the first preset");
         restored.paramsValue(acidus::PARAM_CUTOFF, &v);
         check(std::abs(v - 0.77) < 1e-9, "legacy knob loaded");
+        // Calibration export / import: the custom slot.
+        {
+            auto sameCalibration = [](const acidus::SynthParameters& a, const acidus::SynthParameters& b) {
+                for (size_t i = 0; i < acidus::calibrationFieldCount(); ++i) {
+                    const auto m = acidus::calibrationFields()[i].member;
+                    if (a.*m != b.*m) return false;
+                }
+                return true;
+            };
+            check(acidus::calibrationFieldCount() == 55, "every calibration constant has a profile key");
+            acidus::AcidusClap src(nullptr);
+            src.selectCalibrationPreset(3, true);
+            const std::string json = src.currentCalibrationJson();
+            check(json.find("\"name\": \"HELL FISH\"") != std::string::npos, "export names the calibration");
+
+            acidus::AcidusClap dst(nullptr);
+            std::string error;
+            check(!dst.hasCustomCalibration() && dst.calibrationPresetCount() == acidus::kCalibrationPresetCount,
+                  "no custom slot before an import");
+            check(dst.importCalibrationJson(json, "fallback", error) && error.empty(), "export imports cleanly");
+            check(dst.calibrationPresetIndex() == acidus::AcidusClap::kCustomCalibration, "import selects the custom slot");
+            check(dst.calibrationPresetCount() == acidus::kCalibrationPresetCount + 1, "custom slot added");
+            check(dst.calibrationPresetName() == "HELL FISH", "custom slot takes the profile's name");
+            check(sameCalibration(dst.getEngine().getParams(), src.getEngine().getParams()), "round trip is exact");
+            check(!dst.isCalibrationModified(), "freshly imported calibration not modified");
+
+            // A partial profile changes only what it names; the name falls back.
+            const float before = dst.getEngine().getParams().vegDecaySec;
+            check(dst.importCalibrationJson("{\"parameters\": {\"cutoffBaseHz\": 321.5, \"futureKnob\": [1, {\"a\": null}]}}",
+                                            "my_trim", error), "partial profile imports");
+            check(dst.getEngine().getParams().cutoffBaseHz == 321.5f, "partial profile value applied");
+            check(dst.getEngine().getParams().vegDecaySec == before, "missing values keep what played");
+            check(dst.calibrationPresetName() == "MY TRIM", "name from the file name, plate style");
+
+            // Bad profiles change nothing.
+            const char* bad[] = { "", "[]", "{", "{\"parameters\": {}}", "{\"parameters\": {\"unknown\": 1}}",
+                                  "{\"parameters\": {\"cutoffBaseHz\": \"high\"}}", "{\"parameters\": {\"cutoffBaseHz\": 1e999}}",
+                                  "{\"parameters\": {\"cutoffBaseHz\": 200}} trailing", "{\"parameters\": {\"cutoffBaseHz\": 200,}}" };
+            for (const char* text : bad) {
+                check(!dst.importCalibrationJson(text, "x", error) && !error.empty(), "bad profile rejected");
+                check(dst.getEngine().getParams().cutoffBaseHz == 321.5f, "bad profile changes nothing");
+            }
+
+            // The custom slot is part of the project state.
+            MemStream ms;
+            clap_ostream_t cos{&ms, MemStream::write};
+            check(dst.stateSave(&cos), "state with a custom calibration saved");
+            acidus::AcidusClap reloaded(nullptr);
+            clap_istream_t cis{&ms, MemStream::read};
+            check(reloaded.stateLoad(&cis), "state with a custom calibration loaded");
+            check(reloaded.hasCustomCalibration() && reloaded.calibrationPresetIndex() == acidus::AcidusClap::kCustomCalibration,
+                  "custom slot restored and selected");
+            check(reloaded.calibrationPresetName() == "MY TRIM", "custom name restored");
+            check(sameCalibration(reloaded.getEngine().getParams(), dst.getEngine().getParams()), "custom calibration restored");
+            // A state without one clears it.
+            MemStream plain;
+            clap_ostream_t pos{&plain, MemStream::write};
+            check(src.stateSave(&pos), "plain state saved");
+            clap_istream_t pis{&plain, MemStream::read};
+            check(reloaded.stateLoad(&pis) && !reloaded.hasCustomCalibration() && reloaded.calibrationPresetIndex() == 3,
+                  "a state without a custom slot clears it");
+
+            // The logo plate's right-click menu.
+            acidus::AcidusClap menuPlugin(nullptr);
+            acidus::GuiWindow menuGui(&menuPlugin);
+            menuGui.renderFrame();
+            int mpx, mpy, mpw, mph;
+            menuGui.getLogoPlateRect(mpx, mpy, mpw, mph);
+            menuGui.handleRightClick(40, 100);   // a knob: no menu
+            check(!menuGui.isMenuOpen(), "right-click off the plate opens no menu");
+            menuGui.handleRightClick(mpx + mpw / 2, mpy + mph / 2);
+            check(menuGui.isMenuOpen(), "right-click on the plate opens the menu");
+            check(menuGui.getMenuItemLabel(0) == "EXPORT CALIBRATION..." && menuGui.getMenuItemLabel(1) == "IMPORT CALIBRATION...",
+                  "export and import items");
+            check(menuGui.getMenuItemCount() == 3 + acidus::kCalibrationPresetCount, "one item per calibration slot");
+            check(menuGui.getMenuItemLabel(3) == "> X0X", "current slot marked");
+            int ix, iy, iw, ih;
+            for (int i = 0; i < menuGui.getMenuItemCount(); ++i) {
+                menuGui.getMenuItemRect(i, ix, iy, iw, ih);
+                check(ix >= 0 && iy >= 0 && ix + iw <= static_cast<int>(menuGui.getWidth())
+                      && iy + ih <= static_cast<int>(menuGui.getHeight()), "menu inside the window");
+            }
+            menuGui.getMenuItemRect(6, ix, iy, iw, ih);   // HELL FISH
+            menuGui.handleMouseMove(ix + 5, iy + ih / 2);
+            menuGui.handleMouseDown(ix + 5, iy + ih / 2);
+            check(!menuGui.isMenuOpen() && menuPlugin.calibrationPresetIndex() == 3, "menu picks a preset");
+            check(menuGui.takeFileRequest() == acidus::GuiWindow::FileRequest::NoFile, "a preset needs no file");
+            menuGui.handleRightClick(mpx + 10, mpy + 10);
+            menuGui.handleMouseDown(5, 5);   // outside: closes, changes nothing
+            check(!menuGui.isMenuOpen() && menuPlugin.calibrationPresetIndex() == 3, "click outside closes the menu");
+
+            // Export through the menu, then import the file back.
+            const std::string file = (std::filesystem::temp_directory_path() / "acidus_gui_test_calibration.json").string();
+            menuGui.handleRightClick(mpx + 10, mpy + 10);
+            menuGui.getMenuItemRect(0, ix, iy, iw, ih);
+            menuGui.handleMouseDown(ix + 5, iy + ih / 2);
+            check(menuGui.takeFileRequest() == acidus::GuiWindow::FileRequest::Export, "export asks for a file");
+            const auto opts = menuGui.fileDialogOptions(acidus::GuiWindow::FileRequest::Export);
+            check(opts.save && opts.extension == "json" && opts.startPath.size() >= 14
+                  && opts.startPath.compare(opts.startPath.size() - 14, 14, "hell-fish.json") == 0,
+                  "export dialog suggests a file named after the calibration");
+            menuGui.finishFileRequest(acidus::GuiWindow::FileRequest::Export, file);
+            check(menuGui.getStatus() == "EXPORTED", "export reported");
+            menuPlugin.selectCalibrationPreset(0, true);
+            menuGui.finishFileRequest(acidus::GuiWindow::FileRequest::Import, file);
+            check(menuGui.getStatus() == "IMPORTED", "import reported");
+            check(menuPlugin.calibrationPresetIndex() == acidus::AcidusClap::kCustomCalibration
+                  && sameCalibration(menuPlugin.getEngine().getParams(), src.getEngine().getParams()),
+                  "the exported file imports as the custom slot");
+            { std::ofstream(file) << "not json"; }
+            menuGui.finishFileRequest(acidus::GuiWindow::FileRequest::Import, file);
+            check(menuGui.getStatus() == "IMPORT FAILED", "a bad file is reported");
+            menuGui.finishFileRequest(acidus::GuiWindow::FileRequest::Import, "");   // cancelled: nothing
+            std::remove(file.c_str());
+            menuGui.handleRightClick(mpx + 10, mpy + 10);
+            check(menuGui.getMenuItemLabel(3 + acidus::AcidusClap::kCustomCalibration) == "> HELL FISH", "custom slot listed and marked");
+            menuGui.renderFrame();
+            std::cout << "Calibration export / import tests passed" << std::endl;
+        }
+
         std::cout << "Calibration preset tests passed ("
-                  << acidus::AcidusClap::calibrationPresetCount() << " presets)" << std::endl;
+                  << calPlugin.calibrationPresetCount() << " presets)" << std::endl;
     }
 
     {

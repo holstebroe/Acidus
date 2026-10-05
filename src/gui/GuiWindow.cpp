@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <algorithm>
+#include <filesystem>
 #include <random>
 
 #if defined(__linux__) && !defined(__APPLE__)
@@ -208,9 +209,12 @@ void GuiWindow::drawAcidusTitle(Graphics& g, int startX, int startY, unsigned pa
     // 7. Calibration preset label: a small recessed LCD window. A star
     // means a calibration parameter was changed after loading the preset.
     // Click to load the next preset.
+    // A status message (export / import outcome) replaces it for a moment.
     char label[48];
-    if (plugin_) {
-        std::snprintf(label, sizeof(label), "%s%s", plugin_->calibrationPresetName(),
+    if (!status_.empty() && std::chrono::steady_clock::now() < statusUntil_) {
+        std::snprintf(label, sizeof(label), "%s", status_.c_str());
+    } else if (plugin_) {
+        std::snprintf(label, sizeof(label), "%s%s", plugin_->calibrationPresetName().c_str(),
                       plugin_->isCalibrationModified() ? "*" : "");
     } else {
         std::snprintf(label, sizeof(label), "%s", "X0X");
@@ -382,7 +386,9 @@ void GuiWindow::renderFrame() {
     // Region to repaint: the whole frame after a knob change, else the plate
     // (with its frame and shadow), in hi-res pixels.
     int rx0 = 0, ry0 = 0, rx1 = hW, ry1 = hH;
-    if (!fullRedraw) {
+    const bool menuRegion = menuOpen_ || menuDirty_;   // the menu can cover the whole panel
+    menuDirty_ = false;
+    if (!fullRedraw && !menuRegion) {
         rx0 = std::max(0, 2 * (logoPlateX_ - 4));
         ry0 = std::max(0, 2 * (logoPlateY_ - 4));
         rx1 = std::min(hW, 2 * (logoPlateX_ + logoPlateW_ + 6));
@@ -414,6 +420,7 @@ void GuiWindow::renderFrame() {
         }
     }
     drawAcidusTitle(g, titleX, titleY, kTitleDynamic);
+    if (menuOpen_) drawMenu(g);
 
     dirtyX_ = rx0 / 2; dirtyY_ = ry0 / 2; dirtyW_ = (rx1 - rx0) / 2; dirtyH_ = (ry1 - ry0) / 2;
 
@@ -446,6 +453,18 @@ void GuiWindow::renderFrame() {
 void GuiWindow::handleMouseDown(int x, int y, bool isShift) {
     std::lock_guard<std::recursive_mutex> lock(guiMutex_);
     lastShiftState_ = isShift;
+
+    // An open menu takes the click: pick the item under it, or just close.
+    if (menuOpen_) {
+        const int i = menuItemAt(x, y);
+        const int action = (i >= 0) ? menuItems_[static_cast<size_t>(i)].action : kMenuSeparator;
+        closeMenu();
+        if (action == kMenuExport) pendingFile_ = FileRequest::Export;
+        else if (action == kMenuImport) pendingFile_ = FileRequest::Import;
+        else if (action >= 0 && plugin_) plugin_->selectCalibrationPreset(action, true);
+        renderFrame();
+        return;
+    }
 
     // Click on the calibration label: load the next calibration preset.
     if (presetLabelW_ > 0 && x >= presetLabelX_ && x < presetLabelX_ + presetLabelW_
@@ -551,6 +570,161 @@ void GuiWindow::handleMouseUp() {
         }
     }
     activeControlIndex_ = -1;
+}
+
+// --- Calibration menu ----------------------------------------------------------
+
+void GuiWindow::openMenu(int x, int y) {
+    menuItems_.clear();
+    menuItems_.push_back({ "EXPORT CALIBRATION...", kMenuExport });
+    menuItems_.push_back({ "IMPORT CALIBRATION...", kMenuImport });
+    menuItems_.push_back({ "", kMenuSeparator });
+    if (plugin_) {
+        const int current = plugin_->calibrationPresetIndex();
+        for (int i = 0; i < plugin_->calibrationPresetCount(); ++i) {
+            const std::string name = (i == AcidusClap::kCustomCalibration) ? plugin_->customCalibrationName()
+                                                                           : calibrationPresets()[i].name;
+            menuItems_.push_back({ (i == current ? "> " : "  ") + name, i });
+        }
+    }
+    int textW = 0;
+    for (const auto& item : menuItems_) textW = std::max(textW, font_.getTextWidth(item.label.c_str(), 1));
+    menuW_ = textW + 16;
+    int h = 6;
+    for (const auto& item : menuItems_) h += (item.action == kMenuSeparator) ? kMenuSeparatorH : kMenuItemH;
+    // Open at the pointer, shifted so the whole menu stays in the window.
+    menuX_ = std::max(2, std::min(x, static_cast<int>(width_) - menuW_ - 3));
+    menuY_ = std::max(2, std::min(y, static_cast<int>(height_) - h - 3));
+    menuHover_ = menuItemAt(x, y);
+    menuOpen_ = true;
+}
+
+void GuiWindow::closeMenu() {
+    if (!menuOpen_) return;
+    menuOpen_ = false;
+    menuDirty_ = true;
+    menuHover_ = -1;
+}
+
+int GuiWindow::menuItemAt(int x, int y) const {
+    if (!menuOpen_ || x < menuX_ || x >= menuX_ + menuW_) return -1;
+    int top = menuY_ + 3;
+    for (size_t i = 0; i < menuItems_.size(); ++i) {
+        const int h = (menuItems_[i].action == kMenuSeparator) ? kMenuSeparatorH : kMenuItemH;
+        if (y >= top && y < top + h) return menuItems_[i].action == kMenuSeparator ? -1 : static_cast<int>(i);
+        top += h;
+    }
+    return -1;
+}
+
+std::string GuiWindow::getMenuItemLabel(int i) const {
+    return (i >= 0 && i < getMenuItemCount()) ? menuItems_[static_cast<size_t>(i)].label : std::string();
+}
+
+void GuiWindow::getMenuItemRect(int i, int& x, int& y, int& w, int& h) const {
+    x = menuX_; w = menuW_; y = menuY_ + 3; h = 0;
+    for (int k = 0; k < getMenuItemCount(); ++k) {
+        h = (menuItems_[static_cast<size_t>(k)].action == kMenuSeparator) ? kMenuSeparatorH : kMenuItemH;
+        if (k == i) return;
+        y += h;
+    }
+    h = 0;
+}
+
+void GuiWindow::drawMenu(Graphics& g) {
+    int h = 6;
+    for (const auto& item : menuItems_) h += (item.action == kMenuSeparator) ? kMenuSeparatorH : kMenuItemH;
+    g.fillRect(menuX_ + 3, menuY_ + 4, menuW_, h, 0x60000000);
+    g.fillRect(menuX_, menuY_, menuW_, h, 0xFF131517);
+    g.drawRect(menuX_, menuY_, menuW_, h, 0xFF4A4E52);
+    int top = menuY_ + 3;
+    for (size_t i = 0; i < menuItems_.size(); ++i) {
+        const auto& item = menuItems_[i];
+        if (item.action == kMenuSeparator) {
+            g.drawLine(menuX_ + 4, top + 2, menuX_ + menuW_ - 5, top + 2, 0xFF2C3030, 1);
+            top += kMenuSeparatorH;
+            continue;
+        }
+        const bool hover = static_cast<int>(i) == menuHover_;
+        if (hover) g.fillRect(menuX_ + 2, top, menuW_ - 4, kMenuItemH, 0xFF1B8224);
+        g.drawText(font_, item.label.c_str(), menuX_ + 8, top + 3, hover ? 0xFF000000 : 0xFF39FF14, 1);
+        top += kMenuItemH;
+    }
+}
+
+void GuiWindow::handleRightClick(int x, int y) {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
+    const bool onPlate = logoPlateW_ > 0 && x >= logoPlateX_ && x < logoPlateX_ + logoPlateW_
+                         && y >= logoPlateY_ && y < logoPlateY_ + logoPlateH_;
+    closeMenu();
+    if (onPlate) openMenu(x, y);
+    renderFrame();
+}
+
+void GuiWindow::handleMouseMove(int x, int y) {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
+    if (!menuOpen_) return;
+    const int hover = menuItemAt(x, y);
+    if (hover != menuHover_) {
+        menuHover_ = hover;
+        renderFrame();
+    }
+}
+
+GuiWindow::FileRequest GuiWindow::takeFileRequest() {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
+    const FileRequest r = pendingFile_;
+    pendingFile_ = FileRequest::NoFile;
+    return r;
+}
+
+FileDialogOptions GuiWindow::fileDialogOptions(FileRequest request) const {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
+    FileDialogOptions o;
+    o.save = (request == FileRequest::Export);
+    o.title = o.save ? "Export Acidus calibration" : "Import Acidus calibration";
+    o.filterName = "Calibration profiles";
+    o.extension = "json";
+    std::string dir = lastDir_.empty() ? homeDirectory() : lastDir_;
+    if (!dir.empty() && dir.back() != '/' && dir.back() != '\\') dir += '/';
+    o.startPath = dir;
+    if (o.save && plugin_) {
+        // The calibration's name as a file name: lower case, '-' for spaces.
+        std::string file;
+        for (char c : plugin_->calibrationPresetName()) {
+            if (c >= 'A' && c <= 'Z') file += static_cast<char>(c - 'A' + 'a');
+            else if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_') file += c;
+            else if (c == ' ' && !file.empty() && file.back() != '-') file += '-';
+        }
+        o.startPath += (file.empty() ? "acidus-calibration" : file) + ".json";
+    }
+    return o;
+}
+
+void GuiWindow::finishFileRequest(FileRequest request, const std::string& path) {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
+    if (path.empty() || !plugin_ || request == FileRequest::NoFile) return;
+    lastDir_ = std::filesystem::u8path(path).parent_path().u8string();
+    std::string error;
+    if (request == FileRequest::Export) {
+        showStatus(plugin_->exportCalibration(path, error) ? "EXPORTED" : "EXPORT FAILED");
+    } else {
+        const bool ok = plugin_->importCalibration(path, error);
+        showStatus(!ok ? "IMPORT FAILED" : (error.empty() ? "IMPORTED" : "IMPORTED, CLAMPED"));
+    }
+    if (!error.empty()) std::fprintf(stderr, "Acidus calibration: %s\n", error.c_str());
+    renderFrame();
+}
+
+void GuiWindow::showStatus(const std::string& text) {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
+    status_ = text;
+    statusUntil_ = std::chrono::steady_clock::now() + std::chrono::milliseconds(2500);
+}
+
+std::string GuiWindow::getStatus() const {
+    std::lock_guard<std::recursive_mutex> lock(guiMutex_);
+    return std::chrono::steady_clock::now() < statusUntil_ ? status_ : std::string();
 }
 
 bool GuiWindow::setParent(const clap_window_t* window) {
@@ -660,14 +834,28 @@ void GuiWindow::eventLoopX11() {
             } else if (ev.type == ButtonPress && ev.xbutton.button == Button1) {
                 bool isShift = (ev.xbutton.state & ShiftMask) != 0;
                 handleMouseDown(ev.xbutton.x, ev.xbutton.y, isShift);
+            } else if (ev.type == ButtonPress && ev.xbutton.button == Button3) {
+                handleRightClick(ev.xbutton.x, ev.xbutton.y);
             } else if (ev.type == MotionNotify) {
                 if (ev.xmotion.state & Button1Mask) {
                     bool isShift = (ev.xmotion.state & ShiftMask) != 0;
                     handleMouseDrag(ev.xmotion.x, ev.xmotion.y, isShift);
+                } else {
+                    handleMouseMove(ev.xmotion.x, ev.xmotion.y);
                 }
             } else if (ev.type == ButtonRelease && ev.xbutton.button == Button1) {
                 handleMouseUp();
             }
+        }
+        // Export / import: the file dialog runs as a child process (FileDialog.hpp).
+        const FileRequest request = takeFileRequest();
+        if (request != FileRequest::NoFile && !fileDialog_.running()) {
+            if (!fileDialog_.start(fileDialogOptions(request))) showStatus("NO FILE DIALOG");
+        }
+        std::string chosen;
+        bool save = false;
+        if (fileDialog_.poll(chosen, save)) {
+            finishFileRequest(save ? FileRequest::Export : FileRequest::Import, chosen);
         }
         // Periodic repaint for the logo plate's bubble animation (~30 fps).
         auto now = std::chrono::steady_clock::now();
@@ -751,6 +939,19 @@ static LRESULT CALLBACK AcidusWndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LP
                 bool isShift = (wParam & MK_SHIFT) != 0;
                 SetCapture(hwnd);
                 gui->handleMouseDown(x, y, isShift);
+                // A menu pick may ask for a file dialog (modal).
+                const GuiWindow::FileRequest request = gui->takeFileRequest();
+                if (request != GuiWindow::FileRequest::NoFile) {
+                    ReleaseCapture();
+                    const std::filesystem::path file = runFileDialog(hwnd, gui->fileDialogOptions(request));
+                    gui->finishFileRequest(request, file.u8string());
+                }
+            }
+            return 0;
+        }
+        case WM_RBUTTONDOWN: {
+            if (gui) {
+                gui->handleRightClick(static_cast<short>(LOWORD(lParam)), static_cast<short>(HIWORD(lParam)));
             }
             return 0;
         }
@@ -760,6 +961,8 @@ static LRESULT CALLBACK AcidusWndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LP
                 int y = HIWORD(lParam);
                 bool isShift = (wParam & MK_SHIFT) != 0;
                 gui->handleMouseDrag(x, y, isShift);
+            } else if (gui) {
+                gui->handleMouseMove(static_cast<short>(LOWORD(lParam)), static_cast<short>(HIWORD(lParam)));
             }
             return 0;
         }

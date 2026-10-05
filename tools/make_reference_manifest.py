@@ -159,6 +159,8 @@ def main():
     clean = [c for c in clips if c["knobs_pct"]["resonance"] <= 50 and c["knobs_pct"]["envMod"] <= 50]
     if args.tune_cents is not None:
         tune = args.tune_cents
+    elif all(c["_tune"] is not None for c in clips):
+        tune = clips[0]["_tune"]   # every row gives its own: nothing to measure
     else:
         pool = clean or clips
         if not clean:

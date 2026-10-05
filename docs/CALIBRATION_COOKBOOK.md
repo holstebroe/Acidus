@@ -182,7 +182,7 @@ represents that one setting, and the extra controls do not become plugin knobs.
 See the `hellfish` profile in `calibrations/README.md` for what "mapped onto
 existing constants" looks like.
 
-**A software plugin or emulation.** Use an **offline bounce** from a DAW, one note per
+**A software plugin or emulation.** See [`EMULATION_TRAINING_PLAN.md`](EMULATION_TRAINING_PLAN.md) for a staged, reduced set (145 notes): one MIDI file per stage, rendered from the DAW as one WAV and fitted with `tools/fit_stage.py`. Use an **offline bounce** from a DAW, one note per
 slot on a fixed grid, so the note-on time and gate length are exact (you set them in
 the MIDI clip). Knob positions are exact too (copy the plugin's 0..1 or 0..10
 value and convert to percent), so fit with `--fix knobs` (the knob positions are
