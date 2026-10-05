@@ -1,36 +1,32 @@
 #!/usr/bin/env python3
-"""Write the reduced training set for calibrating against a software 303.
+"""Write the staged training set for calibrating against a software 303.
 
-The set is explained in docs/EMULATION_TRAINING_PLAN.md. This script writes,
-for a source id <src>:
+The set is explained in docs/EMULATION_TRAINING_PLAN.md. For a source id
+<src> this writes:
 
-    <out>/<src>_notes.csv       knob sheet for tools/make_reference_manifest.py:
-                                single notes of stage 0 (probes P01-P12) and
-                                stages 1-3 (sets 1A-1E, 2A-2C, 3A-3D, anchors nR)
-    <out>/<src>_sequences.csv   stage 4: slides, accent runs, retriggers (Q1-Q6);
-                                the calibrator does not fit multi-note clips yet
-    <out>/midi/<src>-<set>.mid  one MIDI file per WAV to bounce, if --midi
+    <out>/<src>-stage0.mid ... -stage4.mid
+                         one MIDI file per stage: import it into the DAW,
+                         MIDI-learn the knobs, render the whole stage as one WAV
+    <out>/<src>_sheet.csv        every single note of stages 0-3, for reading
+    <out>/<src>_sequences.csv    stage 4 (slides, accent runs, retriggers)
 
-Stages are cumulative: render a stage, fit and validate it (see the plan),
-then rerun with a higher --through so the sheet also lists the next stage.
+Then fit the rendered stage with tools/fit_stage.py.
 
-The MIDI files run at 125 BPM, 480 PPQ, so one tick is exactly 1 ms and every
-note_on_ms in the sheets is a whole tick. Accent is velocity 127, normal 100
-(Burette's convention); a slide is the next note-on 10 ms before the previous
-note-off. By default knob positions are NOT in the MIDI: set them per note
-from the sheet (plugin parameter automation at the exact value, changed in
-the silence between notes). With --cc the MIDI also sets them by Control
-Change, 300 ms before each note (or sequence). `--cc default` uses Acidus's
-CC map (Cutoff 71, Resonance 72, Env Mod 73, Decay 74, Accent 22, Waveform
-23): MIDI-learn the emulation's knobs to those, and the same files drive both.
+The MIDI files run at 125 BPM, 480 PPQ, so one tick is exactly 1 ms. Accent
+is velocity 127, normal 100 (Burette's convention); a slide is the next
+note-on 10 ms before the previous note-off. Knobs are sent as Control Changes
+300 ms before each note (or sequence), in silence. The default map is
+Acidus's own (Cutoff 71, Resonance 72, Env Mod 73, Decay 74, Accent 22,
+Waveform 23): MIDI-learn the emulation's knobs to those, and the same files
+drive both plugins. A marker names each set and a text event at every note
+records its knobs, so the MIDI file alone describes the stage.
 
-CC is 7-bit, so 25 % cannot be sent exactly (31.75 / 127). In --cc mode every
-knob is snapped to the nearest CC value and the sheet records the exact
-position that CC gives (25 % -> 32 -> 25.197 %), so the fit sees the knob the
-emulation really got. Check that the emulation maps CC 0..127 linearly onto
-the full knob travel before trusting this.
+CC is 7-bit, so 25 % cannot be sent exactly (31.75 / 127): every knob is
+snapped to the nearest CC value and the text events record the exact
+position that value sets (25 % -> 32 -> 25.197 %). Check that the emulation's
+MIDI learn maps CC 0..127 linearly onto the whole knob travel.
 
-    python3 tools/emulation_training_set.py <src> --out test/resources/<src> --midi --cc default --through 1
+    python3 tools/emulation_training_set.py <src> --out test/resources/<src>
 """
 import argparse
 import csv
@@ -78,29 +74,33 @@ def note_sets():
     s = []
     common = dict(cutoff=25, envmod=50, decay=50)
     # --- Stage 0: separability probes (2x2 corners) -------------------------
+    # The resonant peak is tracked, so these sit where it is clear: Resonance
+    # 75-100 %, Cutoff 50-75 %, and C1 / C2, whose dense harmonics let the
+    # peak be placed between them.
+    tr = dict(cutoff=75, resonance=75)
     s.append((0, "P01", "pitch x cutoff: key tracking of the settled peak",
-              grid("P01", dict(resonance=100), note=["C1", "C3"], cutoff=[50, 100])))
+              grid("P01", dict(resonance=100), note=["C1", "C2"], cutoff=[50, 100])))
     s.append((0, "P02", "pitch x envmod: sweep depth in octaves",
-              grid("P02", dict(cutoff=25, resonance=75, decay=50), note=["C1", "C3"], envmod=[25, 100])))
+              grid("P02", dict(tr, decay=50), note=["C1", "C2"], envmod=[25, 100])))
     s.append((0, "P03", "pitch x accent: accent sweep and level",
-              grid("P03", dict(common, resonance=100, accent_knob=100), note=["C1", "C3"], accent=["no", "yes"])))
+              grid("P03", dict(tr, resonance=100, envmod=0, decay=50, accent_knob=100),
+                   note=["C1", "C2"], accent=["no", "yes"])))
     s.append((0, "P04", "decay x accent: Decay is shorted on accented steps",
-              grid("P04", dict(cutoff=25, resonance=75, envmod=75, accent_knob=100),
-                   accent=["no", "yes"], decay=[0, 100])))
+              grid("P04", dict(tr, envmod=75, accent_knob=100), accent=["no", "yes"], decay=[0, 100])))
     s.append((0, "P05", "envmod x decay: depth from Env Mod only, tau from Decay only",
-              grid("P05", dict(cutoff=25, resonance=75), envmod=[50, 100], decay=[25, 75])))
+              grid("P05", dict(tr, gate_ms=2500), envmod=[50, 75], decay=[25, 75])))
     s.append((0, "P06", "cutoff x decay: tau does not depend on Cutoff",
-              grid("P06", dict(resonance=75, envmod=100), cutoff=[25, 75], decay=[25, 75])))
+              grid("P06", dict(resonance=75, envmod=50, gate_ms=2500), cutoff=[75, 100], decay=[25, 75])))
     s.append((0, "P07", "resonance x envmod: depth does not depend on Resonance",
-              grid("P07", dict(cutoff=25, decay=50), resonance=[50, 100], envmod=[25, 100])))
+              grid("P07", dict(cutoff=75, decay=50), resonance=[75, 100], envmod=[25, 100])))
     s.append((0, "P08", "gate x accent: nothing looks ahead to the gate; release shape",
-              grid("P08", dict(cutoff=25, resonance=75, envmod=100, decay=75, accent_knob=100),
+              grid("P08", dict(tr, envmod=100, decay=75, accent_knob=100),
                    gate_ms=[150, 1300], accent=["no", "yes"])))
     s.append((0, "P09", "waveform x envmod: same sweep for saw and square",
-              grid("P09", dict(cutoff=25, resonance=75, decay=50), waveform=["saw", "square"], envmod=[25, 100])))
-    s.append((0, "P10", "accent x cutoff x envmod: accent sweep adds in octaves",
-              grid("P10", dict(resonance=100, decay=50, accent_knob=100),
-                   cutoff=[25, 75], envmod=[0, 100], accent=["no", "yes"])))
+              grid("P09", dict(tr, decay=50), waveform=["saw", "square"], envmod=[25, 100])))
+    s.append((0, "P10", "accent x cutoff: the accent sweep adds in octaves",
+              grid("P10", dict(resonance=100, envmod=0, decay=50, accent_knob=100),
+                   cutoff=[50, 100], accent=["no", "yes"])))
     s.append((0, "P11", "Accent knob on an unaccented step does nothing",
               grid("P11", dict(common, resonance=75), accent_knob=[0, 100])))
     s.append((0, "P12", "determinism: the same note twice",
@@ -202,6 +202,8 @@ DEFAULT_CC = "cutoff=71,resonance=72,envmod=73,decay=74,accent_knob=22,waveform=
 def parse_cc(text):
     if text == "default":
         text = DEFAULT_CC
+    if text == "none":
+        return {}
     cc = {}
     for item in filter(None, text.split(",")):
         key, num = item.split("=")
@@ -226,19 +228,11 @@ def cc_events(knobs, at_ms, cc):
     return ev
 
 
-def layout(rows):
-    """note_on_ms per row: fixed grid, slot grows with the gate."""
-    t = NOTE_ON_MS
-    for r in rows:
-        r["note_on_ms"] = t
-        t += max(SLOT_MS, r["gate_ms"] + TAIL_MS)
-    return t
-
-
-def write_midi(path, events, end_ms, controls=()):
+def write_midi(path, events, end_ms, controls=(), texts=()):
     """Type-0 SMF, 125 BPM, 480 PPQ (1 tick = 1 ms). events: (midi, on, off, vel);
-    controls: (tick, data) Control Changes."""
-    msgs = [(t, -1, data) for t, data in controls]
+    controls: (tick, data) Control Changes; texts: (tick, meta type, text)."""
+    msgs = [(t, -2, bytes([0xFF, kind, len(txt)]) + txt.encode()) for t, kind, txt in texts]
+    msgs += [(t, -1, data) for t, data in controls]
     for m, on, off, vel in events:
         msgs.append((on, 1, bytes([0x90, m, vel])))
         msgs.append((off, 0, bytes([0x80, m, 0])))       # note-off sorts first at equal ticks
@@ -261,77 +255,78 @@ def write_midi(path, events, end_ms, controls=()):
     path.write_bytes(b"MThd" + struct.pack(">IHHH", 6, 0, 1, 480) + b"MTrk" + struct.pack(">I", len(trk)) + trk)
 
 
+def note_text(name, r):
+    """The text event that makes a stage MIDI file self-describing: the fitter
+    (tools/fit_stage.py) reads the knobs from it, whatever the CC map."""
+    knobs = " ".join(f"{k}={r[k]:g}" for k in KNOB_COLS)
+    return f"{name} {r['waveform']} {knobs}"
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("source_id")
     ap.add_argument("--out", default=".", help="output folder")
-    ap.add_argument("--midi", action="store_true", help="also write one MIDI file per WAV")
-    ap.add_argument("--cc", type=parse_cc, default={},
-                    help="set knobs by MIDI CC: 'default' (Acidus's CC map) or a comma list "
-                         "control=CC number, controls cutoff, resonance, envmod, decay, accent_knob, waveform")
-    ap.add_argument("--through", type=int, default=4,
-                    help="write stages 0..N only (default 4, all), so the sheet names only rendered files")
+    ap.add_argument("--cc", type=parse_cc, default=parse_cc("default"),
+                    help="knob CCs: 'default' (Acidus's map, for MIDI learn; the default), 'none' "
+                         "(set knobs by automation from the sheet), or a comma list control=CC number "
+                         "with controls cutoff, resonance, envmod, decay, accent_knob, waveform")
     args = ap.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     src = args.source_id
-    if args.midi:
-        (out / "midi").mkdir(exist_ok=True)
 
     cols = ["file", "note", "waveform", "accent", "cutoff", "resonance", "envmod", "decay",
-            "accent_knob", "note_on_ms", "gate_ms", "tune_cents", "set", "stage", "purpose"]
-    n_notes = 0
-    with open(out / f"{src}_notes.csv", "w", newline="") as f:
-        f.write(f"# Reduced training set for a software 303, stages 0-{args.through}; docs/EMULATION_TRAINING_PLAN.md.\n"
-                "# One WAV per set; knobs are percent of travel; render at 125 BPM from the MIDI files.\n"
-                "# tune_cents: leave blank for an exact emulation or pass --tune-cents 0.\n")
+            "accent_knob", "note_on_ms", "gate_ms", "set", "stage", "purpose"]
+    stages = {}
+    for stage, name, purpose, rows in note_sets():
+        stages.setdefault(stage, []).append((name, purpose, rows))
+    with open(out / f"{src}_sheet.csv", "w", newline="") as f:
+        f.write("# Reduced training set for a software 303 (docs/EMULATION_TRAINING_PLAN.md).\n"
+                "# One MIDI file and one WAV per stage; knobs are percent of travel. For reading:\n"
+                "# tools/fit_stage.py takes the knobs from the MIDI file itself.\n")
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
         w.writeheader()
-        for stage, name, purpose, rows in note_sets():
-            if stage > args.through:
-                continue
-            rows = [snap(dict(r), args.cc) for r in rows]
-            end = layout(rows)
-            fname = f"{src}-{name}.wav"
-            for r in rows:
-                w.writerow(dict(r, file=fname, set=name, stage=stage, purpose=purpose, tune_cents=""))
-            n_notes += len(rows)
-            if args.midi:
-                write_midi(out / "midi" / f"{src}-{name}.mid",
-                           [(midi_of(r["note"]), r["note_on_ms"], r["note_on_ms"] + r["gate_ms"],
-                             VEL_ACCENT if r["accent"] == "yes" else VEL_NORMAL) for r in rows], end,
-                           [e for r in rows for e in cc_events(r, r["note_on_ms"], args.cc)])
+        for stage, sets in sorted(stages.items()):
+            t, events, controls, texts = NOTE_ON_MS, [], [], []
+            for name, purpose, rows in sets:
+                rows = [snap(dict(r), args.cc) for r in rows]
+                texts.append((max(0, t - CC_LEAD_MS - 100), 0x06, f"{name}: {purpose}"))
+                for i, r in enumerate(rows):
+                    r["note_on_ms"] = t
+                    t += max(SLOT_MS, r["gate_ms"] + TAIL_MS)
+                    w.writerow(dict(r, file=f"{src}-stage{stage}.wav", set=name, stage=stage, purpose=purpose))
+                    events.append((midi_of(r["note"]), r["note_on_ms"], r["note_on_ms"] + r["gate_ms"],
+                                   VEL_ACCENT if r["accent"] == "yes" else VEL_NORMAL))
+                    controls += cc_events(r, r["note_on_ms"], args.cc)
+                    texts.append((r["note_on_ms"], 0x01, note_text(f"{name}-{i + 1}", r)))
+            write_midi(out / f"{src}-stage{stage}.mid", events, t, controls, texts)
+            print(f"stage {stage}: {len(events)} notes, {t / 60000:.1f} min -> {out / f'{src}-stage{stage}.mid'}")
 
     scols = ["file", "seq", "event", "note", "on_ms", "off_ms", "accent", "slide_from_previous",
              "waveform", "cutoff", "resonance", "envmod", "decay", "accent_knob", "set", "purpose"]
-    n_seq = 0
     with open(out / f"{src}_sequences.csv", "w", newline="") as f:
-        f.write("# Multi-note clips (slides, accent runs). Times are absolute in the file.\n"
+        f.write("# Stage 4: multi-note clips (slides, accent runs). Times are absolute in the file.\n"
                 "# A slide is a note-on before the previous note-off; knobs hold for the whole sequence.\n")
         w = csv.DictWriter(f, fieldnames=scols)
         w.writeheader()
+        t, events, controls, texts, n_seq = NOTE_ON_MS, [], [], [], 0
         for stage, name, purpose, seqs in sequence_sets():
-            if stage > args.through:
-                continue
-            fname = f"{src}-{name}.wav"
-            t, events, controls = NOTE_ON_MS, [], []
+            texts.append((max(0, t - CC_LEAD_MS - 100), 0x06, f"{name}: {purpose}"))
             for k, (knobs, notes) in enumerate(seqs):
                 knobs = snap(dict(knobs, waveform="saw"), args.cc)
                 controls += cc_events(knobs, t, args.cc)
+                texts.append((t, 0x01, note_text(f"{name}-{k + 1}", knobs)))
                 for i, (n, on, off, acc) in enumerate(notes):
                     slid = i > 0 and notes[i - 1][2] > on
-                    w.writerow(dict(file=fname, seq=f"{name}-{k + 1}", event=i + 1, note=n,
+                    w.writerow(dict(file=f"{src}-stage4.wav", seq=f"{name}-{k + 1}", event=i + 1, note=n,
                                     on_ms=t + on, off_ms=t + off, accent="yes" if acc else "no",
                                     slide_from_previous="yes" if slid else "no",
                                     set=name, purpose=purpose, **knobs))
                     events.append((midi_of(n), t + on, t + off, VEL_ACCENT if acc else VEL_NORMAL))
                 t += max(SLOT_MS, max(off for _, _, off, _ in notes) + TAIL_MS)
                 n_seq += 1
-            if args.midi:
-                write_midi(out / "midi" / f"{src}-{name}.mid", events, t, controls)
-
-    print(f"{n_notes} single notes in {out / (src + '_notes.csv')}")
-    print(f"{n_seq} sequences in {out / (src + '_sequences.csv')}")
+        write_midi(out / f"{src}-stage4.mid", events, t, controls, texts)
+        print(f"stage 4: {n_seq} sequences, {t / 60000:.1f} min -> {out / f'{src}-stage4.mid'}")
 
 
 if __name__ == "__main__":

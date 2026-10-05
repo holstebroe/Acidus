@@ -6,22 +6,28 @@ times, gates and pitches are exact and the output has no noise. So you can
 choose exactly which knob combinations to render, and you only need to cross
 two knobs when they actually interact.
 
-The sheets and MIDI files are written by `tools/emulation_training_set.py`.
-Recording rules, the manifest and the fitting commands are in
-[`CALIBRATION_COOKBOOK.md`](CALIBRATION_COOKBOOK.md). This document covers
-what to render and in what order.
+The loop, one stage at a time:
 
-| | Notes | What it adds |
-|---|---|---|
-| Stage 0: separability probes | 48 | Which knob pairs you can skip crossing |
-| Stage 1: what you hear first | 24 | Cutoff range, resonance, Env Mod depth, decay range, accent amount, levels |
-| Stage 2: knob laws | 37 | The curve of each knob between its end points |
-| Stage 3: detail | 36 | Accent network, square, pitch, VCA timing |
-| Stage 4: sequences | 16 clips | Slide law, accent stacking, retrigger (needs calibrator work, below) |
+```
+MIDI file for stage N  ->  DAW: import, MIDI-learn the knobs, render one WAV
+   ->  tools/fit_stage.py <src> N --wav <render>   (align, manifest, fit, profile, A/B audio)
+   ->  listen  ->  happy? stage N+1 starts from this stage's profile
+```
+
+| Stage | Notes | Length | What it adds |
+|---|---|---|---|
+| 0: separability probes | 48 | 2.6 min | Which knob pairs you can skip crossing (a report, no fit) |
+| 1: what you hear first | 24 | 1.3 min | Cutoff range, resonance, Env Mod depth, decay range, accent amount, levels |
+| 2: knob laws | 37 | 2.0 min | The curve of each knob between its end points |
+| 3: detail | 36 | 1.9 min | Accent network, square, pitch, VCA timing |
+| 4: sequences | 16 clips | 0.8 min | Slides, accent stacking, retrigger: for listening (not fitted yet) |
 
 That is 145 single notes in total, against 400 for the dinsync.info protocol
 and about 50,000 for a full five-knob, two-waveform, two-accent, four-pitch
 grid.
+
+Recording rules and the calibrator itself are described in
+[`CALIBRATION_COOKBOOK.md`](CALIBRATION_COOKBOOK.md).
 
 ---
 
@@ -45,13 +51,13 @@ That sum decides which pairs interact:
 | Cutoff x Env Mod | **yes**, linearly in Cutoff | EnvModScale and offset are bilinear in Cutoff | Env Mod sweeps at Cutoff 0, 50, 100 |
 | Accent x Resonance | **yes** | Resonance gang B sets the C13 charge path | Accent knob x Resonance grid (stage 3) |
 | Accent knob x accent step | **yes** | The knob does nothing on an unaccented step | Accent knob only on accented steps, plus unaccented twins |
-| Pitch x Resonance, low Cutoff | **yes**, weakly | In-loop high-pass vs the fundamental | Covered by the probe notes, which are fitted too |
+| Accent x Env Mod | **yes**, by structure | An accent shortens the MEG decay | Accents at one Env Mod; the model carries the rest |
 | Pitch x waveform | **yes** | Square duty depends on frequency | Square at C1-C4 |
 | Env Mod x Decay | no: product | Depth from Env Mod, time constant from Decay | Separate 1-D sweeps |
 | Env Mod x Resonance | no | Resonance only makes the sweep visible | Sweep at one Resonance (75 %) |
 | Decay x Cutoff, Decay x Resonance | no | MEG time constant only | One Decay sweep |
 | Decay x accent | no | An accent shorts the Decay pot | No Decay sweep on accents |
-| Pitch x Env Mod, Decay, accent | no | The 303 has no key tracking | All laws at C2 only |
+| Pitch x Cutoff, Env Mod, accent | no | The 303 has no key tracking | All laws at C2 only |
 | Waveform x Env Mod, Decay, accent | no | The filter does not see the waveform | Square only at a few points |
 | Gate x filter | no | The MEG is one-shot; the gate only drives the VCA | Gate lengths only at static knobs |
 | Slide x Cutoff, Resonance, Env Mod, Decay | no | Slide is an RC on the pitch CV only | Slides at one setting, filter open |
@@ -64,72 +70,124 @@ actual source** before any data is skipped because of it.
 
 ---
 
-## 2. Conventions for every stage
+## 2. Setting up
 
-- **Notes:** C2 = MIDI 36 (the tools' convention). Range C1-C4.
-- **Base note:** saw, C2, unaccented, Env Mod 0, Decay 0, Accent knob 0,
-  gate 1300 ms.
-- **Grid:** 125 BPM, 480 PPQ, so 1 tick = 1 ms. One WAV per set, first
-  note-on at 500 ms. Slots are at least 3 s, and a note-on always comes at
-  least 1.7 s after the previous gate ends.
-- **Accent:** velocity 127; normal notes are 100. Check the emulation's
-  accent threshold, or use its own sequencer and accent flags.
-- **Slide:** the next note-on comes 10 ms before the previous note-off, as
-  Burette sends it.
-- **Knobs:** set by MIDI CC from the generated MIDI files (`--cc default`).
-  MIDI-learn the emulation's Cutoff, Resonance, Env Mod, Decay, Accent and
-  Waveform to CC 71, 72, 73, 74, 22 and 23, which is Acidus's own map. The
-  same files then drive both plugins. Each CC is sent 300 ms before its
-  note, in silence. See section 10 for checking the learned mapping. Without
-  MIDI learn, use plugin automation at the sheet's values instead.
-- **Fixed for the whole set:** tuning centre, volume, any drive or effects
-  off, highest quality or oversampling mode, any "analog drift" or random
-  variation off, 48 kHz / 24-bit offline bounce, no normalising.
-- **Fit with `--fix knobs`** and `--tune-cents 0` (or the measured offset).
-  The knob positions are exact, so the optimiser should not move them.
+1. **Write the MIDI files** (once):
+   ```bash
+   python3 tools/emulation_training_set.py <src> --out test/resources/<src>
+   ```
+   This writes `<src>-stage0.mid` ... `<src>-stage4.mid`, plus
+   `<src>_sheet.csv` and `<src>_sequences.csv` so you can read what each
+   note is. `<src>` is a short id for the emulation, for example `abl3`.
+2. **Set up the DAW project:** 125 BPM, one instrument track with the
+   emulation, at the project sample rate (44.1 or 48 kHz). Effects, drive,
+   "analog drift" and random variation off. Tuning centred, highest quality
+   or oversampling mode, master bus clean.
+3. **MIDI-learn the knobs** to Acidus's CC map, so the same files drive both
+   plugins:
+
+   | Knob | Cutoff | Resonance | Env Mod | Decay | Accent | Waveform |
+   |---|---|---|---|---|---|---|
+   | CC | 71 | 72 | 73 | 74 | 22 | 23 (0 = saw, 127 = square) |
+
+   **Check the learned mapping:** send CC 0, 64 and 127 to each knob and read
+   the plugin's own display. It should show the knob's minimum, 50.4 % and
+   maximum. If MIDI learn maps to a sub-range or applies a curve, every knob
+   value is wrong: fix the mapping in the plugin. If the emulation uses fixed
+   CC numbers, write its map with
+   `--cc cutoff=74,resonance=71,envmod=12,decay=75,accent_knob=16,waveform=...`.
+4. **Accent** is velocity 127 and normal notes are 100. Check that the
+   emulation accents at 127 and not at 100.
+5. **Set the level once**, using the loudest stage 0 note (P03,
+   accented at Resonance 100). Peaks around -12 dBFS are fine. Never change
+   the level between stages: the anchor note of each stage checks it.
+
+**About the MIDI files.** Each stage file plays the notes on a fixed grid,
+1 tick = 1 ms, with the first note-on at 500 ms. A note-on always comes at
+least 1.7 s after the previous gate. Every note's knob CCs are sent 300 ms
+before it, in silence, which covers MIDI-learn smoothing. A marker names each
+set, and a text event on each note records its knobs. The fitter reads the
+knobs from these text events, so it doesn't depend on the CC map. CC is
+7-bit, so 25 % cannot be sent exactly (it is 31.75 / 127). Every knob is
+snapped to the nearest CC value, and the text event records the position that
+value really sets (25 % -> CC 32 -> 25.197 %).
+
+**Rendering.** Import `<src>-stage<N>.mid`, then render (bounce) the whole
+song from the start as one WAV: mono or stereo, 24-bit or 32-bit float, no
+normalising, no dither and no fades. The fitter aligns the WAV with the MIDI
+by itself and stops with an error if the tempo or sample rate is wrong.
 
 ---
 
-## 3. Stage 0: separability probes (48 notes)
+## 3. Stage 0: separability probes (48 notes, no fit)
+
+```bash
+python3 tools/fit_stage.py <src> 0 --wav stage0.wav     # -> test/resources/<src>/stage0/probes.md
+```
 
 Each probe renders the four corners of a 2x2 grid over two knobs, A and B,
-with the other knobs held fixed. Compute one feature y per note and the
-interaction
+with the others held fixed, and measures one feature y per note. The
+interaction is
 
 ```
 I = (y[A1,B1] - y[A0,B1]) - (y[A1,B0] - y[A0,B0])
 ```
 
-Pick y so that "independent" means I = 0 in that unit. For example, sweep
-depth is measured in octaves, not Hz. Peak tracks come from
-`tools/sweep_track.py`, levels and envelopes from `tools/analyze_audio.py`.
+The feature is chosen so that "independent" means I = 0 in its unit. For
+example, the resonant-peak track is measured in log frequency, so a sweep
+that adds the same number of octaves gives I = 0.
 
-| Set | Pair | Fixed | Feature y | "Independent" if |
+The fitter renders the same notes through Acidus and measures the same
+interaction there. What counts is **what is left over**: an interaction the
+source has and the model can't produce. Interactions the two share (ladder
+nonlinearity, coupling filters, the accent switch) are already in the model.
+
+| Probe | Pair | Fixed | Feature | Left over must be |
 |---|---|---|---|---|
-| P01 | pitch (C1, C3) x Cutoff (50, 100) | Reso 100 | settled resonant-peak frequency, Hz | the peak does not move with pitch (no key tracking) |
-| P02 | pitch x Env Mod (25, 100) | Cut 25, Reso 75, Dec 50 | sweep depth, oct | \|I\| < 0.1 oct |
-| P03 | pitch x accent step | Cut 25, Reso 100, Env 50, Dec 50, Acc 100 | accent peak shift, oct; level, dB | < 0.1 oct, < 0.5 dB |
-| P04 | accent step x Decay (0, 100) | Cut 25, Reso 75, Env 75, Acc 100 | peak track | the two accented notes match |
-| P05 | Env Mod (50, 100) x Decay (25, 75) | Cut 25, Reso 75 | fit `A*exp(-t/tau)+B` to the track | A only follows Env Mod, tau only Decay (within 5 %) |
-| P06 | Cutoff (25, 75) x Decay (25, 75) | Reso 75, Env 100 | tau | within 5 % |
-| P07 | Resonance (50, 100) x Env Mod (25, 100) | Cut 25, Dec 50 | sweep depth, oct | < 0.1 oct |
-| P08 | gate (150, 1300 ms) x accent step | Cut 25, Reso 75, Env 100, Dec 75, Acc 100 | first 150 ms; release shape | first 150 ms identical; note the release |
-| P09 | waveform x Env Mod (25, 100) | Cut 25, Reso 75, Dec 50 | peak track, oct | < 0.1 oct |
-| P10 | accent x Cutoff (25, 75) x Env Mod (0, 100) | Reso 100, Dec 50, Acc 100 | accented minus unaccented track, oct | the same at all four corners |
-| P11 | Accent knob (0, 100), unaccented | Cut 25, Reso 75, Env 50, Dec 50 | the whole note | the two notes null |
-| P12 | the same note twice | Cut 50, Reso 75, Env 50, Dec 50 | magnitude spectrogram | identical (phase may differ) |
+| P01 | pitch (C1, C2) x Cutoff (50, 100) | Reso 100 | settled peak frequency | < 1 semitone: no key tracking |
+| P02 | pitch x Env Mod (25, 100) | Cut 75, Reso 75, Dec 50 | peak track | < 1 st |
+| P03 | pitch x accent | Cut 75, Reso 100, Env 0, Dec 50, Acc 100 | peak track; peak level | < 1 st; < 1 dB |
+| P04 | accent x Decay (0, 100) | Cut 75, Reso 75, Env 75, Acc 100 | the two accented notes | < 1 st (Decay is shorted) |
+| P05 | Env Mod (50, 75) x Decay (25, 75) | Cut 75, Reso 75, gate 2.5 s | decay time constant of the track | < 15 % change |
+| P06 | Cutoff (75, 100) x Decay (25, 75) | Reso 75, Env 50, gate 2.5 s | decay time constant | < 15 % change |
+| P07 | Resonance (75, 100) x Env Mod (25, 100) | Cut 75, Dec 50 | peak track | < 1 st |
+| P08 | gate (150, 1300 ms) x accent | Cut 75, Reso 75, Env 100, Dec 75 | first 140 ms of the spectrogram | < 1 dB: nothing depends on the gate before it ends |
+| P09 | waveform x Env Mod (25, 100) | Cut 75, Reso 75, Dec 50 | peak track | < 2 st (the square tracks less cleanly) |
+| P10 | accent x Cutoff (50, 100) | Reso 100, Env 0, Dec 50, Acc 100 | peak track | < 1 st |
+| P11 | Accent knob (0, 100), unaccented | Cut 25, Reso 75, Env 50, Dec 50 | spectrogram | < 0.5 dB |
+| P12 | the same note twice | Cut 50, Reso 75, Env 50, Dec 50 | spectrogram | < 0.1 dB: the source is repeatable |
+
+The tracked probes sit at Resonance 75-100 %, Cutoff 50-100 % and C1/C2.
+Those settings keep the resonant peak clearly above the low harmonics, so it
+can be placed between them. "Inconclusive" means the peak was lost in one
+corner, or a decay time constant was longer than the gate can show. Nothing
+contradicts the 303 structure there.
+
+The probes were checked against Acidus itself. Using the `acidvoice`,
+`factory` and `hellfish` profiles as the "source" against an `x0x` start,
+all four profiles pass every probe: all have the 303's structure. A source
+with key tracking added (about 0.5 octave per octave at Cutoff 75) fails
+P01 with 2 semitones left over, and the other probes stay clean.
 
 **When a probe fails**, cross that pair in the stage that sweeps one of the
-two knobs. For example, if P02 fails, render set 2B at C1 and C3 as well. If
-P01 shows key tracking, Acidus has no constant for it: no amount of data will
-fit it, so leave the set at one pitch and record the gap in the profile's
-README. If P12 fails, find the randomisation switch before going on.
+two knobs. The report says which: for example, a failed P02 means repeat set
+2B at C1. Edit `note_sets()` in `tools/emulation_training_set.py` and write
+the MIDI files again; stages you have rendered keep the same notes. If P01
+shows key tracking, Acidus has no constant for it, and no amount of data
+will fit it. Keep the later stages at C2 and note the gap. If P12 fails,
+find the randomisation switch before going on.
 
-Probe notes are ordinary training notes: they also go into the manifest.
+The probe notes stay out of the fits (`--with-probes` adds them). They hold
+little information the stages don't, and they would make every fit about
+three times slower.
 
 ---
 
 ## 4. Stage 1: what you hear first (24 notes)
+
+```bash
+python3 tools/fit_stage.py <src> 1 --wav stage1.wav
+```
 
 The constants that make most of the audible difference, from the fewest
 notes: each knob at 0 / 50 / 100 %.
@@ -141,24 +199,16 @@ notes: each knob at 0 / 50 / 100 %.
 | 1C | 3 | Decay {0, 50, 100}, Cut 25, Reso 75, Env 100, **gate 2500 ms** |
 | 1D | 4 | Accent knob 100 on Reso {0, 100}, each with an unaccented twin; Cut 25, Env 50, Dec 50 |
 | 1E | 2 | square at Cutoff 50; saw with a **4000 ms gate** (VEG decay) |
-| 1R | 1 | anchor: Cut 50, Reso 50, render it last |
+| 1R | 1 | anchor: Cut 50, Reso 50 |
 
-Fit only the scale constants. Keep the curve shapes at their current values,
-because three points per knob cannot pin down a shape:
-
-```bash
-M=test/resources/<src>/<src>_notes_manifest.json
-python3 tools/calibrate_reference.py --manifest $M --calibration calibrations/factory.json \
-  --fix knobs --w-sweep 1 --max-minutes 20 \
-  --only cutoffBaseHz,cutoffSpanOct,filterFeedbackGain,filterResonanceLimit,\
-envModScaleC0Slope,envModScaleC1Slope,envModOffset,vcfDecayMinSec,vcfDecayMaxSec,\
-accentDecaySec,accentSweepDepthOct,accentVcaDepth,vegDecaySec,vcaResTapRatio,\
-oscSquareLevel,timing
-```
+Fitted: only the scale constants. These are cutoff base and span, feedback
+gain and resonance limit, Env Mod depth and offset, decay minimum and
+maximum, the accent decay, accent sweep and accent level, VEG decay, the
+resonance tap, square level, and timing. The curve shapes keep the starting
+profile's values, because three points per knob cannot pin a shape down.
+The fit starts from `calibrations/x0x.json` unless you pass `--start`.
 
 ## 5. Stage 2: knob laws (37 notes)
-
-The shape of each knob between its end points.
 
 | Set | Notes | Knobs |
 |---|---|---|
@@ -167,10 +217,10 @@ The shape of each knob between its end points.
 | 2C | 6 | Decay {10, 25, 40, 60, 75, 90}, gate 2500 ms |
 | 2R | 1 | anchor |
 
-The Env Mod and Decay sweeps have more points than the 5 % steps of the
-dinsync set, at no extra crossing cost. Fit adds the shapes and the filter
-core, and frees the stage 1 constants again:
-`--only cv,filter,vcfDecayMinSec,vcfDecayMaxSec,vcfDecayTaper,vegDecaySec,vcaResTapRatio,timing`.
+Fitted (groups `cv` and `filter`, plus the Decay law, VEG decay and the
+resonance tap): the curve shapes and the filter core. The stage 1 constants
+are freed again. The fit uses stages 1 and 2 together and starts from
+`calibrations/<src>-stage1.json`.
 
 ## 6. Stage 3: detail (36 notes)
 
@@ -182,13 +232,9 @@ core, and frees the stage 1 constants again:
 | 3D | 9 | gates {30, 60, 120, 250 ms}, unaccented and accented; accented 4000 ms |
 | 3R | 1 | anchor |
 
-Then fit everything: no `--only`, still with `--fix knobs`. Check
-`vcoOctaveScale` directly from the 3C pitches with a tuner. The optimiser
-does not fit it (section 9).
+Fitted: everything the calibrator can vary (section 9), on stages 1-3.
 
-## 7. Stage 4: sequences (16 clips)
-
-Rendered from `<src>_sequences.csv`. Knobs are held fixed for each clip.
+## 7. Stage 4: sequences (16 clips, listening only)
 
 | Set | Clips | What |
 |---|---|---|
@@ -206,42 +252,43 @@ already covers gates.
 note per clip, and the slide time constant (22 ms) is hard-coded in
 `src/core/Oscillator.cpp`. Fitting stage 4 needs a sequence clip type in the
 manifest and the render library, and slide tau made a parameter. Until then,
-use Q1-Q6 as a listening and pitch-track comparison: render them through
-Acidus with the fitted profile and compare.
+render `<src>-stage4.mid` through both the emulation and Acidus with the
+fitted profile, and compare by ear.
 
 ---
 
-## 8. Between stages: the manual validation gate
+## 8. After each fit: listen, then decide
 
-Before you render the next stage, check the one you just fitted.
+`fit_stage.py` prints the error per set (before -> after) and writes these
+files to `test/resources/<src>/stage<N>/`:
 
-1. **Predict the next stage.** Render the next stage's notes from the source
-   first, then score them with the current profile and nothing fitted:
+| File | What |
+|---|---|
+| `ab.wav` | Every note of the stage: the source, 0.3 s of silence, then Acidus with the new profile. Same scale for both and level-matched by the fitted gain |
+| `acidus.wav` | Acidus with the new profile on the render's timeline. Drop it on a track next to your render and switch between them |
+| `fit/report.md` | The calibrator's report: per-set table, parameters at a bound, worst notes |
+| `calibrations/<src>-stage<N>.json` | The new profile; the next stage starts from it |
+
+Before you render the next stage:
+
+1. **Listen** to `ab.wav`, in this order: brightness (1A), resonance bite
+   (1A, Reso 100), sweep depth and speed (1B, 1C), accent punch (1D).
+2. **Check the anchor.** The `nR` set must score about the same in every
+   stage. A jump means the level or a setting changed between renders.
+3. **Read `report.md`**: parameters sitting at a bound mean the model is
+   compensating for something (see `X0X_CALIBRATION_2026-09-28.md` for the
+   post-HP example).
+4. **Optional: predict the next stage.** Render it, then score it with the
+   current profile and nothing fitted. A small error on notes the fit never
+   saw means the profile already generalises, and you can stop there:
    ```bash
-   python3 tools/calibrate_reference.py --manifest $M --calibration calibrations/<src>.json \
-     --evaluate-only --include 2A,2B,2C --out /tmp/predict
+   python3 tools/fit_stage.py <src> 2 --wav stage2.wav --evaluate-only
    ```
-   A small error on notes the fit never saw means the stage generalises. The
-   gap between that score and the score after fitting is what the next stage
-   adds. If the gap is small, stop there.
-2. **Check the anchor.** Each stage's `nR` note must score the same as the
-   previous one, within 0.2 dB. If it does not, the gain chain or a hidden
-   setting changed between rendering sessions.
-3. **Listen A/B.** Play the same test pattern through the source and through
-   Acidus with the profile (Burette or a MIDI riff with slides and accents).
-   Use three snapshots: low (Cut 25, Reso 50, Env 25), squelch (Cut 25,
-   Reso 90, Env 75, Dec 50) and open (Cut 75, Reso 75, Env 50). Also do one
-   slow automated Cutoff sweep at Reso 75. Listen for brightness,
-   resonance bite, sweep speed and accent punch, in that order.
-4. **Read the report.** In `report.md`, check the per-set table, the
-   `unconstrained` parameters and any parameter sitting at a bound. A bound
-   means the model is compensating for something; see `X0X_CALIBRATION` for
-   the post-HP example.
-5. **Capture the profile.** Run `tools/calibration_profile.py capture` (see
-   the cookbook) so the next stage starts from it.
 
-Stop at the first stage that passes the listening test and leaves only a
-small prediction gap. Stages 2 and 3 are refinements.
+Not happy with a stage? Rerun it with more time (`--minutes 60`), or start
+from another profile (`--start calibrations/factory.json`). To play the
+profile in the plugin, add it to `PRESETS` in
+`tools/calibration_profile.py` and rebuild (cookbook, steps 10-11).
 
 ---
 
@@ -251,52 +298,54 @@ The calibrator can vary the 51 constants in its `MODEL_PARAMS` table (groups
 `osc`, `filter`, `cv`, `env`). It also varies one position per distinct
 (knob, percent) pair (group `knobs`), plus a global note-on shift and gate
 offset (group `timing`). It solves one global level gain directly.
-`--only` and `--fix` narrow the set.
+`fit_stage.py` always passes `--fix knobs`, because a plugin's knob
+positions are exact, and narrows the rest per stage with `--only`.
 
 These never vary:
 
-- the panel knobs when you pass `--fix knobs` (do so for an emulation);
-- Volume, Drive and Tuning (the manifest's `tune_cents` sets the tuning);
+- Volume, Drive and Tuning (`--tune-cents` sets the source's tuning,
+  default 0);
 - `filterLadderTopology`, a switch: try both by hand;
-- `vcoOctaveScale`: measure it from 3C;
+- `vcoOctaveScale`: measure it from 3C with a tuner;
 - the slide time constant, which is hard-coded.
 
 Mixed gate lengths are rendered per note. The calibrator used to render
-every note of a set with one fitted gate. It now uses each clip's own
-`gate_ms` when a manifest's gates differ by more than 60 ms, and the fitted
-`gateMs` shifts them all. Sets with one nominal gate, such as the dinsync
-set, keep the old behaviour.
+every note with one fitted gate. It now uses each clip's own `gate_ms` when
+a manifest's gates differ by more than 60 ms, and the fitted `gateMs` shifts
+them all. Sets with one nominal gate, such as the dinsync set, keep the old
+behaviour.
 
 ---
 
 ## 10. Commands
 
 ```bash
-# Sheets and MIDI for stages 0-1, knobs by CC (rerun with --through 2, 3, 4 as you go)
-python3 tools/emulation_training_set.py <src> --out test/resources/<src> --midi --cc default --through 1
+# Once
+python3 tools/emulation_training_set.py <src> --out test/resources/<src>
 
-# Other CC numbers, if the emulation has a fixed map instead of MIDI learn
-#   --cc cutoff=74,resonance=71,envmod=12,decay=75,accent_knob=16
+# Per stage, after rendering <src>-stage<N>.mid in the DAW
+python3 tools/fit_stage.py <src> 0 --wav ~/renders/<src>-stage0.wav   # probe report
+python3 tools/fit_stage.py <src> 1 --wav ~/renders/<src>-stage1.wav   # fit, profile, A/B
+python3 tools/fit_stage.py <src> 2 --wav ~/renders/<src>-stage2.wav
+python3 tools/fit_stage.py <src> 3 --wav ~/renders/<src>-stage3.wav
 
-# After rendering <src>-<set>.wav for each MIDI file:
-python3 tools/make_reference_manifest.py test/resources/<src>/<src>_notes.csv --tune-cents 0
+# Options: --minutes 30 (fit time), --start PROFILE, --alone (this stage's notes only),
+#          --with-probes, --tune-cents C, --evaluate-only
+# Dry run with Acidus as the source:
+python3 tools/fit_stage.py <src> 1 --rehearse calibrations/acidvoice.json
 ```
 
-`--through N` writes the stages up to N, so the sheet lists only files you
-have rendered. Re-render nothing: later stages never repeat an earlier note.
-CC is 7-bit, so 25 % cannot be sent exactly (it is 31.75 / 127). With
-`--cc`, each knob is snapped to the nearest CC value and the sheet records
-the exact position that value sets (25 % -> CC 32 -> 25.197 %). The fit then
-sees the knob the emulation actually got.
+`fit_stage.py` copies the render to `test/resources/<src>/stage<N>/`. Its
+first run builds the render library (`build/acidus_calibration_render`),
+which needs the `clap` and `clap-wrapper` submodules.
 
-**Check the MIDI learn before rendering.** Send CC 0, 64 and 127 to each
-learned knob and read the plugin's own value display: it should read the
-knob's minimum, 50.4 % and maximum. Some MIDI-learn implementations scale to
-a sub-range, apply a curve, or smooth CC changes over tens of ms. The 300 ms
-lead covers smoothing, but a range or a curve makes every sheet value wrong.
-Remap the learn in the plugin, or go back to automation.
+A fit evaluation renders every note of the stages it fits. On 4 cores,
+stage 1 (24 notes) takes about 2.5 s per evaluation, and stage 3 (97 notes)
+about 10 s. More cores scale this down almost linearly. The default 30
+minutes is enough for stage 1. Give stages 2 and 3 an hour or more
+(`--minutes 90`) if you can.
 
-Self-test: rendering the full sheet through Acidus itself and scoring it
-against Acidus gives a weighted error of 0.45, with 98 % of harmonics within
-3 dB. The pipeline itself adds almost no error, so what a real fit leaves is
-the difference between the two emulations.
+A self-test confirms the pipeline adds almost no error. Rendering the whole
+set through Acidus and scoring it against the same Acidus gives a weighted
+error of 0.45, with 98 % of harmonics within 3 dB. What a real fit leaves
+is the difference between the two emulations.
