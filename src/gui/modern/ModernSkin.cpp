@@ -261,8 +261,7 @@ constexpr float kTotalAngle = 300.f * kPi / 180.f;
 constexpr int kGripRidges = 30;
 
 void drawKnobDial(Graphics& g, float cx, float cy, float r) {
-    // 11 printed ticks, the 303's index square above 12 o'clock and the
-    // dashes that run between the knobs at 3 and 9 o'clock.
+    // 11 printed ticks and the 303's index square above 12 o'clock.
     for (int i = 0; i < 11; ++i) {
         const float a = kStartAngle + kTotalAngle * i / 10.f;
         drawLineAA(g, cx + std::cos(a) * (r + 4.5f), cy + std::sin(a) * (r + 4.5f),
@@ -270,8 +269,6 @@ void drawKnobDial(Graphics& g, float cx, float cy, float r) {
     }
     shadeBox(g, cx - 2.f, cy - r - 14.f, cx + 2.f, cy - r - 10.f,
              [](float, float) { return kInk; });
-    drawLineAA(g, cx - r - 17.f, cy, cx - r - 12.f, cy, 1.4f, kInk);
-    drawLineAA(g, cx + r + 12.f, cy, cx + r + 17.f, cy, 1.4f, kInk);
 }
 
 void drawKnobBody(Graphics& g, float cx, float cy, float R, float pointer, uint32_t capColor) {
@@ -451,7 +448,7 @@ public:
     void drawKnob(Graphics& g, const Control& ctrl, const Font&) override {
         const float cx = ctrl.x + 0.5f, cy = ctrl.y + 0.5f, r = static_cast<float>(ctrl.radius);
         const float labelTop = static_cast<float>(ctrl.y - ctrl.radius - kLabelGap);
-        const float halfW = std::max(r + 19.f, ctrl.label ? labelWidth(ctrl.label) / 2.f + 2.f : 0.f);
+        const float halfW = std::max(r + 11.f, ctrl.label ? labelWidth(ctrl.label) / 2.f + 2.f : 0.f);
         if (restore(g, ctrl, cx - halfW, labelTop - 2.f, cx + halfW, cy + r + 14.f)) return;
         double norm = (ctrl.currentVal - ctrl.minVal) / (ctrl.maxVal - ctrl.minVal);
         norm = std::isfinite(norm) ? std::min(std::max(norm, 0.0), 1.0) : 0.0;
