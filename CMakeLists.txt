@@ -52,17 +52,20 @@ set(CLAP_SOURCES
     src/clap/AcidusClap.cpp
 )
 
-# GUI look: RETRO is the small pixel-drawn panel (the default, smallest
-# binary); MODERN shades the knobs per pixel (knurled grip, chamfer, spun
-# metal top, soft shadows) on a textured, aged panel with anti-aliased
-# lettering. Only the chosen skin's source is compiled in. See IGuiSkin.hpp.
-set(ACIDUS_GUI_STYLE "RETRO" CACHE STRING "Acidus GUI skin: RETRO or MODERN")
-set_property(CACHE ACIDUS_GUI_STYLE PROPERTY STRINGS RETRO MODERN)
+# GUI look, for both plugins: MODERN (the default) shades the knobs and
+# keys per pixel (knurled grip, chamfer, spun metal top, backlit keys, soft
+# shadows) on a textured, aged panel with anti-aliased lettering; RETRO is
+# the small pixel-drawn panel, the smallest binary. Only the chosen skins'
+# sources are compiled in. See IGuiSkin.hpp and SequencerSkin.hpp.
+set(ACIDUS_GUI_STYLE "MODERN" CACHE STRING "Acidus and Burette GUI skin: MODERN or RETRO")
+set_property(CACHE ACIDUS_GUI_STYLE PROPERTY STRINGS MODERN RETRO)
 string(TOUPPER "${ACIDUS_GUI_STYLE}" ACIDUS_GUI_STYLE_UPPER)
 if(ACIDUS_GUI_STYLE_UPPER STREQUAL "MODERN")
-    set(GUI_SKIN_SOURCE src/gui/modern/ModernSkin.cpp)
+    set(GUI_SKIN_SOURCE src/gui/modern/ModernSkin.cpp src/gui/modern/ModernDraw.cpp)
+    set(SEQ_SKIN_SOURCE src/sequencer/ModernSequencerSkin.cpp src/gui/modern/ModernDraw.cpp)
 elseif(ACIDUS_GUI_STYLE_UPPER STREQUAL "RETRO")
     set(GUI_SKIN_SOURCE src/gui/RetroSkin.cpp)
+    set(SEQ_SKIN_SOURCE src/sequencer/RetroSequencerSkin.cpp)
 else()
     message(FATAL_ERROR "ACIDUS_GUI_STYLE must be RETRO or MODERN, not '${ACIDUS_GUI_STYLE}'")
 endif()
@@ -258,6 +261,7 @@ set(SEQ_SOURCES
 set(SEQ_PLUGIN_SOURCES
     src/sequencer/SequencerClap.cpp
     src/sequencer/SequencerGui.cpp
+    ${SEQ_SKIN_SOURCE}
     src/gui/Font.cpp
     src/gui/Graphics.cpp
 )
@@ -267,6 +271,18 @@ if(MSVC)
 else()
     set_source_files_properties(${SEQ_SOURCES} ${SEQ_PLUGIN_SOURCES} PROPERTIES
         COMPILE_OPTIONS "$<$<CONFIG:Release>:-Os>")
+endif()
+
+# The modern skins shade every pixel: keep them speed-optimized (-O2) even
+# though the rest of the GUI code is built for size.
+if(ACIDUS_GUI_STYLE_UPPER STREQUAL "MODERN")
+    if(MSVC)
+        set_source_files_properties(${GUI_SKIN_SOURCE} ${SEQ_SKIN_SOURCE} PROPERTIES
+            COMPILE_OPTIONS "$<$<CONFIG:Release>:/O2>")
+    else()
+        set_source_files_properties(${GUI_SKIN_SOURCE} ${SEQ_SKIN_SOURCE} PROPERTIES
+            COMPILE_OPTIONS "$<$<CONFIG:Release>:-O2>")
+    endif()
 endif()
 
 add_library(burette MODULE
@@ -316,3 +332,16 @@ add_executable(burette_test
     src/sequencer_test_main.cpp
 )
 target_link_libraries(burette_test PRIVATE ${SEQ_GUI_LIBS})
+
+# GUI performance tests: frame times of the Acidus panel and the Burette
+# editor in the configured GUI style, with budgets (see the source). One
+# source, two binaries: the plugins can't be linked together.
+add_executable(acidus_gui_perf_test ${CORE_SOURCES} ${CLAP_SOURCES} ${GUI_SOURCES} src/gui_perf_test_main.cpp)
+target_link_libraries(acidus_gui_perf_test PRIVATE ${GUI_LIBS})
+add_executable(burette_gui_perf_test ${SEQ_SOURCES} ${SEQ_PLUGIN_SOURCES} src/gui_perf_test_main.cpp)
+target_link_libraries(burette_gui_perf_test PRIVATE ${SEQ_GUI_LIBS})
+target_compile_definitions(burette_gui_perf_test PRIVATE GUI_PERF_BURETTE=1)
+if(ACIDUS_GUI_STYLE_UPPER STREQUAL "MODERN")
+    target_compile_definitions(acidus_gui_perf_test PRIVATE ACIDUS_GUI_STYLE_MODERN=1)
+    target_compile_definitions(burette_gui_perf_test PRIVATE ACIDUS_GUI_STYLE_MODERN=1)
+endif()

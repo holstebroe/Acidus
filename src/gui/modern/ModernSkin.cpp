@@ -3,8 +3,8 @@
 // pointer nub, a polished chamfer and a spun-metal top with an incised
 // pointer line -- lit from the upper left, with soft drop shadows and
 // anti-aliased lettering. Everything is procedural apart from the label
-// glyphs (LabelFontData.hpp), so the cost over the retro skin is this code
-// plus ~4 KB of glyph data.
+// glyphs (LabelFont.hpp), so the cost over the retro skin is this code,
+// ModernDraw.cpp and ~4 KB of glyph data.
 //
 // GuiWindow paints into a 2x supersampled buffer and box-filters it down;
 // this skin shades at that buffer resolution (Graphics::blendPixel), with
@@ -13,7 +13,8 @@
 #include "gui/Graphics.hpp"
 #include "gui/Font.hpp"
 #include "gui/GuiWindow.hpp"
-#include "LabelFontData.hpp"
+#include "LabelFont.hpp"
+#include "ModernDraw.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -23,258 +24,19 @@ namespace acidus {
 
 namespace {
 
-constexpr float kPi = 3.14159265358979f;
+using namespace modern;
 
-struct Vec3 { float x, y, z; };
-struct Color { float r, g, b; };
+constexpr float kLabelCap = 7.f;   // label cap height
 
-inline float clamp01(float v) { return v < 0.f ? 0.f : (v > 1.f ? 1.f : v); }
-inline float smoothstep(float e0, float e1, float x) {
-    const float t = clamp01((x - e0) / (e1 - e0));
-    return t * t * (3.f - 2.f * t);
-}
-inline Vec3 normalize(Vec3 v) {
-    const float l = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-    return { v.x / l, v.y / l, v.z / l };
-}
-inline float dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
-inline Color mix(Color a, Color b, float t) {
-    return { a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t };
-}
-inline Color scale(Color c, float k) { return { c.r * k, c.g * k, c.b * k }; }
-inline Color fromArgb(uint32_t c) {
-    return { ((c >> 16) & 0xFF) / 255.f, ((c >> 8) & 0xFF) / 255.f, (c & 0xFF) / 255.f };
-}
-inline uint32_t toArgb(Color c, float alpha) {
-    auto ch = [](float v) { return static_cast<uint32_t>(clamp01(v) * 255.f + 0.5f); };
-    return (ch(alpha) << 24) | (ch(c.r) << 16) | (ch(c.g) << 8) | ch(c.b);
-}
+float labelWidth(const char* text) { return textWidth(kLabelFont, text, kLabelCap); }
 
-// Deterministic hash noise, so the wear looks the same on every open.
-inline uint32_t hashU(uint32_t x) {
-    x ^= x >> 16; x *= 0x7FEB352Du; x ^= x >> 15; x *= 0x846CA68Bu; x ^= x >> 16;
-    return x;
-}
-inline float hash2(int x, int y, uint32_t seed) {
-    return (hashU(static_cast<uint32_t>(x) * 0x1F1F1F1Fu ^ hashU(static_cast<uint32_t>(y) + seed * 0x9E3779B9u)) & 0xFFFFFF)
-           / 16777216.f;
-}
-float valueNoise(float x, float y, uint32_t seed) {
-    const int xi = static_cast<int>(std::floor(x)), yi = static_cast<int>(std::floor(y));
-    float fx = x - xi, fy = y - yi;
-    fx = fx * fx * (3.f - 2.f * fx);
-    fy = fy * fy * (3.f - 2.f * fy);
-    const float a = hash2(xi, yi, seed), b = hash2(xi + 1, yi, seed);
-    const float c = hash2(xi, yi + 1, seed), d = hash2(xi + 1, yi + 1, seed);
-    return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
-}
-float fbm(float x, float y, uint32_t seed) {
-    return 0.5f * valueNoise(x, y, seed) + 0.3f * valueNoise(2.1f * x, 2.1f * y, seed + 1)
-           + 0.2f * valueNoise(4.3f * x, 4.3f * y, seed + 2);
-}
-
-// One light, upper left and in front, for every shaded part.
-const Vec3 kLight = normalize({ -0.45f, -0.62f, 0.66f });
-const Vec3 kHalf = normalize({ kLight.x, kLight.y, kLight.z + 1.f });
-const float kLightAzimuth = std::atan2(kLight.y, kLight.x);
-
-struct Material {
-    Color albedo;
-    float ambient, diffuse, specular, shininess;
-};
-
-Color shadeLit(const Material& m, Vec3 n) {
-    const float diff = std::max(0.f, dot(n, kLight));
-    const float spec = std::pow(std::max(0.f, dot(n, kHalf)), m.shininess) * m.specular;
-    const float k = m.ambient + m.diffuse * diff;
-    return { m.albedo.r * k + spec, m.albedo.g * k + spec, m.albedo.b * k + spec };
-}
-
-// A surface tilted `tilt` radians away from the viewer towards (ux, uy).
-inline Vec3 tiltedNormal(float ux, float uy, float tilt) {
-    const float s = std::sin(tilt);
-    return { ux * s, uy * s, std::cos(tilt) };
-}
-
-// Calls f(lx, ly) for every buffer pixel whose centre lies in the logical
-// box, and blends the colour it returns (alpha 0 = skip).
-template <class F>
-void shadeBox(Graphics& g, float x0, float y0, float x1, float y1, F&& f) {
-    const int s = g.getScale();
-    const int bx0 = std::max(0, static_cast<int>(std::floor(x0 * s)));
-    const int by0 = std::max(0, static_cast<int>(std::floor(y0 * s)));
-    const int bx1 = std::min(static_cast<int>(g.getWidth()) * s, static_cast<int>(std::ceil(x1 * s)));
-    const int by1 = std::min(static_cast<int>(g.getHeight()) * s, static_cast<int>(std::ceil(y1 * s)));
-    for (int by = by0; by < by1; ++by) {
-        const float ly = (by + 0.5f) / s;
-        for (int bx = bx0; bx < bx1; ++bx) {
-            const uint32_t c = f((bx + 0.5f) / s, ly);
-            if (c >> 24) g.blendPixel(bx, by, c);
-        }
-    }
-}
-
-// Anti-aliased line with round caps, `width` logical pixels wide.
-void drawLineAA(Graphics& g, float x0, float y0, float x1, float y1, float width, uint32_t argb) {
-    const float hw = 0.5f * width;
-    const float s = static_cast<float>(g.getScale());
-    const float dx = x1 - x0, dy = y1 - y0;
-    const float len2 = std::max(dx * dx + dy * dy, 1e-6f);
-    const float a = ((argb >> 24) & 0xFF) / 255.f;
-    const Color c = fromArgb(argb);
-    shadeBox(g, std::min(x0, x1) - hw - 1, std::min(y0, y1) - hw - 1,
-             std::max(x0, x1) + hw + 1, std::max(y0, y1) + hw + 1,
-             [&](float x, float y) {
-                 const float t = clamp01(((x - x0) * dx + (y - y0) * dy) / len2);
-                 const float ex = x - (x0 + t * dx), ey = y - (y0 + t * dy);
-                 const float cov = clamp01((hw - std::sqrt(ex * ex + ey * ey)) * s + 0.5f);
-                 return cov > 0.f ? toArgb(c, a * cov) : 0u;
-             });
-}
-
-// Signed distance to a rounded rectangle centred at the origin, half size
-// (hx, hy), corner radius r: negative inside.
-inline float sdRoundRect(float x, float y, float hx, float hy, float r) {
-    const float qx = std::fabs(x) - hx + r, qy = std::fabs(y) - hy + r;
-    const float ox = std::max(qx, 0.f), oy = std::max(qy, 0.f);
-    return std::sqrt(ox * ox + oy * oy) + std::min(std::max(qx, qy), 0.f) - r;
-}
-// Outward unit direction of the rounded rectangle's distance field.
-inline void sdRoundRectDir(float x, float y, float hx, float hy, float r, float& ux, float& uy) {
-    const float e = 0.05f;
-    ux = sdRoundRect(x + e, y, hx, hy, r) - sdRoundRect(x - e, y, hx, hy, r);
-    uy = sdRoundRect(x, y + e, hx, hy, r) - sdRoundRect(x, y - e, hx, hy, r);
-    const float l = std::sqrt(ux * ux + uy * uy);
-    if (l > 1e-6f) { ux /= l; uy /= l; } else { ux = 0.f; uy = 0.f; }
-}
-
-// --- Lettering ---------------------------------------------------------------
-
-const labelfont::Glyph* glyphFor(char c) {
-    if (c >= 'a' && c <= 'z') c = static_cast<char>(c - 'a' + 'A');
-    if (c < labelfont::kFirst || c > labelfont::kLast) c = ' ';
-    return &labelfont::kGlyphs[c - labelfont::kFirst];
-}
-
-// Width in logical pixels. The glyphs are stored at 2x (the GUI's
-// supersampling), so other buffer scales resample them.
-float labelWidth(const char* text) {
-    float w = 0.f;
-    for (const char* p = text; *p; ++p) w += glyphFor(*p)->advance16 / 16.f;
-    return w / 2.f;
-}
-
-// Silk-screen ink: anti-aliased glyphs, slightly patchy with age.
+// Silk-screen ink: anti-aliased, slightly patchy with age.
 void drawLabel(Graphics& g, const char* text, float centerX, float capTop, uint32_t argb) {
-    if (!text) return;
-    const int s = g.getScale();
-    const float k = s / 2.f;   // buffer pixels per glyph pixel
-    const float a = ((argb >> 24) & 0xFF) / 255.f;
-    const Color c = fromArgb(argb);
-    float penX = std::round((centerX - labelWidth(text) / 2.f) * s);
-    const float penY = std::round(capTop * s - labelfont::kCapTop * k);
-    for (const char* p = text; *p; ++p) {
-        const labelfont::Glyph* gl = glyphFor(*p);
-        const int x0 = static_cast<int>(penX + gl->dx * k), y0 = static_cast<int>(penY + gl->dy * k);
-        const int w = static_cast<int>(std::ceil(gl->w * k)), h = static_cast<int>(std::ceil(gl->h * k));
-        for (int y = 0; y < h; ++y) {
-            const int gy = std::min<int>(gl->h - 1, static_cast<int>(y / k));
-            for (int x = 0; x < w; ++x) {
-                const int gx = std::min<int>(gl->w - 1, static_cast<int>(x / k));
-                const int i = gy * gl->w + gx;
-                const uint8_t byte = labelfont::kAlpha[gl->offset + i / 2];
-                const int nib = (i & 1) ? (byte & 0x0F) : (byte >> 4);
-                if (!nib) continue;
-                const float wear = 0.82f + 0.18f * valueNoise((x0 + x) * 0.35f, (y0 + y) * 0.35f, 77);
-                g.blendPixel(x0 + x, y0 + y, toArgb(c, a * wear * nib / 15.f));
-            }
-        }
-        penX += gl->advance16 / 16.f * k;
-    }
+    drawTextCentered(g, kLabelFont, text, centerX, capTop, kLabelCap, argb, 0.18f);
 }
-
-// --- Panel -------------------------------------------------------------------
-
-constexpr uint32_t kInk = 0xF0222326;   // printed panel ink
-const Color kPaint{ 0.785f, 0.790f, 0.775f };   // aged silver paint
 
 void paintPanel(Graphics& g, int width, int height, int dividerX) {
-    const int s = g.getScale();
-    const int bw = width * s, bh = height * s;
-    uint32_t* buf = g.getBuffer();
-    const Color grimeTint{ 0.60f, 0.56f, 0.47f };
-    for (int by = 0; by < bh; ++by) {
-        const float y = (by + 0.5f) / s;
-        // Brushed grain runs along the panel: one random brightness per
-        // buffer row, smeared a little along x.
-        for (int bx = 0; bx < bw; ++bx) {
-            const float x = (bx + 0.5f) / s;
-            Color c = kPaint;
-            float shade = 1.f;
-            shade += 0.028f * (valueNoise(x * 0.015f, by * 0.9f, 3) - 0.5f);
-            shade += 0.018f * (hash2(bx, by, 5) - 0.5f);
-            // Big soft patches of grime, heavier towards the edges.
-            const float edge = std::min(std::min(y, height - y) / 40.f, 1.f);
-            const float grime = smoothstep(0.45f, 0.85f, fbm(x / 70.f, y / 45.f, 9)) * 0.55f
-                                + (1.f - edge) * 0.35f;
-            c = mix(c, grimeTint, 0.24f * grime);
-            // Old stains: a few faint brownish blotches with darker rims,
-            // where something was spilled and dried.
-            const float stain = fbm(x / 34.f, y / 30.f, 13);
-            const float blot = smoothstep(0.70f, 0.73f, stain) * (1.f - 0.5f * smoothstep(0.73f, 0.78f, stain));
-            c = mix(c, Color{ 0.52f, 0.47f, 0.38f }, 0.12f * blot);
-            // Paint rubbed thin by hands along the panel's edges and in a
-            // few worn patches: brighter, smoother metal shows through.
-            const float rubBand = 1.f - smoothstep(14.f, 24.f, std::min(y, height - y));
-            const float rub = smoothstep(0.55f, 0.75f, fbm(x / 9.f, y / 30.f, 17)) * (0.35f + 0.65f * rubBand);
-            c = mix(c, Color{ 0.86f, 0.87f, 0.86f }, 0.30f * rub);
-            // Gentle vignette.
-            const float vx = (x / width - 0.5f) * 2.f, vy = (y / height - 0.5f) * 2.f;
-            shade *= 1.f - 0.06f * (vx * vx * 0.5f + vy * vy);
-            // Top and bottom extrusions: a darker, rounded metal trim.
-            if (y < 12.f || y > height - 13.f) {
-                const float t = y < 12.f ? y / 12.f : (height - y) / 13.f;
-                c = { 0.66f, 0.67f, 0.665f };
-                shade = (0.82f + 0.22f * std::sin(t * kPi * 0.9f + 0.2f))
-                        * (1.f + 0.03f * (valueNoise(x * 0.01f, by * 0.7f, 4) - 0.5f));
-            }
-            buf[static_cast<size_t>(by) * bw + bx] = toArgb(scale(c, shade), 1.f);
-        }
-    }
-    // Trim edges: a dark seam and a lit lip where the trim meets the panel.
-    drawLineAA(g, 0, 12.f, static_cast<float>(width), 12.f, 1.f, 0xC0303234);
-    drawLineAA(g, 0, 13.f, static_cast<float>(width), 13.f, 1.f, 0xA0FFFFFF);
-    drawLineAA(g, 0, height - 14.f, static_cast<float>(width), height - 14.f, 1.f, 0x80FFFFFF);
-    drawLineAA(g, 0, height - 13.f, static_cast<float>(width), height - 13.f, 1.f, 0xC0303234);
-    drawLineAA(g, 0, 0.5f, static_cast<float>(width), 0.5f, 1.f, 0x70FFFFFF);
-
-    // Light scratches and scuffs from years of use.
-    uint32_t seed = 0xAC1D;
-    auto rnd = [&seed]() { seed = hashU(seed + 0x9E3779B9u); return (seed & 0xFFFFFF) / 16777216.f; };
-    for (int i = 0; i < 70; ++i) {
-        const float x = rnd() * dividerX, y = 16.f + rnd() * (height - 32.f);
-        const float len = 3.f + 22.f * rnd() * rnd();
-        const float ang = (rnd() - 0.5f) * 0.9f + (rnd() < 0.3f ? kPi / 2 : 0.f);
-        const uint32_t col = rnd() < 0.7f ? 0x22FFFFFFu : 0x14000000u;
-        drawLineAA(g, x, y, x + len * std::cos(ang), y + len * std::sin(ang), 0.35f, col);
-    }
-
-    // Small chips where the paint has flaked off down to the dark primer,
-    // with a lit lower-right edge where the paint layer stands proud.
-    for (int i = 0; i < 28; ++i) {
-        const float x = 4.f + rnd() * (dividerX - 8.f), y = 15.f + rnd() * (height - 30.f);
-        const float r = 0.5f + 1.6f * rnd() * rnd();
-        const uint32_t chipSeed = 100 + i;
-        shadeBox(g, x - r - 2, y - r - 2, x + r + 2, y + r + 2, [&](float px, float py) {
-            const float dx = px - x, dy = py - y;
-            const float wobble = 1.f + 0.45f * (valueNoise(px * 1.3f, py * 1.3f, chipSeed) - 0.5f);
-            const float d = std::sqrt(dx * dx + dy * dy) / (r * wobble);
-            if (d < 1.f) return toArgb({ 0.42f, 0.42f, 0.41f }, 0.85f * smoothstep(1.f, 0.8f, d));
-            if (d < 1.35f && dx + dy > 0.f) return toArgb({ 1.f, 1.f, 1.f }, 0.35f * (1.35f - d) / 0.35f);
-            return 0u;
-        });
-    }
-
+    paintWornPanel(g, width, height, true);
     // The printed divider before the logo plate.
     drawLineAA(g, dividerX + 0.5f, 18.f, dividerX + 0.5f, height - 18.f, 1.6f, kInk);
 }

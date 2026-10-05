@@ -785,6 +785,19 @@ static void testGuiEditing() {
     SequencerGui::cellRect(SequencerGui::Row::Accent, 0, x, y, w, h);
     const uint32_t active = gui->pixels()[(y + 5) * SequencerGui::kWidth + x + 5];
     check(((inactive >> 8) & 0xFF) < ((active >> 8) & 0xFF), "steps past the length are shaded");
+
+    // Skins may cache what they draw (the modern one keeps each grid cell's
+    // pixels): an edit undone must give back the same frame.
+    const std::vector<uint32_t> before = gui->pixels();
+    Step edited = plugin.bank().step(1, 3);
+    edited.accent = !edited.accent;
+    plugin.bank().setStep(1, 3, edited);
+    gui->renderFrame();
+    check(gui->pixels() != before, "an edited step redraws");
+    edited.accent = !edited.accent;
+    plugin.bank().setStep(1, 3, edited);
+    gui->renderFrame();
+    check(gui->pixels() == before, "undoing the edit restores the same frame");
     plugin.destroyGui();
 }
 

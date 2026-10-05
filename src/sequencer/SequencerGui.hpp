@@ -3,7 +3,7 @@
 
 #include <clap/clap.h>
 #include <clap/ext/gui.h>
-#include "gui/Font.hpp"
+#include "SequencerSkin.hpp"
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -97,7 +97,8 @@ private:
     SequencerClap* plugin_;
     std::recursive_mutex mutex_;
     std::vector<uint32_t> pixels_;
-    Font font_{Font::classic5x7()};
+    std::unique_ptr<ISequencerSkin> skin_;
+    std::vector<uint32_t> hiRes_;   // supersampled frame, for skins that want one
     std::string lastSignature_;
     int lastPlayingPattern_{-1};
     std::atomic<bool> visible_{true};
@@ -122,7 +123,6 @@ private:
     void commitName();
     bool playing() const;
 
-    void draw(Graphics& g);
     std::string signature();
     void followPlayingPattern();
     int cellValue(Row row, int step) const;

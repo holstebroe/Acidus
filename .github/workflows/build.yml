@@ -31,22 +31,34 @@ jobs:
     - name: Build
       run: cmake --build build --config Release
 
-    # The MODERN GUI skin (see ACIDUS_GUI_STYLE in CMakeLists.txt), built
-    # alongside so it keeps compiling; the release ships the RETRO build.
-    - name: Build Modern GUI Variant
+    # GUI frame times against their budgets (software rendering, no window).
+    - name: GUI Performance Tests
+      if: runner.os == 'Linux'
       run: |
-        cmake -B build-modern -DCMAKE_BUILD_TYPE=Release -DACIDUS_GUI_STYLE=MODERN
-        cmake --build build-modern --config Release --target acidus acidus_vst3 acidus_gui_test
+        cmake --build build --config Release --target acidus_gui_perf_test burette_gui_perf_test
+        build/acidus_gui_perf_test
+        build/burette_gui_perf_test
 
-    - name: Upload Modern GUI Artifact
+    # The RETRO GUI skin (see ACIDUS_GUI_STYLE in CMakeLists.txt), built
+    # alongside so it keeps compiling; the release ships the MODERN build.
+    - name: Build Retro GUI Variant
+      run: |
+        cmake -B build-retro -DCMAKE_BUILD_TYPE=Release -DACIDUS_GUI_STYLE=RETRO
+        cmake --build build-retro --config Release --target acidus acidus_vst3 burette burette_vst3
+
+    - name: Upload Retro GUI Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: acidus-modern-gui-${{ runner.os }}
+        name: acidus-retro-gui-${{ runner.os }}
         path: |
-          build-modern/acidus.clap
-          build-modern/Release/acidus.clap
-          build-modern/acidus.vst3
-          build-modern/Release/acidus.vst3
+          build-retro/acidus.clap
+          build-retro/Release/acidus.clap
+          build-retro/burette.clap
+          build-retro/Release/burette.clap
+          build-retro/acidus.vst3
+          build-retro/Release/acidus.vst3
+          build-retro/burette.vst3
+          build-retro/Release/burette.vst3
         if-no-files-found: ignore
 
     - name: Upload Artifact
