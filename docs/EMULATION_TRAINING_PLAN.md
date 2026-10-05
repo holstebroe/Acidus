@@ -16,7 +16,7 @@ MIDI file for stage N  ->  DAW: import, MIDI-learn the knobs, render one WAV
 
 | Stage | Notes | Length | What it adds |
 |---|---|---|---|
-| 0: separability probes | 44 | 2.4 min | Which knob pairs you can skip crossing (a report, no fit) |
+| 0: separability probes | 44 | 2.4 min | Which knob pairs you can skip crossing (a report), and a first fit of the scale constants |
 | 1: what you hear first | 24 | 1.3 min | Cutoff range, resonance, Env Mod depth, decay range, accent amount, levels |
 | 2: knob laws | 37 | 2.0 min | The curve of each knob between its end points |
 | 3: detail | 36 | 1.9 min | Accent network, square, pitch, VCA timing |
@@ -140,11 +140,18 @@ and works out the offset itself. Two things do matter:
 
 ---
 
-## 3. Stage 0: separability probes (44 notes, no fit)
+## 3. Stage 0: separability probes (44 notes)
 
 ```bash
 python3 tools/fit_stage.py <src> 0 --wav stage0.wav     # -> test/resources/<src>/stage0/probes.md
 ```
+
+After the report, stage 0 fits the same scale constants as stage 1 to its
+44 notes. It writes `calibrations/<src>-stage0.json`, the A/B files and the
+report, just like the later stages, so you can listen and trim from stage 0
+on. Stage 1 then starts from that profile. `--probes-only` skips the fit.
+The probes sit at mid-to-high Cutoff and Resonance, so the low Cutoff range
+is only loosely fitted until stage 1.
 
 Each probe renders the four corners of a 2x2 grid over two knobs, A and B,
 with the others held fixed, and measures one feature y per note. The

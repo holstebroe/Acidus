@@ -21,8 +21,9 @@ the WAV (and checks the tempo), writes the stage manifest, fits with the
 stage's parameters on this stage plus every earlier stage already in <dir>,
 saves calibrations/<src>-stage<N>.json and renders the A/B files.
 
-Stage 0 (the separability probes) is not fitted: it writes a probe report.
-Its notes stay out of later fits unless --with-probes. Stage 4 (sequences)
+Stage 0 (the separability probes) writes a probe report and then fits the
+same scale constants as stage 1 to its 44 notes (--probes-only skips the
+fit). Its notes stay out of later stages' fits unless --with-probes. Stage 4 (sequences)
 cannot be fitted yet.
 
     python3 tools/fit_stage.py <src> 1 --wav ~/renders/stage1.wav
@@ -50,6 +51,11 @@ import calibrate_reference as cr  # noqa: E402
 # What each stage fits (calibrate_reference.py --only). Stage 1 keeps the
 # knob-law shapes: three points per knob can't pin them down.
 STAGE_ONLY = {
+    # Stage 0's probes sit at mid-to-high Cutoff and Resonance, so they pin
+    # the same scale constants as stage 1, less well at low Cutoff.
+    0: "cutoffBaseHz,cutoffSpanOct,filterFeedbackGain,filterResonanceLimit,envModScaleC0Slope,"
+       "envModScaleC1Slope,envModOffset,vcfDecayMinSec,vcfDecayMaxSec,accentDecaySec,accentSweepDepthOct,"
+       "accentVcaDepth,vegDecaySec,vcaResTapRatio,oscSquareLevel,timing",
     1: "cutoffBaseHz,cutoffSpanOct,filterFeedbackGain,filterResonanceLimit,envModScaleC0Slope,"
        "envModScaleC1Slope,envModOffset,vcfDecayMinSec,vcfDecayMaxSec,accentDecaySec,accentSweepDepthOct,"
        "accentVcaDepth,vegDecaySec,vcaResTapRatio,oscSquareLevel,timing",
@@ -592,7 +598,7 @@ def write_manifest(work, src, stage, notes, wav_name, offset, tune):
 
 def merged_manifest(base, src, stage, alone, with_probes):
     files, clips = {}, []
-    for k in ([stage] if alone else range(0 if with_probes else 1, stage + 1)):
+    for k in ([stage] if alone else range(0 if (with_probes or stage == 0) else 1, stage + 1)):
         m = base / f"stage{k}" / f"{src}-stage{k}_manifest.json"
         if not m.exists():
             continue
@@ -612,7 +618,7 @@ def default_start(src, stage):
     stage's fit and any trimmed version of it exported from the plugin
     (calibrations/<src>-stage<N-1>*.json, e.g. <src>-stage1-trimmed.json),
     else an earlier stage's, else the x0x profile."""
-    for k in range(stage - 1, 0, -1):
+    for k in range(stage - 1, -1, -1):
         found = sorted((REPO / "calibrations").glob(f"{src}-stage{k}*.json"), key=lambda p: p.stat().st_mtime)
         if found:
             return found[-1]
@@ -683,6 +689,8 @@ def main():
                     help="which channel of a stereo render to analyse (default: the mix of both)")
     ap.add_argument("--tune-cents", type=float, default=0.0, help="the source's tuning offset (default 0)")
     ap.add_argument("--alone", action="store_true", help="fit this stage's notes only, not earlier stages too")
+    ap.add_argument("--probes-only", action="store_true",
+                    help="stage 0: write the probe report, don't fit")
     ap.add_argument("--with-probes", action="store_true",
                     help="also fit the stage 0 probe notes (44 more notes: slower, little new information)")
     ap.add_argument("--minutes", type=float, default=30.0, help="fit time cap (default 30)")
@@ -736,9 +744,9 @@ def main():
     if stage == 0:
         sim = acidus.timeline([n for n in notes if n["set"].startswith("P")], sr, len(x))
         probe_report(x, sim, sr, notes, offset, work / "probes.md")
-        print(f"\nwrote {work / 'probes.md'}. Next: render stage 1 and run "
-              f"tools/fit_stage.py {src} 1 --wav <render>")
-        return
+        print(f"\nwrote {work / 'probes.md'}")
+        if args.probes_only:
+            return
 
     manifest, n_clips = merged_manifest(base, src, stage, args.alone, args.with_probes)
     fit_dir = work / "fit"
@@ -748,7 +756,7 @@ def main():
            "--patience-minutes", str(args.patience if args.patience is not None else args.minutes / 3.0)]
     if args.evaluate_only:
         cmd.append("--evaluate-only")
-    first = stage if args.alone else (0 if args.with_probes else 1)
+    first = stage if args.alone else (0 if (args.with_probes or stage == 0) else 1)
     print(f"fitting {n_clips} notes (stages {first}-{stage}) for up to {args.minutes:g} min ...", flush=True)
     subprocess.run(cmd + extra, check=True)
 
