@@ -302,6 +302,35 @@ static void testState() {
     lis.ctx = &liar;
     lis.read = MemStream::read;
     plugin.stateLoad(&lis);   // must not overrun (may fail)
+    {
+        // A custom calibration block: garbage, too long, or a huge length.
+        acidus::AcidusClap custom(nullptr);
+        std::mt19937 crng(7);
+        for (int iter = 0; iter < 200; ++iter) {
+            MemStream cms;
+            const uint32_t jsonLen = (iter % 3 == 0) ? 0xFFFFFFF0u : static_cast<uint32_t>(crng() % 300);
+            const uint32_t chdr[4] = { 0x32534341u, acidus::PARAM_COUNT, static_cast<uint32_t>(crng() % 8), jsonLen };
+            cms.data.resize(16 + acidus::PARAM_COUNT * sizeof(double) + crng() % 300);
+            std::memcpy(cms.data.data(), chdr, sizeof(chdr));
+            for (size_t k = 16 + acidus::PARAM_COUNT * sizeof(double); k < cms.data.size(); ++k) {
+                cms.data[k] = static_cast<uint8_t>((iter & 1) ? crng() : "{\"parameters\":{\"cutoffBaseHz\":1e30}}"[k % 36]);
+            }
+            clap_istream_t cis{&cms, MemStream::read};
+            custom.stateLoad(&cis);
+            check(custom.calibrationPresetIndex() < custom.calibrationPresetCount(), "custom state keeps a valid slot");
+            std::vector<float> l(256), r(256);
+            custom.getEngine().noteOn(40, 1.0f);
+            custom.getEngine().processAudio(l.data(), r.data(), 256);
+            check(finiteAndBounded(l) && finiteAndBounded(r), "custom state output finite");
+        }
+        std::string err;
+        check(custom.importCalibrationJson("{\"parameters\":{\"cutoffBaseHz\":1e30,\"vegDecaySec\":-5,\"filterFeedbackGain\":1e20}}", "x", err),
+              "extreme profile imports");
+        std::vector<float> l(4096), r(4096);
+        custom.getEngine().noteOn(40, 1.0f);
+        custom.getEngine().processAudio(l.data(), r.data(), 4096);
+        check(finiteAndBounded(l) && finiteAndBounded(r), "extreme custom calibration output finite");
+    }
     check(!plugin.stateLoad(nullptr), "null stream rejected");
 }
 

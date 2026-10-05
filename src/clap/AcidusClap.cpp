@@ -1,6 +1,7 @@
 #include "AcidusClap.hpp"
 #include "gui/GuiWindow.hpp"
 #include "core/CalibrationPresets.hpp"
+#include "core/CalibrationProfile.hpp"
 #include <clap/ext/state.h>
 #include <cstring>
 #include <cstdio>
@@ -8,6 +9,10 @@
 #include <cmath>
 #include <chrono>
 #include <cstdlib>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
+#include <string>
 #if defined(__SSE__)
 #include <xmmintrin.h>
 #endif
@@ -292,7 +297,7 @@ SynthParameters AcidusClap::buildParams() const {
     // Calibration constants from the selected preset; the front-panel fields
     // it also carries are overwritten from paramValues_ below. Built in a
     // copy so the engine never sees the preset's default knob values.
-    SynthParameters params = calibrationPresets()[calibrationPreset_.load()].params;
+    SynthParameters params = calibrationBase(calibrationPreset_.load());
     params.cutoff = static_cast<float>(getParam(PARAM_CUTOFF));
     params.resonance = static_cast<float>(getParam(PARAM_RESONANCE));
     params.envMod = static_cast<float>(getParam(PARAM_ENV_MOD));
@@ -1040,17 +1045,27 @@ void AcidusClap::onEndEditFromGui(clap_id paramId) {
     requestHostFlush();
 }
 
-int AcidusClap::calibrationPresetCount() {
-    return kCalibrationPresetCount;
+SynthParameters AcidusClap::calibrationBase(int index) const {
+    if (index == kCustomCalibration && hasCustomCalibration_.load()) {
+        std::lock_guard<std::mutex> lock(customMutex_);
+        return customCalibration_;
+    }
+    if (index < 0 || index >= kCalibrationPresetCount) index = 0;
+    return calibrationPresets()[index].params;
 }
 
-const char* AcidusClap::calibrationPresetName() const {
-    return calibrationPresets()[calibrationPreset_.load()].name;
+std::string AcidusClap::calibrationPresetName() const {
+    const int index = calibrationPreset_.load();
+    if (index == kCustomCalibration && hasCustomCalibration_.load()) {
+        std::lock_guard<std::mutex> lock(customMutex_);
+        return customName_;
+    }
+    return calibrationPresets()[(index >= 0 && index < kCalibrationPresetCount) ? index : 0].name;
 }
 
 bool AcidusClap::isCalibrationModified() const {
 #ifdef ACIDUS_CALIBRATION_BUILD
-    const SynthParameters& preset = calibrationPresets()[calibrationPreset_.load()].params;
+    const SynthParameters preset = calibrationBase(calibrationPreset_.load());
     for (const auto& b : kCalibrationBindings) {
         const double want = static_cast<double>(preset.*(b.field));
         if (std::abs(getParam(b.id) - want) > 1e-6 * std::max(1.0, std::abs(want))) {
@@ -1062,12 +1077,12 @@ bool AcidusClap::isCalibrationModified() const {
 }
 
 void AcidusClap::selectCalibrationPreset(int index, bool notifyHost) {
-    if (index < 0 || index >= kCalibrationPresetCount) return;
+    if (index < 0 || index >= calibrationPresetCount()) return;
     calibrationPreset_.store(index);
 #ifdef ACIDUS_CALIBRATION_BUILD
     // Load the preset into the host-visible calibration parameters; the
     // front-panel knobs are left alone.
-    const SynthParameters& preset = calibrationPresets()[index].params;
+    const SynthParameters preset = calibrationBase(index);
     for (const auto& b : kCalibrationBindings) {
         setParam(b.id, static_cast<double>(preset.*(b.field)));
         if (notifyHost) {
@@ -1089,7 +1104,82 @@ void AcidusClap::selectCalibrationPreset(int index, bool notifyHost) {
 }
 
 void AcidusClap::cycleCalibrationPresetFromGui() {
-    selectCalibrationPreset((calibrationPreset_.load() + 1) % kCalibrationPresetCount, true);
+    selectCalibrationPreset((calibrationPreset_.load() + 1) % calibrationPresetCount(), true);
+}
+
+std::string AcidusClap::customCalibrationName() const {
+    std::lock_guard<std::mutex> lock(customMutex_);
+    return customName_;
+}
+
+void AcidusClap::setCustomCalibration(const SynthParameters& params, const std::string& name) {
+    std::lock_guard<std::mutex> lock(customMutex_);
+    customCalibration_ = params;
+    customName_ = name;
+    hasCustomCalibration_.store(true);
+}
+
+// A profile name as the logo plate shows it: printable ASCII, upper case,
+// at most 20 characters.
+static std::string plateName(const std::string& name) {
+    std::string out;
+    for (char c : name) {
+        if (out.size() >= 20) break;
+        if (c == '_') c = ' ';
+        if (c >= 'a' && c <= 'z') c = static_cast<char>(c - 'a' + 'A');
+        if (c >= 0x20 && c < 0x7F) out += c;
+    }
+    while (!out.empty() && out.back() == ' ') out.pop_back();
+    return out.empty() ? "CUSTOM" : out;
+}
+
+std::string AcidusClap::currentCalibrationJson() const {
+    char when[32] = "";
+    const std::time_t now = std::time(nullptr);
+    if (const std::tm* t = std::localtime(&now)) std::strftime(when, sizeof(when), "%Y-%m-%d %H:%M", t);
+    const std::string name = calibrationPresetName();
+    std::string source = "Exported from the Acidus plugin, " + std::string(when) + ", calibration " + name;
+    if (isCalibrationModified()) source += " with edits";
+    return calibrationToJson(buildParams(), name, source);
+}
+
+bool AcidusClap::exportCalibration(const std::string& path, std::string& error) const {
+    std::ofstream out(std::filesystem::u8path(path), std::ios::binary | std::ios::trunc);
+    if (!out) { error = "cannot write " + path; return false; }
+    out << currentCalibrationJson();
+    out.close();
+    if (!out) { error = "cannot write " + path; return false; }
+    return true;
+}
+
+bool AcidusClap::importCalibrationJson(const std::string& json, const std::string& fallbackName, std::string& error) {
+    error.clear();
+    // Constants the profile lacks keep the value that plays now.
+    SynthParameters params = buildParams();
+    CalibrationImport result;
+    if (!calibrationFromJson(json, params, result)) {
+        error = result.error;
+        return false;
+    }
+    setCustomCalibration(params, plateName(result.name.empty() ? fallbackName : result.name));
+    selectCalibrationPreset(kCustomCalibration, true);
+#ifdef ACIDUS_CALIBRATION_BUILD
+    // The host parameters have ranges: a value outside one is clamped.
+    if (isCalibrationModified()) error = "some values were outside the parameter ranges and were clamped";
+#endif
+    return true;
+}
+
+bool AcidusClap::importCalibration(const std::string& path, std::string& error) {
+    std::ifstream in(std::filesystem::u8path(path), std::ios::binary);
+    if (!in) { error = "cannot read " + path; return false; }
+    std::string json;
+    char buf[4096];
+    while (in.read(buf, sizeof(buf)) || in.gcount() > 0) {
+        json.append(buf, static_cast<size_t>(in.gcount()));
+        if (json.size() > (1u << 20)) { error = "file too large for a calibration profile"; return false; }
+    }
+    return importCalibrationJson(json, std::filesystem::u8path(path).stem().u8string(), error);
 }
 
 void AcidusClap::setParamValueFromGui(clap_id paramId, double value) {
@@ -1215,7 +1305,11 @@ void AcidusClap::paramsFlush(const clap_input_events_t* in, const clap_output_ev
 
 // State: a small header, then the parameter values as doubles.
 //   uint32 magic 'ACS2', uint32 parameter count, int32 calibration preset,
-//   uint32 reserved, double values[parameter count]
+//   uint32 custom profile length, double values[parameter count],
+//   char custom profile[custom profile length]
+// The custom profile (the imported calibration, core/CalibrationProfile.hpp
+// JSON) is only there when the custom slot is filled; older builds, which
+// wrote 0 in its place, ignore it and fall back to the first preset.
 // The legacy format (before calibration presets) is the bare doubles; it
 // loads with the first preset. The count lets a Release build and a
 // calibration build (more parameters) read each other's state.
@@ -1223,14 +1317,21 @@ static constexpr uint32_t kStateMagic = 0x32534341u; // "ACS2"
 
 bool AcidusClap::stateSave(const clap_ostream_t* stream) {
     if (!stream || !stream->write) return false;
-    std::vector<uint8_t> data(16 + PARAM_COUNT * sizeof(double));
+    std::string custom;
+    if (hasCustomCalibration_.load()) {
+        std::lock_guard<std::mutex> lock(customMutex_);
+        custom = calibrationToJson(customCalibration_, customName_, "imported into Acidus");
+    }
+    std::vector<uint8_t> data(16 + PARAM_COUNT * sizeof(double) + custom.size());
     const uint32_t header[4] = { kStateMagic, static_cast<uint32_t>(PARAM_COUNT),
-                                 static_cast<uint32_t>(calibrationPreset_.load()), 0u };
+                                 static_cast<uint32_t>(calibrationPreset_.load()),
+                                 static_cast<uint32_t>(custom.size()) };
     std::memcpy(data.data(), header, sizeof(header));
     for (uint32_t i = 0; i < PARAM_COUNT; ++i) {
         const double v = getParam(i);
         std::memcpy(data.data() + 16 + i * sizeof(double), &v, sizeof(double));
     }
+    if (!custom.empty()) std::memcpy(data.data() + 16 + PARAM_COUNT * sizeof(double), custom.data(), custom.size());
     size_t done = 0;
     while (done < data.size()) {
         int64_t n = stream->write(stream, data.data() + done, data.size() - done);
@@ -1256,15 +1357,30 @@ bool AcidusClap::stateLoad(const clap_istream_t* stream) {
     int preset = 0;
     size_t offset = 0;
     size_t count = data.size() / sizeof(double);
+    bool custom = false;
     if (data.size() >= 16) {
         uint32_t header[4];
         std::memcpy(header, data.data(), sizeof(header));
         if (header[0] == kStateMagic) {
-            preset = (header[2] < static_cast<uint32_t>(kCalibrationPresetCount)) ? static_cast<int>(header[2]) : 0;
             offset = 16;
             count = std::min<size_t>(header[1], (data.size() - 16) / sizeof(double));
+            // The custom calibration after the saved values (header[1] of them).
+            const size_t at = 16 + static_cast<size_t>(header[1]) * sizeof(double);
+            if (header[3] > 0 && header[1] <= (1u << 16) && at + header[3] <= data.size()) {
+                SynthParameters params = calibrationPresets()[0].params;
+                CalibrationImport result;
+                const std::string json(reinterpret_cast<const char*>(data.data() + at), header[3]);
+                if (calibrationFromJson(json, params, result)) {
+                    setCustomCalibration(params, plateName(result.name));
+                    custom = true;
+                }
+            }
+            const uint32_t slots = static_cast<uint32_t>(kCalibrationPresetCount) + (custom ? 1u : 0u);
+            preset = (header[2] < slots) ? static_cast<int>(header[2]) : 0;
         }
     }
+    // The project's state decides the custom slot: none saved, none kept.
+    if (!custom) hasCustomCalibration_.store(false);
     // Defaults first, so anything the saved state lacks (a shorter or corrupt
     // blob) is well-defined; then the preset (sets the calibration parameters);
     // then the saved values on top: user edits of calibration parameters

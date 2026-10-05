@@ -8,6 +8,8 @@
 #include <array>
 #include <mutex>
 #include <atomic>
+#include <string>
+#include "core/CalibrationPresets.hpp"
 
 namespace acidus {
 
@@ -182,12 +184,28 @@ public:
     // In a calibration build the constants are CLAP parameters, the host is
     // told about each one, and editing any of them afterwards makes
     // isCalibrationModified() true.
-    static int calibrationPresetCount();
+    //
+    // After the built-in presets comes one custom slot, filled by importing
+    // a calibration profile (calibrations/*.json format, see
+    // core/CalibrationProfile.hpp). It is saved with the project state.
+    static constexpr int kCustomCalibration = kCalibrationPresetCount;
+    int calibrationPresetCount() const { return kCalibrationPresetCount + (hasCustomCalibration_.load() ? 1 : 0); }
     int calibrationPresetIndex() const { return calibrationPreset_.load(); }
-    const char* calibrationPresetName() const;
+    std::string calibrationPresetName() const;
     bool isCalibrationModified() const;
     void selectCalibrationPreset(int index, bool notifyHost);
     void cycleCalibrationPresetFromGui();
+    bool hasCustomCalibration() const { return hasCustomCalibration_.load(); }
+    std::string customCalibrationName() const;
+    // The calibration the engine plays now (the selected preset or custom
+    // slot, with a calibration build's parameter edits) as a profile.
+    std::string currentCalibrationJson() const;
+    bool exportCalibration(const std::string& path, std::string& error) const;
+    // Fills the custom slot from a profile and selects it. Constants the
+    // profile lacks keep the value currently playing. On failure nothing
+    // changes and `error` says why.
+    bool importCalibrationJson(const std::string& json, const std::string& fallbackName, std::string& error);
+    bool importCalibration(const std::string& path, std::string& error);
     bool paramsValueToText(clap_id paramId, double value, char* outBuffer, uint32_t outBufferCapacity);
     bool paramsTextToValue(clap_id paramId, const char* paramValueText, double* outValue);
     void paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out);
@@ -232,6 +250,16 @@ private:
     void resetParamsToDefaults();
     SynthParameters buildParams() const;
     std::atomic<int> calibrationPreset_{0};
+    // The custom calibration slot (see importCalibrationJson). Written by the
+    // GUI thread and state load, read by buildParams on any thread.
+    mutable std::mutex customMutex_;
+    SynthParameters customCalibration_;
+    std::string customName_;
+    std::atomic<bool> hasCustomCalibration_{false};
+    // The selected slot's constants: a built-in preset or the custom slot.
+    SynthParameters calibrationBase(int index) const;
+    // Fills the custom slot (no selection, no host notification).
+    void setCustomCalibration(const SynthParameters& params, const std::string& name);
     std::atomic<bool> stateDirty_{false};
     std::atomic<uint32_t> accentCount_{0};
     // Host transport at the start of the last block (see transportBarPhase).

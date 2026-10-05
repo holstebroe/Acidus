@@ -1,5 +1,6 @@
 #include "SequencerGui.hpp"
 #include "SequencerClap.hpp"
+#include "gui/FileDialog.hpp"
 #include "gui/Graphics.hpp"
 #include <algorithm>
 #include <chrono>
@@ -714,107 +715,6 @@ void SequencerGui::renderFrame() {
 
 #if defined(__linux__) && !defined(__APPLE__)
 
-// --- Linux: file dialogs -------------------------------------------------------
-//
-// Plain X11 has no file dialog, so load/save run zenity or kdialog as a child
-// process whose output (the chosen path) the event loop polls: the GUI keeps
-// running while the dialog is open.
-
-static bool onPath(const char* program) {
-    const char* path = std::getenv("PATH");
-    if (!path) return false;
-    std::string dirs(path);
-    size_t start = 0;
-    while (start <= dirs.size()) {
-        const size_t end = std::min(dirs.find(':', start), dirs.size());
-        const std::string file = dirs.substr(start, end - start) + "/" + program;
-        if (end > start && access(file.c_str(), X_OK) == 0) return true;
-        start = end + 1;
-    }
-    return false;
-}
-
-class DialogProcess {
-public:
-    ~DialogProcess() { cancel(); }
-    bool running() const { return pid_ > 0; }
-
-    // False if neither zenity nor kdialog is installed or it could not start.
-    bool start(bool save, const std::string& startPath) {
-        if (running()) return true;
-        std::vector<std::string> args;
-        if (onPath("zenity")) {
-            args = { "zenity", "--file-selection", "--title=" + std::string(save ? "Save pattern bank" : "Load pattern bank"),
-                     "--file-filter=Burette banks (*.burette) | *.burette", "--file-filter=All files | *",
-                     "--filename=" + startPath };
-            if (save) { args.push_back("--save"); args.push_back("--confirm-overwrite"); }
-        } else if (onPath("kdialog")) {
-            args = { "kdialog", save ? "--getsavefilename" : "--getopenfilename", startPath,
-                     "*.burette|Burette banks (*.burette)" };
-        } else {
-            return false;
-        }
-        int fds[2];
-        if (pipe(fds) != 0) return false;
-        posix_spawn_file_actions_t actions;
-        posix_spawn_file_actions_init(&actions);
-        posix_spawn_file_actions_adddup2(&actions, fds[1], 1);
-        posix_spawn_file_actions_addclose(&actions, fds[0]);
-        posix_spawn_file_actions_addclose(&actions, fds[1]);
-        posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0);
-        posix_spawn_file_actions_addopen(&actions, 2, "/dev/null", O_WRONLY, 0);
-        std::vector<char*> argv;
-        for (auto& a : args) argv.push_back(&a[0]);
-        argv.push_back(nullptr);
-        pid_t pid = 0;
-        const int err = posix_spawnp(&pid, argv[0], &actions, nullptr, argv.data(), environ);
-        posix_spawn_file_actions_destroy(&actions);
-        close(fds[1]);
-        if (err != 0) { close(fds[0]); return false; }
-        fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL) | O_NONBLOCK);
-        pid_ = pid;
-        fd_ = fds[0];
-        output_.clear();
-        save_ = save;
-        return true;
-    }
-
-    // True once the dialog has closed: `path` is the chosen file, or empty.
-    bool poll(std::string& path, bool& save) {
-        if (!running()) return false;
-        char buf[512];
-        ssize_t n;
-        while ((n = read(fd_, buf, sizeof(buf))) > 0) output_.append(buf, static_cast<size_t>(n));
-        int status = 0;
-        if (waitpid(pid_, &status, WNOHANG) != pid_) return false;
-        while ((n = read(fd_, buf, sizeof(buf))) > 0) output_.append(buf, static_cast<size_t>(n));
-        close(fd_);
-        pid_ = 0;
-        fd_ = -1;
-        path.clear();
-        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            path = output_.substr(0, output_.find('\n'));
-        }
-        save = save_;
-        return true;
-    }
-
-    void cancel() {
-        if (!running()) return;
-        kill(pid_, SIGTERM);
-        waitpid(pid_, nullptr, 0);
-        close(fd_);
-        pid_ = 0;
-        fd_ = -1;
-    }
-
-private:
-    pid_t pid_{0};
-    int fd_{-1};
-    bool save_{false};
-    std::string output_;
-};
-
 // --- Linux: drag-and-drop source (XDND) ----------------------------------------
 //
 // Drags a file to another application by the XDND protocol
@@ -983,7 +883,7 @@ private:
 };
 
 struct SequencerGui::X11Extras {
-    DialogProcess dialog;
+    FileDialogProcess dialog;
     XdndSource drag;
     std::string lastDir;
 };
@@ -1040,7 +940,13 @@ void SequencerGui::performActionsX11(uint32_t actions, int rootX, int rootY, uns
         }
         std::string start = x11_->lastDir + "/";
         if (save) start += "BURETTE BANK.burette";
-        if (!x11_->dialog.start(save, start)) {
+        FileDialogOptions options;
+        options.save = save;
+        options.title = save ? "Save pattern bank" : "Load pattern bank";
+        options.filterName = "Burette banks";
+        options.extension = "burette";
+        options.startPath = start;
+        if (!x11_->dialog.start(options)) {
             setStatus("NO FILE DIALOG: INSTALL ZENITY OR KDIALOG");
         }
     }
@@ -1201,19 +1107,13 @@ static bool dragFile(HWND hwnd, const std::filesystem::path& file) {
 
 // The common open / save dialog for .burette files. Empty if cancelled.
 static std::filesystem::path bankFileDialog(HWND hwnd, bool save) {
-    wchar_t file[MAX_PATH] = L"";
-    if (save) wcscpy_s(file, L"Burette bank.burette");
-    OPENFILENAMEW ofn = {};
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = hwnd;
-    ofn.lpstrFilter = L"Burette banks (*.burette)\0*.burette\0All files (*.*)\0*.*\0";
-    ofn.lpstrFile = file;
-    ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrDefExt = L"burette";
-    ofn.lpstrTitle = save ? L"Save pattern bank" : L"Load pattern bank";
-    ofn.Flags = OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | (save ? OFN_OVERWRITEPROMPT : OFN_FILEMUSTEXIST);
-    const BOOL ok = save ? GetSaveFileNameW(&ofn) : GetOpenFileNameW(&ofn);
-    return ok ? std::filesystem::path(file) : std::filesystem::path();
+    FileDialogOptions options;
+    options.save = save;
+    options.title = save ? "Save pattern bank" : "Load pattern bank";
+    options.filterName = "Burette banks";
+    options.extension = "burette";
+    if (save) options.startPath = "Burette bank.burette";
+    return runFileDialog(hwnd, options);
 }
 
 void SequencerGui::performActionsWin32(uint32_t actions) {

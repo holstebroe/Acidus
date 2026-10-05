@@ -209,7 +209,9 @@ def midi_to_hz(m):
     return 440.0 * 2.0 ** ((m - 69) / 12.0)
 
 
-def read_wav(path):
+def read_wav(path, mix=True):
+    """Samples as float64 and the sample rate. Several channels are averaged,
+    unless mix=False, which returns them as columns (frames x channels)."""
     data = Path(path).read_bytes()
     if data[0:4] != b"RIFF" or data[8:12] != b"WAVE":
         raise ValueError(f"{path}: not a RIFF/WAVE file")
@@ -242,7 +244,9 @@ def read_wav(path):
         raise ValueError(f"{path}: unsupported WAV format tag={tag} bits={bits}")
     x = np.asarray(x, dtype=np.float64)
     if ch > 1:
-        x = x[: len(x) // ch * ch].reshape(-1, ch).mean(axis=1)
+        x = x[: len(x) // ch * ch].reshape(-1, ch)
+        if mix:
+            x = x.mean(axis=1)
     return x, sr
 
 
@@ -885,6 +889,12 @@ class Problem:
             onset0 = 0.0
         gate0 = float(np.median([r.gate_ms for r in refs if not r.accent_step] or [r.gate_ms for r in refs]))
         self.timing_init = {"onsetMs": onset0, "gateMs": gate0}
+        # A set with deliberately different gates (docs/EMULATION_TRAINING_PLAN.md:
+        # 30 ms to 4 s) renders each note with its own gate; the fitted gateMs
+        # then shifts all of them. Sets with one nominal gate (the dinsync set's
+        # measured gates spread a few ms) keep the single fitted gate.
+        gates = [r.gate_ms for r in refs]
+        self.per_note_gate = self.relative_onset and max(gates) - min(gates) > 60.0
         if not (only and "timing" not in only) and "timing" not in fixed:
             # Never below 0: a negative onset starts the render mid-attack, and
             # the resulting step at sample 0 adds a broadband -6 dB/oct
@@ -928,7 +938,10 @@ class Problem:
         sr = ref.sr
         onset_ms = timing["onsetMs"] + (ref.onset_ms if self.relative_onset else 0.0)
         onset = int(round(onset_ms * sr / 1000.0))
-        gate = max(1, int(round(timing["gateMs"] * sr / 1000.0)))
+        gate_ms = timing["gateMs"]
+        if self.per_note_gate:
+            gate_ms += ref.gate_ms - self.timing_init["gateMs"]
+        gate = max(1, int(round(gate_ms * sr / 1000.0)))
         pre = max(0, -onset)
         y, ok = self.r.render(values, ref.waveform, ref.midi, ref.accent_step, sr, gate, ref.n + pre)
         if onset >= 0:
@@ -953,7 +966,8 @@ class Problem:
         v = self.sample_values(base, knobs, ref)
         onset = timing["onsetMs"] + (ref.onset_ms if self.relative_onset else 0.0)
         return (v.tobytes(), ref.waveform, ref.midi, ref.accent_step, round(onset * ref.sr / 1000.0),
-                round(timing["gateMs"] * ref.sr / 1000.0), ref.n, ref.sr, ref.f0, ref.spec.nfft)
+                round(timing["gateMs"] * ref.sr / 1000.0), ref.gate_ms if self.per_note_gate else None,
+                ref.n, ref.sr, ref.f0, ref.spec.nfft)
 
     def solve_gain(self, feats, refs):
         num = den = 0.0

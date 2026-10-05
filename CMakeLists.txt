@@ -46,6 +46,7 @@ set(CORE_SOURCES
     src/core/Filter.cpp
     src/core/Envelope.cpp
     src/core/Distortion.cpp
+    src/core/CalibrationProfile.cpp
 )
 
 set(CLAP_SOURCES
@@ -57,6 +58,7 @@ set(GUI_SOURCES
     src/gui/Graphics.cpp
     src/gui/ControlRenderer.cpp
     src/gui/GuiWindow.cpp
+    src/gui/FileDialog.cpp
 )
 
 # Linux X11 library dependency for GUI
@@ -67,7 +69,7 @@ elseif(APPLE)
     find_library(COCOA_LIBRARY Cocoa)
     set(GUI_LIBS ${COCOA_LIBRARY})
 elseif(WIN32)
-    set(GUI_LIBS gdi32 user32)
+    set(GUI_LIBS gdi32 user32 comdlg32)
 endif()
 
 # The GUI (60 Hz redraw) and CLAP host-glue code never run in the audio
@@ -242,6 +244,7 @@ set(SEQ_SOURCES
 set(SEQ_PLUGIN_SOURCES
     src/sequencer/SequencerClap.cpp
     src/sequencer/SequencerGui.cpp
+    src/gui/FileDialog.cpp
     src/gui/Font.cpp
     src/gui/Graphics.cpp
 )
