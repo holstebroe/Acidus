@@ -57,6 +57,8 @@
   "envModTaperMid": 0.686116,
   "envModTaperWidth": 0.121931,
   "cutoffMaxHz": 23723.3,
-  "vcaNormalDelayMs": 4.50396
+  "vcaNormalDelayMs": 4.50396,
+  "filterCouplingNetwork": 0.0,
+  "filterNetworkTimeScale": 1.0
  }
 }

@@ -422,7 +422,7 @@ For reference, on the existing sets:
 |---|---|---|
 | `x0x` | 2.61 | 7.00 |
 | `acidvoice` | 3.36 | 2.07 |
-| `factory` | 3.87 | 3.54 |
+| `factory` | 3.75 | 3.40 |
 
 A unit's own fitted profile scores about 2-3 on its set. The schematic
 `factory` profile, a new unit, lands at about 3.5-3.9 on aged units, and a
@@ -737,7 +737,7 @@ cmake --build build && ./build/acidus_reference_test --fast | tail -1
 git checkout src/core/SynthEngine.hpp
 ```
 
-For reference: `x0x` 24 / 34, `factory` 30 / 34 (the fit on an aged unit fails the
+For reference: `x0x` 24 / 34, `factory` 32 / 34 (the fit on an aged unit fails the
 cutoff-trim and VEG checks by design, which are real differences of that unit, see
 `calibrations/README.md`). Do not aim for 34 / 34. A profile that fails **many more** checks
 than `x0x` has left the circuit's physical range to fit the recordings; look at which

@@ -43,6 +43,8 @@ struct SynthParameters {
     float filterCapScale4{1.06305f};       // Filter.hpp - unsourced; 1.0 = schematic (33/33/33/18 nF), range 0.2-4.0 (ladder pole-frequency spread, stage 4)
     float filterLadderInputScale{0.0352243f};   // Filter.hpp - plausible range 0.02-0.20 (ladder nonlinearity drive) (fitted 2026-09-29 to the x0x set, sweep-tracked)
     float filterLadderTopology{0.0f};   // Filter.hpp - 0 = legacy mirrored ladder, 1 = circuit orientation (input pair tanh(x - k*y4), half cap on stage 1, terminal tanh(y4); §10.3, audit S1)
+    float filterCouplingNetwork{0.0f};   // Filter.hpp - 0 = Open303 empirical coupling (input HP, one in-loop HP, notch, all-pass; §11.3 option 2), 1 = Stinchcombe's full 10-pole network (§11.1, §11.3 option 1)
+    float filterNetworkTimeScale{1.0f};  // Filter.hpp - Stinchcombe network RC time-constant scale (network 1 only); 1.0 = schematic, electrolytics +-20 %
     float vegDecaySec{2.68385f};           // Envelope.hpp - VEG tau; R123 x C42 = 1.5 s (§15.1), the x0x unit's held notes decay slower (fitted 2026-09-29 to the x0x set, sweep-tracked)
     float vcaGateOffMs{0.811348f};          // Envelope.hpp - VCA release tau at gate-off; Open303 1 ms (fitted 2026-09-29 to the x0x set, sweep-tracked)
     float vcaGateOffAccentMs{2.80367f};    // Envelope.hpp - VCA release tau at gate-off on accented notes; Open303 50 ms, neither measured unit shows a long accent tail (fitted 2026-09-29 to the x0x set, sweep-tracked)
