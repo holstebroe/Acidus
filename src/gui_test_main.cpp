@@ -238,7 +238,7 @@ int main() {
         check(calPlugin.calibrationPresetName() == "HELL FISH", "HELL FISH preset");
         check(std::abs(calPlugin.getEngine().getParams().vcaAttackMs - presets[3].params.vcaAttackMs) < 1e-5f,
               "non-default constant applied");
-        for (int i = 0; i < acidus::AcidusClap::calibrationPresetCount(); ++i) {
+        for (int i = 0; i < calPlugin.calibrationPresetCount(); ++i) {
             calPlugin.selectCalibrationPreset(i, true);
             calGui.renderFrame();
             calGui.getPresetLabelRect(lx, ly, lw, lh);
@@ -347,7 +347,7 @@ int main() {
                 }
                 return true;
             };
-            check(acidus::calibrationFieldCount() == 53, "every calibration constant has a profile key");
+            check(acidus::calibrationFieldCount() == 55, "every calibration constant has a profile key");
             acidus::AcidusClap src(nullptr);
             src.selectCalibrationPreset(3, true);
             const std::string json = src.currentCalibrationJson();
@@ -453,7 +453,7 @@ int main() {
             menuGui.finishFileRequest(acidus::GuiWindow::FileRequest::Import, "");   // cancelled: nothing
             std::remove(file.c_str());
             menuGui.handleRightClick(mpx + 10, mpy + 10);
-            check(menuGui.getMenuItemLabel(7) == "> HELL FISH", "custom slot listed and marked");
+            check(menuGui.getMenuItemLabel(3 + acidus::AcidusClap::kCustomCalibration) == "> HELL FISH", "custom slot listed and marked");
             menuGui.renderFrame();
             std::cout << "Calibration export / import tests passed" << std::endl;
         }

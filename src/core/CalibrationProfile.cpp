@@ -63,6 +63,8 @@ static const CalibrationField kFields[] = {
     ACIDUS_CAL_FIELD(accentDecaySec),
     ACIDUS_CAL_FIELD(filterResonanceSkew),
     ACIDUS_CAL_FIELD(filterResonanceLimit),
+    ACIDUS_CAL_FIELD(filterCouplingNetwork),
+    ACIDUS_CAL_FIELD(filterNetworkTimeScale),
 };
 
 #undef ACIDUS_CAL_FIELD

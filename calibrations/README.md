@@ -189,10 +189,10 @@ Right-click the logo plate for the calibration menu:
 
 - **EXPORT CALIBRATION...** writes the calibration that plays now as a
   profile in this folder's format (`name`, `source`, `parameters` with all
-  53 constants). In the calibration build that includes your parameter
+  55 constants). In the calibration build that includes your parameter
   edits.
 - **IMPORT CALIBRATION...** reads a profile into a custom slot after the
-  four presets, named after the profile's `name` or the file name, and
+  built-in presets, named after the profile's `name` or the file name, and
   selects it. Constants the file lacks keep the value that was playing, so
   a file with just `{"parameters": {"cutoffBaseHz": 260}}` works. Unknown
   keys are ignored. A file that does not parse, or names no known
@@ -205,8 +205,8 @@ The custom slot is saved with the project. Fitted profiles
 files are valid `--calibration` / `--start` profiles for the tools. On
 Linux the file dialog is zenity or kdialog, as for Burette's banks.
 
-To trim a calibration by ear, use the calibration build. There, 48 of the
-53 constants are CLAP parameters: all but the oscillator's saw low-pass and
+To trim a calibration by ear, use the calibration build. There, 50 of the
+55 constants are CLAP parameters: all but the oscillator's saw low-pass and
 bend, square duty and level, and the MEG attack. Import, adjust the
 parameters in the host, and export. A Release build imports and exports
 but has nothing to edit.
