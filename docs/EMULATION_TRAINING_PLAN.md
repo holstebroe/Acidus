@@ -103,9 +103,10 @@ actual source** before any data is skipped because of it.
    the level between stages: the anchor note of each stage checks it.
 
 **About the MIDI files.** Each stage file plays the notes on a fixed grid,
-1 tick = 1 ms, with the first note-on at 500 ms. A note-on always comes at
-least 1.7 s after the previous gate. Every note's knob CCs are sent 300 ms
-before it, in silence, which covers MIDI-learn smoothing. A marker names each
+1 tick = 1 ms, with the first note-on at 1500 ms. A note-on always comes at
+least 1.7 s after the previous gate. Every note's knob CCs are sent 1.2 s
+before it, in silence, so a plugin or MIDI learn that smooths parameter
+changes has settled by the note. A marker names each
 set, and a text event on each note records its knobs. The fitter reads the
 knobs from these text events, so it doesn't depend on the CC map. CC is
 7-bit, so 25 % cannot be sent exactly (it is 31.75 / 127). Every knob is
@@ -115,8 +116,7 @@ value really sets (25 % -> CC 32 -> 25.197 %).
 **The notes don't sit on the bars**, and that is intended. The grid is in
 milliseconds, not beats: every note's slot is at least 3 s (6.25 beats at
 125 BPM), so each note and its release die away before the next one. The
-first note starts at 500 ms (just over one beat), after its knob CCs at
-200 ms. The tempo still matters, because the DAW plays the file in beats:
+first note starts at 1500 ms, after its knob CCs at 300 ms. The tempo still matters, because the DAW plays the file in beats:
 **set the project to 125 BPM**. Some DAWs take the tempo from the file on
 import, and others keep the project's.
 
@@ -127,7 +127,7 @@ render has before it, don't matter: the fitter finds the notes in the audio
 and works out the offset itself. Two things do matter:
 
 - Start the render at or before the clip's start. The first note's knob CCs
-  come 300 ms before it, and a render that starts after them plays that note
+  come 1.2 s before it, and a render that starts after them plays that note
   with the previous knob settings.
 - Render at 125 BPM. The fitter compares the spacing of the notes with the
   MIDI. If they don't match, it stops and tells you the tempo the render was

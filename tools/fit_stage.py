@@ -35,6 +35,7 @@ import json
 import shutil
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -402,8 +403,21 @@ def repeat_diagnosis(x, sr, n1, n2, offset, floor):
     fb_hz = sr / spec.st_frame
     centres = np.sqrt(spec.st_edges[:-1] * spec.st_edges[1:]) * fb_hz
     d = np.where(m, np.abs(a - b), np.nan)
-    with np.errstate(all="ignore"):
+    with np.errstate(all="ignore"), warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
         per_band = np.nanmean(d, axis=0)
+        per_frame = np.nanmean(d, axis=1)
+    # When in the note: a difference that fades within the first few hundred
+    # ms is a knob still moving (parameter smoothing), one that lasts is not.
+    hop = spec.st_hop * 1000.0 / sr
+    spans = []
+    for t0, t1 in ((0, 150), (150, 500), (500, n1["gate_ms"])):
+        v = per_frame[int(t0 / hop):int(t1 / hop)]
+        v = v[np.isfinite(v)]
+        if len(v):
+            spans.append(f"{t0:.0f}-{t1:.0f} ms {float(np.mean(v)):.1f} dB")
+    if spans:
+        out.append("difference over the note: " + ", ".join(spans))
     worst = [i for i in np.argsort(np.nan_to_num(per_band, nan=-1.0))[::-1][:3] if np.isfinite(per_band[i])]
     if worst:
         out.append("most different around " + ", ".join(f"{centres[i]:.0f} Hz ({per_band[i]:.1f} dB)" for i in worst))
@@ -530,8 +544,12 @@ def probe_report(x, sim, sr, notes, offset, out_path):
             lines += ["The fit needs a repeatable source: two identical notes should match to well under",
                       "0.5 dB. A level difference points at drift or random variation; a pitch",
                       "difference at oscillator drift; differences only in the top bands at noise or",
-                      "random phase. P08 and P11 only count what they exceed P12 by, so they are",
-                      "unreliable until P12 passes."]
+                      "random phase. A difference near the filter's frequency that fades over the",
+                      "note is a knob still moving when the note starts: the first P12 note follows",
+                      "a knob change, the second does not. Check that the emulation (or the DAW's",
+                      "MIDI learn) does not smooth CC changes, or regenerate the MIDI files (the",
+                      "knob CCs now come 1.2 s before each note) and render again. P08 and P11",
+                      "only count what they exceed P12 by, so they are unreliable until P12 passes."]
     lines += ["", "\"inconclusive\": no clear resonant peak in one of the corners, or (P05, P06) a Decay",
               "time constant longer than the gate or a peak lost for most of the note. Nothing",
               "contradicts the 303 structure there; keep the plan as it is.",

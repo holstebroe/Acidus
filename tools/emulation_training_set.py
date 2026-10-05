@@ -15,7 +15,7 @@ Then fit the rendered stage with tools/fit_stage.py.
 The MIDI files run at 125 BPM, 480 PPQ, so one tick is exactly 1 ms. Accent
 is velocity 127, normal 100 (Burette's convention); a slide is the next
 note-on 10 ms before the previous note-off. Knobs are sent as Control Changes
-300 ms before each note (or sequence), in silence. The default map is
+1.2 s before each note (or sequence), in silence. The default map is
 Acidus's own (Cutoff 71, Resonance 72, Env Mod 73, Decay 74, Accent 22,
 Waveform 23): MIDI-learn the emulation's knobs to those, and the same files
 drive both plugins. A marker names each set and a text event at every note
@@ -33,7 +33,7 @@ import csv
 import struct
 from pathlib import Path
 
-NOTE_ON_MS = 500           # first note-on in every file
+NOTE_ON_MS = 1500          # first note-on in every file (after its knob CCs)
 SLOT_MS = 3000             # note-on to next note-on, minimum
 TAIL_MS = 1700             # silence after the gate before the next note-on
 GATE_MS = 1300             # standard gate (the dinsync set: 1330 ms)
@@ -191,7 +191,10 @@ def sequence_sets():
 
 
 KNOB_COLS = ("cutoff", "resonance", "envmod", "decay", "accent_knob")
-CC_LEAD_MS = 300
+# Knob CCs go this long before their note: MIDI learn and plugins may smooth
+# a parameter change over hundreds of ms. The previous note's analysed tail
+# (gate + 400 ms) ends at least TAIL_MS - 400 = 1300 ms before the note.
+CC_LEAD_MS = 1200
 
 
 # Acidus's own CC map (AcidusClap.hpp): MIDI-learn the emulation to the same
