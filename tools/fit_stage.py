@@ -613,6 +613,51 @@ def merged_manifest(base, src, stage, alone, with_probes):
     return out, len(clips)
 
 
+# Filter constants that only act in one coupling-network mode
+# (filterCouplingNetwork, src/core/Filter.cpp): freeing them in the other
+# mode only lets them wander.
+OPEN303_NETWORK_ONLY = ("filterInputCouplingHz", "resCouplingHz", "filterNotchHz",
+                        "filterNotchBandwidthHz", "filterAllpassHz")
+STINCHCOMBE_NETWORK_ONLY = ("filterNetworkTimeScale",)
+NEVER_FITTED = {
+    "filterLadderTopology": "a switch (ladder orientation): try both by hand",
+    "filterCouplingNetwork": "a switch (Open303 or Stinchcombe coupling network): pick it with --start",
+    "vcoOctaveScale": "measure it from the 3C pitches with a tuner",
+}
+
+
+def stage_parameters(stage, start):
+    """(tuned, inactive, kept) for a stage starting from a profile: the
+    constants the fit varies, the ones the stage would free but that do
+    nothing in the profile's coupling-network mode, and the rest."""
+    params = json.loads(Path(start).read_text(encoding="utf-8")).get("parameters", {})
+    network = params.get("filterCouplingNetwork", 0.0) >= 0.5
+    inactive = STINCHCOMBE_NETWORK_ONLY if not network else OPEN303_NETWORK_ONLY
+    only = set(STAGE_ONLY[stage].split(","))
+    selected = [k for k, v in cr.MODEL_PARAMS.items() if k in only or v[3] in only]
+    tuned = [k for k in selected if k not in inactive]
+    off = [k for k in selected if k in inactive]
+    kept = [k for k in cr.MODEL_PARAMS if k not in selected] + list(NEVER_FITTED)
+    return tuned, off, kept
+
+
+def print_parameters(stage, start):
+    tuned, off, kept = stage_parameters(stage, start)
+    print(f"stage {stage}, starting from {start}:")
+    print(f"\n  tuned ({len(tuned)}):")
+    for k in tuned:
+        print(f"    {k:26s} group {cr.MODEL_PARAMS[k][3]}")
+    if off:
+        print(f"\n  not tuned, no effect in this profile's coupling-network mode ({len(off)}):")
+        for k in off:
+            print(f"    {k}")
+    print(f"\n  kept at the starting profile's value ({len(kept)}):")
+    for k in kept:
+        print(f"    {k:26s} " + (NEVER_FITTED[k] if k in NEVER_FITTED else f"group {cr.MODEL_PARAMS[k][3]}"))
+    print("\n  also fitted: a note-on shift and gate offset (timing); one overall level gain is solved directly.")
+    print("  never fitted: the panel knobs (exact in an emulation, --fix knobs), Volume, Drive, Tuning.")
+
+
 def default_start(src, stage):
     """The profile the next round starts from: the newest of the previous
     stage's fit and any trimmed version of it exported from the plugin
@@ -689,6 +734,8 @@ def main():
                     help="which channel of a stereo render to analyse (default: the mix of both)")
     ap.add_argument("--tune-cents", type=float, default=0.0, help="the source's tuning offset (default 0)")
     ap.add_argument("--alone", action="store_true", help="fit this stage's notes only, not earlier stages too")
+    ap.add_argument("--list-params", action="store_true",
+                    help="print which constants this stage tunes and which it keeps, then stop")
     ap.add_argument("--probes-only", action="store_true",
                     help="stage 0: write the probe report, don't fit")
     ap.add_argument("--with-probes", action="store_true",
@@ -701,6 +748,11 @@ def main():
 
     src, stage = args.source_id, args.stage
     base = Path(args.dir) if args.dir else REPO / "test" / "resources" / src
+    if args.list_params:
+        if stage == 4:
+            fail("stage 4 is not fitted")
+        print_parameters(stage, Path(args.start) if args.start else default_start(src, stage))
+        return
     mid = Path(args.midi) if args.midi else base / f"{src}-stage{stage}.mid"
     if not mid.exists():
         fail(f"{mid} not found: run tools/emulation_training_set.py {src} --out {base}")
@@ -751,7 +803,8 @@ def main():
     manifest, n_clips = merged_manifest(base, src, stage, args.alone, args.with_probes)
     fit_dir = work / "fit"
     cmd = [sys.executable, str(TOOLS / "calibrate_reference.py"), "--manifest", str(manifest),
-           "--calibration", str(start), "--fix", "knobs", "--w-sweep", "1", "--only", STAGE_ONLY[stage],
+           "--calibration", str(start), "--fix", ",".join(["knobs"] + list(stage_parameters(stage, start)[1])),
+           "--w-sweep", "1", "--only", STAGE_ONLY[stage],
            "--max-minutes", str(args.minutes), "--out", str(fit_dir), "--no-sensitivity",
            "--patience-minutes", str(args.patience if args.patience is not None else args.minutes / 3.0)]
     if args.evaluate_only:

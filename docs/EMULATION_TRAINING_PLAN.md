@@ -349,21 +349,58 @@ release build or edited by hand.
 
 ---
 
-## 9. What the optimiser varies
+## 9. What each stage tunes
 
-The calibrator can vary the 51 constants in its `MODEL_PARAMS` table (groups
-`osc`, `filter`, `cv`, `env`). It also varies one position per distinct
-(knob, percent) pair (group `knobs`), plus a global note-on shift and gate
-offset (group `timing`). It solves one global level gain directly.
-`fit_stage.py` always passes `--fix knobs`, because a plugin's knob
-positions are exact, and narrows the rest per stage with `--only`.
+A profile holds 55 constants. The calibrator can tune 52 of them (its
+`MODEL_PARAMS` table, in groups `osc`, `filter`, `cv` and `env`). Each stage
+frees only some of them (`STAGE_ONLY` in `tools/fit_stage.py`). The rest keep
+the starting profile's value, which is the previous stage's fit or your
+trimmed export of it. To print the exact list for a stage and starting
+profile:
 
-These never vary:
+```bash
+python3 tools/fit_stage.py <src> 2 --list-params              # from the default start
+python3 tools/fit_stage.py <src> 2 --list-params --start calibrations/factory.json
+```
 
+| Constants | Stage 0 / 1 | Stage 2 | Stage 3 |
+|---|---|---|---|
+| Cutoff law: `cutoffBaseHz`, `cutoffSpanOct` | tuned | tuned | tuned |
+| Cutoff law shape and ceiling: `cutoffTaperExp`, `cutoffMaxHz` | kept | tuned | tuned |
+| Resonance: `filterFeedbackGain`, `filterResonanceLimit` | tuned | tuned | tuned |
+| Resonance pot curve: `filterResonanceSkew` | kept | tuned | tuned |
+| Env Mod depth and offset: `envModScaleC0Slope`, `envModScaleC1Slope`, `envModOffset` | tuned | tuned | tuned |
+| Env Mod at 0 and its pot curve: `envModScaleC0`, `envModScaleC1`, `envModOffsetCutSlope`, `envModTaperExp/Mid/Width` | kept | tuned | tuned |
+| Decay range: `vcfDecayMinSec`, `vcfDecayMaxSec` | tuned | tuned | tuned |
+| Decay pot curve: `vcfDecayTaper` | kept | tuned | tuned |
+| Accent amount: `accentSweepDepthOct`, `accentVcaDepth`, `accentDecaySec` | tuned | `accentSweepDepthOct`, `accentVcaDepth` tuned (group `cv`); `accentDecaySec` kept | tuned |
+| Accent sweep network: `accentChargeBaseSec`, `accentChargePotSec`, `accentMixSec`, `accentDiodeDrop` | kept | tuned (group `cv`) | tuned |
+| VEG and level: `vegDecaySec`, `vcaResTapRatio` | tuned | tuned | tuned |
+| Square level: `oscSquareLevel` | tuned | kept | tuned |
+| Square duty, saw shape, oscillator coupling: `oscSquareDutyDepth`, `oscSawLpfHz`, `oscSawShape`, `oscCouplingHz` | kept | kept | tuned |
+| Ladder core: `filterCapScale1-4`, `filterLadderInputScale`, `filterOutputCouplingHz`, `filterPostHpHz` | kept | tuned | tuned |
+| Open303 coupling (mode 0 only): `filterInputCouplingHz`, `resCouplingHz`, `filterNotchHz`, `filterNotchBandwidthHz`, `filterAllpassHz` | kept | tuned in mode 0 | tuned in mode 0 |
+| Stinchcombe network (mode 1 only): `filterNetworkTimeScale` | kept | tuned in mode 1 | tuned in mode 1 |
+| VCA timing: `vcaAttackMs`, `vcaNormalDelayMs`, `vcaGateOffMs`, `vcaGateOffAccentMs`, `vcfAttackMs`, `vcaGainSaturationDrive` | kept | kept | tuned |
+| `filterLadderTopology`, `filterCouplingNetwork` (switches), `vcoOctaveScale` | never | never | never |
+
+Mode 0 and mode 1 refer to the profile's `filterCouplingNetwork` (0 =
+Open303's empirical coupling: x0x, acidvoice, hellfish; 1 = Stinchcombe's
+full network: factory, x0x-circuit). A stage never frees the constants that
+do nothing in the starting profile's mode. To try the other mode, start from
+a profile that uses it (`--start calibrations/factory.json`).
+
+Besides the constants, every fit tunes a note-on shift and a gate offset
+(group `timing`) and solves one overall level gain directly. These are never
+tuned:
+
+- the panel knobs (`fit_stage.py` passes `--fix knobs`: a plugin's knob
+  positions are exact);
 - Volume, Drive and Tuning (`--tune-cents` sets the source's tuning,
   default 0);
-- `filterLadderTopology`, a switch: try both by hand;
-- `vcoOctaveScale`: measure it from 3C with a tuner;
+- the two switches above: compare both settings by ear, or start from a
+  profile that has the other one;
+- `vcoOctaveScale`: measure it from the 3C pitches with a tuner;
 - the slide time constant, which is hard-coded.
 
 Mixed gate lengths are rendered per note. The calibrator used to render
