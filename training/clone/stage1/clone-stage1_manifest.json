@@ -1,0 +1,743 @@
+{
+ "description": "clone stage 1, rendered from clone-stage1.mid",
+ "source_url": "",
+ "generator": "tools/make_reference_manifest.py",
+ "knob_order": [
+  "cutoff",
+  "resonance",
+  "envMod",
+  "decay",
+  "accent"
+ ],
+ "knob_positions_are_approximate": true,
+ "sample_positions": "absolute frame indices into the file; *_end_sample is exclusive",
+ "files": {
+  "clone-stage1.wav": {
+   "sample_rate": 44100,
+   "frames": 3450384,
+   "channels_used": "mean of L/R"
+  }
+ },
+ "clips": [
+  {
+   "id": "1A-1",
+   "file": "clone-stage1.wav",
+   "set": "1A",
+   "position": 1,
+   "note_number": 1,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 0.0,
+    "resonance": 0.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.0,
+    "resonance": 0.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 66291,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 64086,
+   "clip_end_sample": 141261,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1A-2",
+   "file": "clone-stage1.wav",
+   "set": "1A",
+   "position": 1,
+   "note_number": 2,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 0.0,
+    "resonance": 50.394,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.0,
+    "resonance": 0.5039399999999999,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 198591,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 196386,
+   "clip_end_sample": 273561,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1A-3",
+   "file": "clone-stage1.wav",
+   "set": "1A",
+   "position": 1,
+   "note_number": 3,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 0.0,
+    "resonance": 100.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.0,
+    "resonance": 1.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 330891,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 328686,
+   "clip_end_sample": 405861,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1A-4",
+   "file": "clone-stage1.wav",
+   "set": "1A",
+   "position": 1,
+   "note_number": 4,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 50.394,
+    "resonance": 0.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.5039399999999999,
+    "resonance": 0.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 463191,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 460986,
+   "clip_end_sample": 538161,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1A-5",
+   "file": "clone-stage1.wav",
+   "set": "1A",
+   "position": 2,
+   "note_number": 5,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 50.394,
+    "resonance": 50.394,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.5039399999999999,
+    "resonance": 0.5039399999999999,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 595491,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 593286,
+   "clip_end_sample": 670461,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1A-6",
+   "file": "clone-stage1.wav",
+   "set": "1A",
+   "position": 2,
+   "note_number": 6,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 50.394,
+    "resonance": 100.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.5039399999999999,
+    "resonance": 1.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 727791,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 725586,
+   "clip_end_sample": 802761,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1A-7",
+   "file": "clone-stage1.wav",
+   "set": "1A",
+   "position": 2,
+   "note_number": 7,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 100.0,
+    "resonance": 0.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 1.0,
+    "resonance": 0.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 860091,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 857886,
+   "clip_end_sample": 935061,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1A-8",
+   "file": "clone-stage1.wav",
+   "set": "1A",
+   "position": 2,
+   "note_number": 8,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 100.0,
+    "resonance": 50.394,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 1.0,
+    "resonance": 0.5039399999999999,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 992391,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 990186,
+   "clip_end_sample": 1067361,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1A-9",
+   "file": "clone-stage1.wav",
+   "set": "1A",
+   "position": 3,
+   "note_number": 9,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 100.0,
+    "resonance": 100.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 1.0,
+    "resonance": 1.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 1124691,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 1122486,
+   "clip_end_sample": 1199661,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1B-1",
+   "file": "clone-stage1.wav",
+   "set": "1B",
+   "position": 1,
+   "note_number": 1,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 50.394,
+    "resonance": 74.803,
+    "envMod": 0.0,
+    "decay": 50.394,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.5039399999999999,
+    "resonance": 0.74803,
+    "envMod": 0.0,
+    "decay": 0.5039399999999999,
+    "accent": 0.0
+   },
+   "note_on_sample": 1256991,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 1254786,
+   "clip_end_sample": 1331961,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1B-2",
+   "file": "clone-stage1.wav",
+   "set": "1B",
+   "position": 1,
+   "note_number": 2,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 50.394,
+    "resonance": 74.803,
+    "envMod": 50.394,
+    "decay": 50.394,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.5039399999999999,
+    "resonance": 0.74803,
+    "envMod": 0.5039399999999999,
+    "decay": 0.5039399999999999,
+    "accent": 0.0
+   },
+   "note_on_sample": 1389291,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 1387086,
+   "clip_end_sample": 1464261,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1B-3",
+   "file": "clone-stage1.wav",
+   "set": "1B",
+   "position": 1,
+   "note_number": 3,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 50.394,
+    "resonance": 74.803,
+    "envMod": 100.0,
+    "decay": 50.394,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.5039399999999999,
+    "resonance": 0.74803,
+    "envMod": 1.0,
+    "decay": 0.5039399999999999,
+    "accent": 0.0
+   },
+   "note_on_sample": 1521591,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 1519386,
+   "clip_end_sample": 1596561,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1B-4",
+   "file": "clone-stage1.wav",
+   "set": "1B",
+   "position": 1,
+   "note_number": 4,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 0.0,
+    "resonance": 74.803,
+    "envMod": 100.0,
+    "decay": 50.394,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.0,
+    "resonance": 0.74803,
+    "envMod": 1.0,
+    "decay": 0.5039399999999999,
+    "accent": 0.0
+   },
+   "note_on_sample": 1653891,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 1651686,
+   "clip_end_sample": 1728861,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1B-5",
+   "file": "clone-stage1.wav",
+   "set": "1B",
+   "position": 2,
+   "note_number": 5,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 100.0,
+    "resonance": 74.803,
+    "envMod": 100.0,
+    "decay": 50.394,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 1.0,
+    "resonance": 0.74803,
+    "envMod": 1.0,
+    "decay": 0.5039399999999999,
+    "accent": 0.0
+   },
+   "note_on_sample": 1786191,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 1783986,
+   "clip_end_sample": 1861161,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1C-1",
+   "file": "clone-stage1.wav",
+   "set": "1C",
+   "position": 1,
+   "note_number": 1,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 25.197,
+    "resonance": 74.803,
+    "envMod": 100.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.25196999999999997,
+    "resonance": 0.74803,
+    "envMod": 1.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 1918491,
+   "gate_ms": 2500.0,
+   "clip_start_sample": 1916286,
+   "clip_end_sample": 2046381,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1C-2",
+   "file": "clone-stage1.wav",
+   "set": "1C",
+   "position": 1,
+   "note_number": 2,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 25.197,
+    "resonance": 74.803,
+    "envMod": 100.0,
+    "decay": 50.394,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.25196999999999997,
+    "resonance": 0.74803,
+    "envMod": 1.0,
+    "decay": 0.5039399999999999,
+    "accent": 0.0
+   },
+   "note_on_sample": 2103711,
+   "gate_ms": 2500.0,
+   "clip_start_sample": 2101506,
+   "clip_end_sample": 2231601,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1C-3",
+   "file": "clone-stage1.wav",
+   "set": "1C",
+   "position": 1,
+   "note_number": 3,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 25.197,
+    "resonance": 74.803,
+    "envMod": 100.0,
+    "decay": 100.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.25196999999999997,
+    "resonance": 0.74803,
+    "envMod": 1.0,
+    "decay": 1.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 2288931,
+   "gate_ms": 2500.0,
+   "clip_start_sample": 2286726,
+   "clip_end_sample": 2416821,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1D-1",
+   "file": "clone-stage1.wav",
+   "set": "1D",
+   "position": 1,
+   "note_number": 1,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 25.197,
+    "resonance": 0.0,
+    "envMod": 50.394,
+    "decay": 50.394,
+    "accent": 100.0
+   },
+   "knobs": {
+    "cutoff": 0.25196999999999997,
+    "resonance": 0.0,
+    "envMod": 0.5039399999999999,
+    "decay": 0.5039399999999999,
+    "accent": 1.0
+   },
+   "note_on_sample": 2474151,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 2471946,
+   "clip_end_sample": 2549121,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1D-2",
+   "file": "clone-stage1.wav",
+   "set": "1D",
+   "position": 1,
+   "note_number": 2,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": true,
+   "knobs_pct": {
+    "cutoff": 25.197,
+    "resonance": 0.0,
+    "envMod": 50.394,
+    "decay": 50.394,
+    "accent": 100.0
+   },
+   "knobs": {
+    "cutoff": 0.25196999999999997,
+    "resonance": 0.0,
+    "envMod": 0.5039399999999999,
+    "decay": 0.5039399999999999,
+    "accent": 1.0
+   },
+   "note_on_sample": 2606451,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 2604246,
+   "clip_end_sample": 2681421,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1D-3",
+   "file": "clone-stage1.wav",
+   "set": "1D",
+   "position": 1,
+   "note_number": 3,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 25.197,
+    "resonance": 100.0,
+    "envMod": 50.394,
+    "decay": 50.394,
+    "accent": 100.0
+   },
+   "knobs": {
+    "cutoff": 0.25196999999999997,
+    "resonance": 1.0,
+    "envMod": 0.5039399999999999,
+    "decay": 0.5039399999999999,
+    "accent": 1.0
+   },
+   "note_on_sample": 2738751,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 2736546,
+   "clip_end_sample": 2813721,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1D-4",
+   "file": "clone-stage1.wav",
+   "set": "1D",
+   "position": 1,
+   "note_number": 4,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": true,
+   "knobs_pct": {
+    "cutoff": 25.197,
+    "resonance": 100.0,
+    "envMod": 50.394,
+    "decay": 50.394,
+    "accent": 100.0
+   },
+   "knobs": {
+    "cutoff": 0.25196999999999997,
+    "resonance": 1.0,
+    "envMod": 0.5039399999999999,
+    "decay": 0.5039399999999999,
+    "accent": 1.0
+   },
+   "note_on_sample": 2871051,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 2868846,
+   "clip_end_sample": 2946021,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1E-1",
+   "file": "clone-stage1.wav",
+   "set": "1E",
+   "position": 1,
+   "note_number": 1,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "square",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 50.394,
+    "resonance": 0.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.5039399999999999,
+    "resonance": 0.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 3003351,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 3001146,
+   "clip_end_sample": 3078321,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1E-2",
+   "file": "clone-stage1.wav",
+   "set": "1E",
+   "position": 1,
+   "note_number": 2,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 50.394,
+    "resonance": 0.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.5039399999999999,
+    "resonance": 0.0,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 3135651,
+   "gate_ms": 4000.0,
+   "clip_start_sample": 3133446,
+   "clip_end_sample": 3329691,
+   "render_tune_cents": 0.0
+  },
+  {
+   "id": "1R-1",
+   "file": "clone-stage1.wav",
+   "set": "1R",
+   "position": 1,
+   "note_number": 1,
+   "note": "C2",
+   "midi": 36,
+   "waveform": "saw",
+   "accent": false,
+   "knobs_pct": {
+    "cutoff": 50.394,
+    "resonance": 50.394,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "knobs": {
+    "cutoff": 0.5039399999999999,
+    "resonance": 0.5039399999999999,
+    "envMod": 0.0,
+    "decay": 0.0,
+    "accent": 0.0
+   },
+   "note_on_sample": 3387021,
+   "gate_ms": 1300.0,
+   "clip_start_sample": 3384816,
+   "clip_end_sample": 3450384,
+   "render_tune_cents": 0.0
+  }
+ ]
+}
