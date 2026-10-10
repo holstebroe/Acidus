@@ -263,7 +263,7 @@ def align(x, sr, notes, acidus):
         print(f"note: found {len(starts)} sounds for {len(notes)} notes (effects or noise in the render?); "
               "aligning on the first note")
         coarse = starts[0] - midi_on[0]
-    offs = []
+    offs, ons = [], []
     for n in notes:
         ref = acidus.note(dict(n, gate_ms=min(n["gate_ms"], 250.0)), sr, length_ms=300.0)
         o_ref = onset_ms(ref, sr, 0.0, 300.0)
@@ -271,11 +271,17 @@ def align(x, sr, notes, acidus):
         o_src = onset_ms(x, sr, at - 150.0, at + 300.0)
         if o_ref is not None and o_src is not None:
             offs.append(coarse + o_src - 150.0 - o_ref)
+            ons.append(n["on_ms"])
     if len(offs) < 3:
         fail("could not find the notes in the WAV: is it the render of this stage's MIDI file?")
-    offs = np.array(offs)
-    k = max(1, len(offs) // 5)
-    drift = float(np.median(offs[-k:]) - np.median(offs[:k]))
+    offs, ons = np.array(offs), np.array(ons)
+    # Drift over the file from a robust slope (Theil-Sen: the median of the
+    # pairwise slopes). A source with a free-running VCO starts its lowest
+    # notes up to a period late (C1: ~30 ms), which must not read as tempo.
+    i, j = np.triu_indices(len(offs), 1)
+    keep = ons[j] - ons[i] > 1000.0
+    slope = float(np.median((offs[j] - offs[i])[keep] / (ons[j] - ons[i])[keep])) if np.any(keep) else 0.0
+    drift = slope * float(ons[-1] - ons[0])
     if abs(drift) > 5.0:
         fail(f"the notes drift {drift:+.0f} ms from the start to the end of the WAV: render at 125 BPM "
              "(the MIDI file's tempo), at the WAV's own sample rate")
