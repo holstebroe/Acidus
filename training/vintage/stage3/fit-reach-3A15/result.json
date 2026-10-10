@@ -1,0 +1,669 @@
+{
+  "generated": "20261010-095600",
+  "elapsed_sec": 361.1698303222656,
+  "run": {
+    "reason": "time cap reached",
+    "generations": 317,
+    "evaluations": 4756,
+    "restarts": 0,
+    "seconds": 360.28745102882385,
+    "history": [
+      [
+        0.0,
+        5.052966144232269
+      ],
+      [
+        3.3500657081604004,
+        4.855241097253505
+      ],
+      [
+        4.52415919303894,
+        4.738400535505191
+      ],
+      [
+        5.802099704742432,
+        3.8313885757926966
+      ],
+      [
+        6.910010576248169,
+        3.564355320441331
+      ],
+      [
+        14.57228422164917,
+        3.429092359949507
+      ],
+      [
+        35.49030303955078,
+        3.1071453424841233
+      ],
+      [
+        66.73253774642944,
+        2.7776336243274673
+      ],
+      [
+        91.43079996109009,
+        2.6099834134199114
+      ],
+      [
+        111.08918690681458,
+        2.4275506269260743
+      ],
+      [
+        138.22592687606812,
+        2.408632538475846
+      ],
+      [
+        155.4162094593048,
+        2.398351567827512
+      ],
+      [
+        159.86038327217102,
+        2.37276634975857
+      ],
+      [
+        160.9326491355896,
+        2.3701550812790213
+      ],
+      [
+        166.48825430870056,
+        2.34840637602726
+      ],
+      [
+        168.72579288482666,
+        2.298192551236231
+      ],
+      [
+        169.9052028656006,
+        2.291037361894738
+      ],
+      [
+        174.43818187713623,
+        2.2821758465642286
+      ],
+      [
+        178.8297209739685,
+        2.203389618561917
+      ],
+      [
+        181.14592957496643,
+        2.1939625390160526
+      ],
+      [
+        192.51496267318726,
+        2.1729303992775773
+      ],
+      [
+        195.88689804077148,
+        2.089327282671823
+      ],
+      [
+        270.457946062088,
+        2.0046619884688806
+      ],
+      [
+        274.9207353591919,
+        1.9787196429760752
+      ],
+      [
+        276.1552107334137,
+        1.8149870222178528
+      ]
+    ]
+  },
+  "weights": {
+    "harm": 1.0,
+    "inter": 0.25,
+    "env": 0.5,
+    "stft": 0.5,
+    "peak": 2.0,
+    "wave": 0.0,
+    "sweep": 2.0,
+    "harmt": 0.0
+  },
+  "references": [
+    {
+      "name": "3A-15",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": true,
+      "knob_labels": {
+        "cutoff": "x50",
+        "resonance": "x74",
+        "envMod": "x50",
+        "decay": "x50",
+        "accent": "x100"
+      },
+      "set": "3A"
+    }
+  ],
+  "before": {
+    "aggregate": {
+      "cost": 5.042879343798928,
+      "harm_within_1db": 12.371134020618557,
+      "harm_within_3db": 44.329896907216494,
+      "harm_within_6db": 85.56701030927834,
+      "harm_mean_abs_db": 3.4846132880968876,
+      "level_rms_db": 0.2985206107143544,
+      "harm": 3.383442849923511,
+      "inter": 1.3456063439323995,
+      "env": 2.3034308271513675,
+      "stft": 8.681125252360172,
+      "wave": 0.0,
+      "sweep": 7.081283999801299,
+      "harmt": 9.148764811905606,
+      "peak": 4.071652711739161,
+      "objective": 5.052966144232269,
+      "gain_db": -12.14907660559147
+    },
+    "samples": [
+      {
+        "cost": 5.042879343798928,
+        "components": {
+          "harm": 3.383442849923511,
+          "inter": 1.3456063439323995,
+          "env": 2.3034308271513675,
+          "stft": 8.681125252360172,
+          "peak": 4.071652711739161,
+          "wave": 0.0,
+          "sweep": 7.081283999801299,
+          "harmt": 9.148764811905606
+        },
+        "level_db": 0.2985206107143544,
+        "harm_within_1db": 12.371134020618557,
+        "harm_within_3db": 44.329896907216494,
+        "harm_within_6db": 85.56701030927834,
+        "harm_mean_abs_db": 3.4846132880968876,
+        "harm_mean_abs_db_first10": 3.983482540534324,
+        "worst_harmonics": [
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -22.5,
+            "sim_db": -12.9,
+            "err_db": 9.6
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -22.7,
+            "sim_db": -13.5,
+            "err_db": 9.2
+          },
+          {
+            "k": 10,
+            "hz": 654.1,
+            "ref_db": -22.6,
+            "sim_db": -13.9,
+            "err_db": 8.7
+          },
+          {
+            "k": 12,
+            "hz": 784.9,
+            "ref_db": -22.5,
+            "sim_db": -14.5,
+            "err_db": 8.0
+          },
+          {
+            "k": 73,
+            "hz": 4774.7,
+            "ref_db": -65.9,
+            "sim_db": -75.5,
+            "err_db": -7.4
+          },
+          {
+            "k": 14,
+            "hz": 915.7,
+            "ref_db": -22.7,
+            "sim_db": -15.3,
+            "err_db": 7.4
+          }
+        ],
+        "spurious_hf": [
+          {
+            "type": "inter-harmonic",
+            "hz": 4414.9,
+            "excess_db": 5.9
+          },
+          {
+            "type": "inter-harmonic",
+            "hz": 4284.1,
+            "excess_db": 5.6
+          },
+          {
+            "type": "inter-harmonic",
+            "hz": 4153.3,
+            "excess_db": 5.6
+          },
+          {
+            "type": "harmonic",
+            "hz": 4120.6,
+            "excess_db": 4.1
+          }
+        ],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 1635.2,
+          "freq_ratio_semitones": 55.73,
+          "ref_height_db": 0.0,
+          "sim_height_db": -19.5,
+          "shape_error_db": 4.07
+        }
+      }
+    ]
+  },
+  "after": {
+    "aggregate": {
+      "cost": 1.802799533190607,
+      "harm_within_1db": 22.68041237113402,
+      "harm_within_3db": 63.91752577319587,
+      "harm_within_6db": 92.78350515463917,
+      "harm_mean_abs_db": 2.563649625270496,
+      "level_rms_db": 0.24805182588261981,
+      "harm": 2.135272659598404,
+      "inter": 3.293780044131963,
+      "env": 1.5140323782950391,
+      "stft": 4.0570605222058065,
+      "wave": 0.0,
+      "sweep": 0.8394667946496799,
+      "harmt": 3.3218757048735577,
+      "peak": 1.9221496861300584,
+      "objective": 1.8147567396101054,
+      "gain_db": -12.240188758416762
+    },
+    "samples": [
+      {
+        "cost": 1.802799533190607,
+        "components": {
+          "harm": 2.135272659598404,
+          "inter": 3.293780044131963,
+          "env": 1.5140323782950391,
+          "stft": 4.0570605222058065,
+          "peak": 1.9221496861300584,
+          "wave": 0.0,
+          "sweep": 0.8394667946496799,
+          "harmt": 3.3218757048735577
+        },
+        "level_db": 0.24805182588261981,
+        "harm_within_1db": 22.68041237113402,
+        "harm_within_3db": 63.91752577319587,
+        "harm_within_6db": 92.78350515463917,
+        "harm_mean_abs_db": 2.563649625270496,
+        "harm_mean_abs_db_first10": 1.335231075555528,
+        "worst_harmonics": [
+          {
+            "k": 77,
+            "hz": 5036.3,
+            "ref_db": -68.1,
+            "sim_db": -74.9,
+            "err_db": -6.8
+          },
+          {
+            "k": 48,
+            "hz": 3139.5,
+            "ref_db": -49.5,
+            "sim_db": -57.1,
+            "err_db": -6.6
+          },
+          {
+            "k": 50,
+            "hz": 3270.3,
+            "ref_db": -51.5,
+            "sim_db": -59.9,
+            "err_db": -6.6
+          },
+          {
+            "k": 52,
+            "hz": 3401.1,
+            "ref_db": -53.3,
+            "sim_db": -61.1,
+            "err_db": -6.6
+          },
+          {
+            "k": 75,
+            "hz": 4905.5,
+            "ref_db": -66.9,
+            "sim_db": -73.4,
+            "err_db": -6.5
+          },
+          {
+            "k": 79,
+            "hz": 5167.1,
+            "ref_db": -69.2,
+            "sim_db": -75.4,
+            "err_db": -6.2
+          }
+        ],
+        "spurious_hf": [
+          {
+            "type": "inter-harmonic",
+            "hz": 4414.9,
+            "excess_db": 11.4
+          },
+          {
+            "type": "inter-harmonic",
+            "hz": 4284.1,
+            "excess_db": 10.9
+          },
+          {
+            "type": "inter-harmonic",
+            "hz": 4545.7,
+            "excess_db": 10.9
+          },
+          {
+            "type": "harmonic",
+            "hz": 4840.1,
+            "excess_db": 4.4
+          }
+        ],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 1.92
+        }
+      }
+    ]
+  },
+  "model_parameters": {
+    "oscCouplingHz": {
+      "before": 47.2397,
+      "after": 45.92217005451317,
+      "sensitivity": null
+    },
+    "oscSawLpfHz": {
+      "before": 40000.0,
+      "after": 11373.359031570968,
+      "sensitivity": null
+    },
+    "oscSawShape": {
+      "before": 0.0,
+      "after": -0.08153913285061593,
+      "sensitivity": null
+    },
+    "oscSquareDutyDepth": {
+      "before": 0.12,
+      "after": 0.10033150619748978,
+      "sensitivity": null
+    },
+    "oscSquareLevel": {
+      "before": 0.7055304988399317,
+      "after": 0.4338925010357516,
+      "sensitivity": null
+    },
+    "filterFeedbackGain": {
+      "before": 17.420330396372933,
+      "after": 14.61462602625164,
+      "sensitivity": null
+    },
+    "filterResonanceLimit": {
+      "before": 0.9124452306410816,
+      "after": 1.0241993855389515,
+      "sensitivity": null
+    },
+    "filterResonanceSkew": {
+      "before": -0.871804,
+      "after": 5.742994665957683,
+      "sensitivity": null
+    },
+    "resCouplingHz": {
+      "before": 104.291,
+      "after": 105.48334017665375,
+      "sensitivity": null
+    },
+    "filterCapScale1": {
+      "before": 1.28949,
+      "after": 0.7308341746108956,
+      "sensitivity": null
+    },
+    "filterCapScale2": {
+      "before": 0.6976350000000001,
+      "after": 1.3885253926373524,
+      "sensitivity": null
+    },
+    "filterCapScale3": {
+      "before": 0.912745,
+      "after": 0.8129553665256939,
+      "sensitivity": null
+    },
+    "filterCapScale4": {
+      "before": 1.06305,
+      "after": 0.8849170130820408,
+      "sensitivity": null
+    },
+    "filterLadderInputScale": {
+      "before": 0.0352243,
+      "after": 0.07693986540366493,
+      "sensitivity": null
+    },
+    "filterInputCouplingHz": {
+      "before": 6.01647,
+      "after": 17.79968393371992,
+      "sensitivity": null
+    },
+    "filterOutputCouplingHz": {
+      "before": 20000.000000000007,
+      "after": 21815.44994681764,
+      "sensitivity": null
+    },
+    "filterPostHpHz": {
+      "before": 198.89200000000005,
+      "after": 109.56956820447324,
+      "sensitivity": null
+    },
+    "filterNotchHz": {
+      "before": 7.516400000000001,
+      "after": 14.541690622120214,
+      "sensitivity": null
+    },
+    "filterNotchBandwidthHz": {
+      "before": 4.7,
+      "after": 3.565822862441528,
+      "sensitivity": null
+    },
+    "filterAllpassHz": {
+      "before": 14.007999999999996,
+      "after": 7.765812633167421,
+      "sensitivity": null
+    },
+    "cutoffBaseHz": {
+      "before": 212.17855544076042,
+      "after": 437.01608854315464,
+      "sensitivity": null
+    },
+    "cutoffSpanOct": {
+      "before": 3.3212535737425477,
+      "after": 3.299542907117514,
+      "sensitivity": null
+    },
+    "cutoffTaperExp": {
+      "before": 1.42889,
+      "after": 2.294543504177646,
+      "sensitivity": null
+    },
+    "cutoffMaxHz": {
+      "before": 23723.3,
+      "after": 14383.368300150498,
+      "sensitivity": null
+    },
+    "envModScaleC0": {
+      "before": 0.761449,
+      "after": 0.3800581970355002,
+      "sensitivity": null
+    },
+    "envModScaleC0Slope": {
+      "before": 2.814244933127905,
+      "after": 3.6697624328316145,
+      "sensitivity": null
+    },
+    "envModScaleC1": {
+      "before": 0.7779389999999999,
+      "after": 1.0207383265947134,
+      "sensitivity": null
+    },
+    "envModScaleC1Slope": {
+      "before": 4.479568088816521,
+      "after": 4.679673093798785,
+      "sensitivity": null
+    },
+    "envModOffset": {
+      "before": 0.34907904064426,
+      "after": 0.35216929392627383,
+      "sensitivity": null
+    },
+    "envModOffsetCutSlope": {
+      "before": -0.023861500000000008,
+      "after": 0.20921030687800451,
+      "sensitivity": null
+    },
+    "envModTaperExp": {
+      "before": 2.0,
+      "after": 3.234757555276841,
+      "sensitivity": null
+    },
+    "envModTaperMid": {
+      "before": 0.686116,
+      "after": 0.5095696127137506,
+      "sensitivity": null
+    },
+    "envModTaperWidth": {
+      "before": 0.121931,
+      "after": 0.07175855033770576,
+      "sensitivity": null
+    },
+    "accentSweepDepthOct": {
+      "before": 7.926887843941886,
+      "after": 3.2119524996932167,
+      "sensitivity": null
+    },
+    "accentVcaDepth": {
+      "before": 2.2842935528105657,
+      "after": 3.84886684358714,
+      "sensitivity": null
+    },
+    "accentChargeBaseSec": {
+      "before": 0.03057910000000001,
+      "after": 0.011454553928641899,
+      "sensitivity": null
+    },
+    "accentChargePotSec": {
+      "before": 0.04402080000000001,
+      "after": 0.0767487511166294,
+      "sensitivity": null
+    },
+    "accentMixSec": {
+      "before": 0.14497700000000005,
+      "after": 0.06576895835788812,
+      "sensitivity": null
+    },
+    "accentDiodeDrop": {
+      "before": 0.300332,
+      "after": 0.2581241076486515,
+      "sensitivity": null
+    },
+    "vcfAttackMs": {
+      "before": 0.1,
+      "after": 0.24424700664946994,
+      "sensitivity": null
+    },
+    "vcaAttackMs": {
+      "before": 1.30112,
+      "after": 0.8385615910848364,
+      "sensitivity": null
+    },
+    "vcaNormalDelayMs": {
+      "before": 4.50396,
+      "after": 7.519140564316956,
+      "sensitivity": null
+    },
+    "vcfDecayMinSec": {
+      "before": 0.0560606750221091,
+      "after": 0.06476951616516662,
+      "sensitivity": null
+    },
+    "vcfDecayMaxSec": {
+      "before": 1.1404342686304567,
+      "after": 0.9153420792393832,
+      "sensitivity": null
+    },
+    "vcfDecayTaper": {
+      "before": 17.982499999999998,
+      "after": 81.54953986805455,
+      "sensitivity": null
+    },
+    "accentDecaySec": {
+      "before": 0.07558787467794514,
+      "after": 0.10423247665583853,
+      "sensitivity": null
+    },
+    "vegDecaySec": {
+      "before": 1.0378911718601105,
+      "after": 1.2558399380740903,
+      "sensitivity": null
+    },
+    "vcaGateOffMs": {
+      "before": 0.811348,
+      "after": 0.4888174917075261,
+      "sensitivity": null
+    },
+    "vcaGateOffAccentMs": {
+      "before": 2.8036699999999994,
+      "after": 4.222816869589068,
+      "sensitivity": null
+    },
+    "vcaResTapRatio": {
+      "before": 1.0503123933583098,
+      "after": 1.7599246619937505,
+      "sensitivity": null
+    },
+    "vcaGainSaturationDrive": {
+      "before": 0.0,
+      "after": 0.0,
+      "sensitivity": null
+    }
+  },
+  "knob_positions": {
+    "accent@x100": {
+      "nominal": 1.0,
+      "fitted": 1.0,
+      "sensitivity": null
+    },
+    "cutoff@x50": {
+      "nominal": 0.5039399999999999,
+      "fitted": 0.5039399999999999,
+      "sensitivity": null
+    },
+    "decay@x50": {
+      "nominal": 0.5039399999999999,
+      "fitted": 0.5039399999999999,
+      "sensitivity": null
+    },
+    "envMod@x50": {
+      "nominal": 0.5039399999999999,
+      "fitted": 0.5039399999999999,
+      "sensitivity": null
+    },
+    "resonance@x74": {
+      "nominal": 0.74803,
+      "fitted": 0.74803,
+      "sensitivity": null
+    }
+  },
+  "timing": {
+    "onsetMs": {
+      "before": 0.0,
+      "after": 1.002402567563447
+    },
+    "gateMs": {
+      "before": 1300.0,
+      "after": 1303.5787806064825
+    }
+  },
+  "absorbed_cutoff_law": null,
+  "label_check": {},
+  "suspect_samples": [],
+  "duplicate_labels": []
+}

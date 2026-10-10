@@ -1,0 +1,60 @@
+// Paste into acidus::SynthParameters (src/core/SynthEngine.hpp), or rerun with --apply.
+// Fitted 20261010-094954 against 1 hardware reference samples.
+float oscCouplingHz{42.6217f};
+float oscSawLpfHz{26832.1f};
+float oscSawShape{0.003136f};
+float oscSquareDutyDepth{0.19344f};
+float oscSquareLevel{0.681616f};
+float filterFeedbackGain{25.7624f};
+float filterResonanceLimit{0.957451f};
+float filterResonanceSkew{-0.655541f};
+float resCouplingHz{112.356f};
+float filterCapScale1{1.77322f};
+float filterCapScale2{0.640541f};
+float filterCapScale3{1.20139f};
+float filterCapScale4{1.70427f};
+float filterLadderInputScale{0.0153337f};
+float filterInputCouplingHz{8.13783f};
+float filterOutputCouplingHz{18957.9f};
+float filterPostHpHz{116.904f};
+float filterNotchHz{6.43025f};
+float filterNotchBandwidthHz{5.43129f};
+float filterAllpassHz{9.33766f};
+float cutoffBaseHz{262.178f};
+float cutoffSpanOct{2.65099f};
+float cutoffTaperExp{1.03646f};
+float cutoffMaxHz{23765.1f};
+float envModScaleC0{0.548317f};
+float envModScaleC0Slope{2.56687f};
+float envModScaleC1{0.980861f};
+float envModScaleC1Slope{2.62933f};
+float envModOffset{0.354385f};
+float envModOffsetCutSlope{0.00880306f};
+float envModTaperExp{2.1991f};
+float envModTaperMid{0.659404f};
+float envModTaperWidth{0.108533f};
+float accentSweepDepthOct{8.18093f};
+float accentVcaDepth{1.57463f};
+float accentChargeBaseSec{0.0192659f};
+float accentChargePotSec{0.0208762f};
+float accentMixSec{0.123046f};
+float accentDiodeDrop{0.223692f};
+float vcfAttackMs{0.0700318f};
+float vcaAttackMs{1.43394f};
+float vcaNormalDelayMs{3.65549f};
+float vcfDecayMinSec{0.0562234f};
+float vcfDecayMaxSec{1.25345f};
+float vcfDecayTaper{13.1593f};
+float accentDecaySec{0.0804685f};
+float vegDecaySec{1.02507f};
+float vcaGateOffMs{1.45327f};
+float vcaGateOffAccentMs{1.92376f};
+float vcaResTapRatio{1.53984f};
+float vcaGainSaturationDrive{1.84096f};
+
+// Fitted hardware knob positions (plugin knob value at each labeled position):
+//   accent     x0   : 0.000  (nominal 0.00)
+//   cutoff     x100 : 1.000  (nominal 1.00)
+//   decay      x50  : 0.504  (nominal 0.50)
+//   envMod     x100 : 1.000  (nominal 1.00)
+//   resonance  x74  : 0.748  (nominal 0.75)
