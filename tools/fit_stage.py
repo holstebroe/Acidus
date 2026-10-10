@@ -613,6 +613,51 @@ def merged_manifest(base, src, stage, alone, with_probes):
     return out, len(clips)
 
 
+# Filter constants that only act in one coupling-network mode
+# (filterCouplingNetwork, src/core/Filter.cpp): freeing them in the other
+# mode only lets them wander.
+OPEN303_NETWORK_ONLY = ("filterInputCouplingHz", "resCouplingHz", "filterNotchHz",
+                        "filterNotchBandwidthHz", "filterAllpassHz")
+STINCHCOMBE_NETWORK_ONLY = ("filterNetworkTimeScale",)
+NEVER_FITTED = {
+    "filterLadderTopology": "a switch (ladder orientation): try both by hand",
+    "filterCouplingNetwork": "a switch (Open303 or Stinchcombe coupling network): pick it with --start",
+    "vcoOctaveScale": "measure it from the 3C pitches with a tuner",
+}
+
+
+def stage_parameters(stage, start):
+    """(tuned, inactive, kept) for a stage starting from a profile: the
+    constants the fit varies, the ones the stage would free but that do
+    nothing in the profile's coupling-network mode, and the rest."""
+    params = json.loads(Path(start).read_text(encoding="utf-8")).get("parameters", {})
+    network = params.get("filterCouplingNetwork", 0.0) >= 0.5
+    inactive = STINCHCOMBE_NETWORK_ONLY if not network else OPEN303_NETWORK_ONLY
+    only = set(STAGE_ONLY[stage].split(","))
+    selected = [k for k, v in cr.MODEL_PARAMS.items() if k in only or v[3] in only]
+    tuned = [k for k in selected if k not in inactive]
+    off = [k for k in selected if k in inactive]
+    kept = [k for k in cr.MODEL_PARAMS if k not in selected] + list(NEVER_FITTED)
+    return tuned, off, kept
+
+
+def print_parameters(stage, start):
+    tuned, off, kept = stage_parameters(stage, start)
+    print(f"stage {stage}, starting from {start}:")
+    print(f"\n  tuned ({len(tuned)}):")
+    for k in tuned:
+        print(f"    {k:26s} group {cr.MODEL_PARAMS[k][3]}")
+    if off:
+        print(f"\n  not tuned, no effect in this profile's coupling-network mode ({len(off)}):")
+        for k in off:
+            print(f"    {k}")
+    print(f"\n  kept at the starting profile's value ({len(kept)}):")
+    for k in kept:
+        print(f"    {k:26s} " + (NEVER_FITTED[k] if k in NEVER_FITTED else f"group {cr.MODEL_PARAMS[k][3]}"))
+    print("\n  also fitted: a note-on shift and gate offset (timing); one overall level gain is solved directly.")
+    print("  never fitted: the panel knobs (exact in an emulation, --fix knobs), Volume, Drive, Tuning.")
+
+
 def default_start(src, stage):
     """The profile the next round starts from: the newest of the previous
     stage's fit and any trimmed version of it exported from the plugin
@@ -689,10 +734,18 @@ def main():
                     help="which channel of a stereo render to analyse (default: the mix of both)")
     ap.add_argument("--tune-cents", type=float, default=0.0, help="the source's tuning offset (default 0)")
     ap.add_argument("--alone", action="store_true", help="fit this stage's notes only, not earlier stages too")
+    ap.add_argument("--list-params", action="store_true",
+                    help="print which constants this stage tunes and which it keeps, then stop")
     ap.add_argument("--probes-only", action="store_true",
                     help="stage 0: write the probe report, don't fit")
     ap.add_argument("--with-probes", action="store_true",
                     help="also fit the stage 0 probe notes (44 more notes: slower, little new information)")
+    ap.add_argument("--tag", help="name this run: it writes fit-<tag>/, ab-<tag>.wav, acidus-<tag>.wav and "
+                    "calibrations/<src>-stage<N>-<tag>.json instead of the plain names, so a side experiment "
+                    "(e.g. --include P07-4 to fit one note) leaves the full fit alone")
+    ap.add_argument("--network", choices=("open303", "stinchcombe"),
+                    help="force the filter's coupling-network model in the starting profile (default: as the "
+                    "profile has it)")
     ap.add_argument("--minutes", type=float, default=30.0, help="fit time cap (default 30)")
     ap.add_argument("--patience", type=float, default=None,
                     help="stop after this many minutes without progress (default: a third of --minutes)")
@@ -701,6 +754,11 @@ def main():
 
     src, stage = args.source_id, args.stage
     base = Path(args.dir) if args.dir else REPO / "test" / "resources" / src
+    if args.list_params:
+        if stage == 4:
+            fail("stage 4 is not fitted")
+        print_parameters(stage, Path(args.start) if args.start else default_start(src, stage))
+        return
     mid = Path(args.midi) if args.midi else base / f"{src}-stage{stage}.mid"
     if not mid.exists():
         fail(f"{mid} not found: run tools/emulation_training_set.py {src} --out {base}")
@@ -713,6 +771,12 @@ def main():
     notes = stage_notes(mid)
     work = base / f"stage{stage}"
     work.mkdir(parents=True, exist_ok=True)
+    suffix = f"-{args.tag}" if args.tag else ""
+    if args.network:
+        prof = json.loads(start.read_text(encoding="utf-8"))
+        prof.setdefault("parameters", {})["filterCouplingNetwork"] = 1.0 if args.network == "stinchcombe" else 0.0
+        start = work / f"start{suffix}.json"
+        start.write_text(json.dumps(prof, indent=1) + "\n", encoding="utf-8")
     wav_name = f"{src}-stage{stage}.wav"
     print(f"stage {stage}: {len(notes)} notes from {mid.name}; starting profile {start}")
 
@@ -749,9 +813,10 @@ def main():
             return
 
     manifest, n_clips = merged_manifest(base, src, stage, args.alone, args.with_probes)
-    fit_dir = work / "fit"
+    fit_dir = work / f"fit{suffix}"
     cmd = [sys.executable, str(TOOLS / "calibrate_reference.py"), "--manifest", str(manifest),
-           "--calibration", str(start), "--fix", "knobs", "--w-sweep", "1", "--only", STAGE_ONLY[stage],
+           "--calibration", str(start), "--fix", ",".join(["knobs"] + list(stage_parameters(stage, start)[1])),
+           "--w-sweep", "1", "--only", STAGE_ONLY[stage],
            "--max-minutes", str(args.minutes), "--out", str(fit_dir), "--no-sensitivity",
            "--patience-minutes", str(args.patience if args.patience is not None else args.minutes / 3.0)]
     if args.evaluate_only:
@@ -764,17 +829,21 @@ def main():
     ckpt = fit_dir / "checkpoint.json"
     prof = json.loads((ckpt if ckpt.exists() and not args.evaluate_only else start).read_text())
     prof.pop("checkpoint", None)
-    prof.update({"name": f"{src}-stage{stage}","source": f"{src}, stage {stage} of docs/EMULATION_TRAINING_PLAN.md (tools/fit_stage.py)",
+    prof.update({"name": f"{src}-stage{stage}{suffix}", "source": f"{src}, stage {stage} of docs/EMULATION_TRAINING_PLAN.md (tools/fit_stage.py)",
                  "fitted": datetime.date.today().isoformat(), "reference_set": str(manifest.relative_to(REPO))
                  if manifest.is_relative_to(REPO) else str(manifest), "started_from": str(start)})
-    out_prof = REPO / "calibrations" / f"{src}-stage{stage}.json"
+    out_prof = REPO / "calibrations" / f"{src}-stage{stage}{suffix}.json"
     if not args.evaluate_only:
         out_prof.write_text(json.dumps(prof, indent=1) + "\n")
 
     after = Acidus(out_prof if not args.evaluate_only else start, args.tune_cents)
     gain = 10 ** (result["after"]["aggregate"]["gain_db"] / 20.0)
-    write_ab(work / "ab.wav", x, sr, notes, offset, after, gain)
-    cr.write_wav(work / "acidus.wav", after.timeline(notes, sr, len(x), offset, gain), sr)
+    # --include narrows the fit to some notes; the listening files follow it.
+    inc = [e for i, a in enumerate(extra) if a == "--include" and i + 1 < len(extra) for e in extra[i + 1].split(",") if e]
+    inc += [e for a in extra if a.startswith("--include=") for e in a.split("=", 1)[1].split(",") if e]
+    heard = [n for n in notes if any(e in n["id"] for e in inc)] if inc else notes
+    write_ab(work / f"ab{suffix}.wav", x, sr, heard, offset, after, gain)
+    cr.write_wav(work / f"acidus{suffix}.wav", after.timeline(heard, sr, len(x), offset, gain), sr)
 
     per_set = {}
     for ref, b, a in zip(result["references"], result["before"]["samples"], result["after"]["samples"]):
@@ -787,8 +856,8 @@ def main():
           f"{b['harm_within_3db']:.0f} % -> {a['harm_within_3db']:.0f} %)")
     print(f"\nprofile  {out_prof if not args.evaluate_only else '(evaluate-only: none written)'}")
     print(f"report   {fit_dir / 'report.md'}")
-    print(f"listen   {work / 'ab.wav'}  (source, then Acidus, note by note)")
-    print(f"         {work / 'acidus.wav'}  (Acidus on the render's timeline, for the DAW)")
+    print(f"listen   {work / f'ab{suffix}.wav'}  (source, then Acidus, note by note)")
+    print(f"         {work / f'acidus{suffix}.wav'}  (Acidus on the render's timeline, for the DAW)")
     if stage < 3:
         print(f"next     render {src}-stage{stage + 1}.mid, then tools/fit_stage.py {src} {stage + 1} --wav <render>")
 

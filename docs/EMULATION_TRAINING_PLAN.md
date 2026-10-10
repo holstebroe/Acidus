@@ -305,6 +305,7 @@ files to `test/resources/<src>/stage<N>/`:
 | `ab.wav` | Every note of the stage: the source, 0.3 s of silence, then Acidus with the new profile. Same scale for both and level-matched by the fitted gain |
 | `acidus.wav` | Acidus with the new profile on the render's timeline. Drop it on a track next to your render and switch between them |
 | `fit/report.md` | The calibrator's report: per-set table, parameters at a bound, worst notes |
+| `probes.md` | Stage 0 only: the separability probe report (section 3) |
 | `calibrations/<src>-stage<N>.json` | The new profile; the next stage starts from it (or from your trimmed export of it, below) |
 
 Before you render the next stage:
@@ -323,8 +324,37 @@ Before you render the next stage:
    python3 tools/fit_stage.py <src> 2 --wav stage2.wav --evaluate-only
    ```
 
+The summary table is a guide, not the verdict. It smooths over a harmonic
+spacing, so it can rank a model ahead while a narrow resonance line (the
+sweep you hear) is smeared or too slow. On one note, the Stinchcombe fit
+scored better than Open303 and lacked the sweep Open303 had. Compare
+`ab.wav` by ear and a plain spectrogram (4096-point FFT, 0-9 kHz) of the
+source against Acidus before choosing between fits.
+
 Not happy with a stage? Rerun it with more time (`--minutes 60`), or start
-from another profile (`--start calibrations/factory.json`).
+from another profile (`--start calibrations/factory.json`). To try the other
+coupling network on the same profile, add `--network open303` or
+`--network stinchcombe`: it changes the switch in a copy of the starting
+profile (`stage<N>/start.json`, or `start-<tag>.json` with `--tag`) and leaves your file alone.
+
+### Fit a single note
+
+To see how close one note can get, name it and tag the run:
+
+```bash
+python3 tools/fit_stage.py <src> 0 --wav stage0.wav --start calibrations/<src>-stage0.json     --network open303 --tag p0704 --include P07-4 --w-sweep 6
+```
+
+`--include` takes clip ids (substrings, comma-separated). `--tag` sends the
+output to `stage<N>/fit-<tag>/`, `ab-<tag>.wav`, `acidus-<tag>.wav` and
+`calibrations/<src>-stage<N>-<tag>.json`, so the full fit stays as it was.
+`ab-<tag>.wav` holds only the named notes. Pass `--only a,b,c` to free other
+constants (it replaces the stage's list, so repeat that too), and
+`--bound name=lo:hi` to widen a range. A single note has 16 or more free
+constants and one note's data: it will match well and generalise poorly, so
+use the result to see what the model can reach, not as a profile.
+Constants no stage frees (the Env Mod taper, `envModOffsetCutSlope`) stay
+at the start value unless you free them this way.
 
 ### Trim by ear, then fit the next stage from the trim
 
@@ -349,21 +379,61 @@ release build or edited by hand.
 
 ---
 
-## 9. What the optimiser varies
+## 9. What each stage tunes
 
-The calibrator can vary the 51 constants in its `MODEL_PARAMS` table (groups
-`osc`, `filter`, `cv`, `env`). It also varies one position per distinct
-(knob, percent) pair (group `knobs`), plus a global note-on shift and gate
-offset (group `timing`). It solves one global level gain directly.
-`fit_stage.py` always passes `--fix knobs`, because a plugin's knob
-positions are exact, and narrows the rest per stage with `--only`.
+A profile holds 55 constants. The calibrator can tune 52 of them (its
+`MODEL_PARAMS` table, in groups `osc`, `filter`, `cv` and `env`). Each stage
+frees only some of them (`STAGE_ONLY` in `tools/fit_stage.py`). The rest keep
+the starting profile's value, which is the previous stage's fit or your
+trimmed export of it. To print the exact list for a stage and starting
+profile:
 
-These never vary:
+```bash
+python3 tools/fit_stage.py <src> 2 --list-params              # from the default start
+python3 tools/fit_stage.py <src> 2 --list-params --start calibrations/factory.json
+```
 
+| Constants | Stage 0 / 1 | Stage 2 | Stage 3 |
+|---|---|---|---|
+| Cutoff law: `cutoffBaseHz`, `cutoffSpanOct` | tuned | tuned | tuned |
+| Cutoff law shape and ceiling: `cutoffTaperExp`, `cutoffMaxHz` | kept | tuned | tuned |
+| Resonance: `filterFeedbackGain`, `filterResonanceLimit` | tuned | tuned | tuned |
+| Resonance pot curve: `filterResonanceSkew` | kept | tuned | tuned |
+| Env Mod depth and offset: `envModScaleC0Slope`, `envModScaleC1Slope`, `envModOffset` | tuned | tuned | tuned |
+| Env Mod at 0 and its pot curve: `envModScaleC0`, `envModScaleC1`, `envModOffsetCutSlope`, `envModTaperExp/Mid/Width` | kept | tuned | tuned |
+| Decay range: `vcfDecayMinSec`, `vcfDecayMaxSec` | tuned | tuned | tuned |
+| Decay pot curve: `vcfDecayTaper` | kept | tuned | tuned |
+| Accent amount: `accentSweepDepthOct`, `accentVcaDepth`, `accentDecaySec` | tuned | `accentSweepDepthOct`, `accentVcaDepth` tuned (group `cv`); `accentDecaySec` kept | tuned |
+| Accent sweep network: `accentChargeBaseSec`, `accentChargePotSec`, `accentMixSec`, `accentDiodeDrop` | kept | tuned (group `cv`) | tuned |
+| VEG and level: `vegDecaySec`, `vcaResTapRatio` | tuned | tuned | tuned |
+| Square level: `oscSquareLevel` | tuned | kept | tuned |
+| Square duty, saw shape, oscillator coupling: `oscSquareDutyDepth`, `oscSawLpfHz`, `oscSawShape`, `oscCouplingHz` | kept | kept | tuned |
+| Ladder core: `filterCapScale1-4`, `filterLadderInputScale`, `filterOutputCouplingHz`, `filterPostHpHz` | kept | tuned | tuned |
+| Open303 coupling (mode 0 only): `filterInputCouplingHz`, `resCouplingHz`, `filterNotchHz`, `filterNotchBandwidthHz`, `filterAllpassHz` | kept | tuned in mode 0 | tuned in mode 0 |
+| Stinchcombe network (mode 1 only): `filterNetworkTimeScale` | kept | tuned in mode 1 | tuned in mode 1 |
+| VCA timing: `vcaAttackMs`, `vcaNormalDelayMs`, `vcaGateOffMs`, `vcaGateOffAccentMs`, `vcfAttackMs`, `vcaGainSaturationDrive` | kept | kept | tuned |
+| `filterLadderTopology`, `filterCouplingNetwork` (switches), `vcoOctaveScale` | never | never | never |
+
+Mode 0 and mode 1 refer to the profile's `filterCouplingNetwork` (0 =
+Open303's empirical coupling: x0x, acidvoice, hellfish; 1 = Stinchcombe's
+full network: factory, x0x-circuit). A stage never frees the constants that
+do nothing in the starting profile's mode. To try the other mode, pass
+`--network open303` or `--network stinchcombe`, or start from a profile that
+uses it (`--start calibrations/factory.json`). The fitted constants were fitted
+in one mode, so the other mode's first score starts biased against it: fit
+both before comparing.
+
+Besides the constants, every fit tunes a note-on shift and a gate offset
+(group `timing`) and solves one overall level gain directly. These are never
+tuned:
+
+- the panel knobs (`fit_stage.py` passes `--fix knobs`: a plugin's knob
+  positions are exact);
 - Volume, Drive and Tuning (`--tune-cents` sets the source's tuning,
   default 0);
-- `filterLadderTopology`, a switch: try both by hand;
-- `vcoOctaveScale`: measure it from 3C with a tuner;
+- the two switches above: compare both settings by ear, or start from a
+  profile that has the other one;
+- `vcoOctaveScale`: measure it from the 3C pitches with a tuner;
 - the slide time constant, which is hard-coded.
 
 Mixed gate lengths are rendered per note. The calibrator used to render
@@ -387,7 +457,9 @@ python3 tools/fit_stage.py <src> 2 --wav ~/renders/<src>-stage2.wav
 python3 tools/fit_stage.py <src> 3 --wav ~/renders/<src>-stage3.wav
 
 # Options: --minutes 30 (fit time), --start PROFILE, --alone (this stage's notes only),
-#          --with-probes, --tune-cents C, --evaluate-only
+#          --with-probes, --tune-cents C, --evaluate-only,
+#          --network open303|stinchcombe (circuit model), --tag NAME (side run, own output files),
+#          and any calibrate_reference.py option, e.g. --include P07-4, --w-sweep 6
 # Dry run with Acidus as the source:
 python3 tools/fit_stage.py <src> 1 --rehearse calibrations/acidvoice.json
 ```
