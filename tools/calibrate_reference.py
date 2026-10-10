@@ -1181,6 +1181,156 @@ def optimize(problem, u0, seconds, patience, sigma0, seed, label="fit", popsize=
                             "restarts": restarts, "seconds": time.time() - start, "history": history}
 
 
+def _ref_set(ref):
+    return getattr(ref, "set", None) or ref.name.rsplit("-", 1)[0]
+
+
+def optimize_focus(problem, u0, seconds, sigma0, seed, args, on_improve=None, log_every=15.0):
+    """Hybrid search (--focus): short, cheap fits on the worst notes, each
+    checked against the whole set before it is kept.
+
+    One round: score every note at the current point; take the worst note
+    not tried recently, plus the worst others of its set (--focus-group
+    notes in all); find the --focus-params constants that group's cost
+    responds to most (one +-step each, group notes only); run CMA-ES on just
+    those constants for --focus-seconds, on the group plus one anchor note
+    from every other set (weight --focus-anchor-weight), with the overall
+    gain held at the full set's value. Then score the candidate on every
+    note and keep it only if the full objective improved, so the search can
+    never drift. Every --focus-global-every rounds, and whenever every note
+    has been tried without a gain, a plain all-note CMA-ES pass of
+    --focus-global-seconds lets the constants nobody focused on catch up."""
+    rng = np.random.default_rng(seed)
+    start = time.time()
+    model_idx = [i for i, p in enumerate(problem.params) if p.kind in ("model", "timing")]
+    n_refs = len(problem.refs)
+    sets = {}
+    for i, ref in enumerate(problem.refs):
+        sets.setdefault(_ref_set(ref), []).append(i)
+
+    def full(u):
+        costs, det = problem.evaluate_batch([u])
+        return costs[0], det[0]
+
+    def subset_eval(u_list, idx, weights, gain):
+        sub = __import__("copy").copy(problem)
+        sub.refs = [problem.refs[i] for i in idx]
+        _, det = sub.evaluate_batch(u_list, gain=gain)
+        out = []
+        for u, d in zip(u_list, det):
+            c = np.array([pc for pc, _ in d["per_sample"]])
+            out.append(float(np.sum(weights * c) / np.sum(weights)) + problem.prior(np.clip(u, 0, 1))
+                       + float(np.sum((np.asarray(u) - np.clip(u, 0, 1)) ** 2)) * 100.0)
+        return out
+
+    u_cur = np.clip(np.array(u0, dtype=float), 0, 1)
+    f_cur, det = full(u_cur)
+    history = [(0.0, f_cur)]
+    tried = {}            # note index -> round it was last tried without a gain
+    rounds = accepted = globals_run = evals = 0
+    last_log = start
+    log = []
+    print(f"  [focus] start objective {f_cur:.4f}", flush=True)
+    while time.time() - start < seconds:
+        remaining = seconds - (time.time() - start)
+        per = [pc for pc, _ in det["per_sample"]]
+        order = [i for i in np.argsort(per)[::-1] if rounds - tried.get(i, -10 ** 9) > n_refs // 2]
+        if not order or (rounds and rounds % args.focus_global_every == 0 and log and log[-1][0] != "global"):
+            secs = min(args.focus_global_seconds, remaining)
+            u_new, f_new, run = optimize(problem, u_cur, secs, secs, sigma0 * 0.5, seed + rounds,
+                                         label="focus-global", log_every=log_every)
+            evals += run["evaluations"]
+            globals_run += 1
+            if f_new < f_cur:
+                u_cur, f_cur = np.clip(u_new, 0, 1), f_new
+                f_cur, det = full(u_cur)
+                history.append((time.time() - start, f_cur))
+                if on_improve:
+                    on_improve(u_cur, f_cur)
+            tried.clear()
+            log.append(("global", f_cur))
+            print(f"  [focus] {time.time() - start:6.0f}s global pass -> {f_cur:.4f}", flush=True)
+            rounds += 1
+            continue
+        lead = int(order[0])
+        mates = [i for i in sets[_ref_set(problem.refs[lead])] if i != lead]
+        mates = sorted(mates, key=lambda i: -per[i])[:max(0, args.focus_group - 1)]
+        group = [lead] + mates
+        anchors = []
+        for name, idx in sets.items():
+            cand = [i for i in idx if i not in group]
+            if cand:
+                anchors.append(int(rng.choice(cand)))
+        idx = group + anchors
+        weights = np.array([1.0] * len(group) + [args.focus_anchor_weight * len(group) / max(1, len(anchors))]
+                           * len(anchors))
+        gain = det["gain_db"]
+        # Sensitivity of the group alone.
+        step = 0.04
+        probes = []
+        for j in model_idx:
+            for sgn in (1, -1):
+                u = u_cur.copy()
+                u[j] = np.clip(u[j] + sgn * step, 0, 1)
+                probes.append(u)
+        g_idx, g_w = group, np.ones(len(group))
+        base_g = subset_eval([u_cur], g_idx, g_w, gain)[0]
+        vals = subset_eval(probes, g_idx, g_w, gain)
+        evals += 1 + len(probes)
+        sens = [max(base_g - vals[2 * k], base_g - vals[2 * k + 1], 0.0)
+                + 0.25 * abs(vals[2 * k] - vals[2 * k + 1]) for k in range(len(model_idx))]
+        free = [model_idx[k] for k in np.argsort(sens)[::-1][:args.focus_params] if sens[k] > 0]
+        if not free:
+            tried[lead] = rounds
+            rounds += 1
+            continue
+        # Focused CMA-ES on the chosen constants.
+        f_sub0 = subset_eval([u_cur], idx, weights, gain)[0]
+        es = CMAES(u_cur[free], sigma0 * 0.5, None, rng)
+        best_z, best_sub = u_cur[free].copy(), f_sub0
+        t_end = time.time() + min(args.focus_seconds, remaining)
+        while time.time() < t_end and es.sigma > 1e-3:
+            Z = es.ask()
+            U = []
+            for z in Z:
+                u = u_cur.copy()
+                u[free] = z
+                U.append(u)
+            F = subset_eval(U, idx, weights, gain)
+            evals += len(F)
+            es.tell(Z, F)
+            k = int(np.argmin(F))
+            if F[k] < best_sub:
+                best_sub, best_z = F[k], np.clip(Z[k], 0, 1)
+        u_try = u_cur.copy()
+        u_try[free] = best_z
+        f_try, det_try = full(u_try)
+        evals += 1
+        names = ",".join(problem.params[j].key for j in free)
+        ok = f_try < f_cur - max(1e-4, 1e-4 * abs(f_cur))
+        lead_name = problem.refs[lead].name
+        sweep_before = det["per_sample"][lead][1]["sweep"] if det["per_sample"][lead][1] else float("nan")
+        sweep_after = det_try["per_sample"][lead][1]["sweep"] if det_try["per_sample"][lead][1] else float("nan")
+        print(f"  [focus] {time.time() - start:6.0f}s round {rounds} {lead_name} (+{len(group) - 1} of its set): "
+              f"group {f_sub0:.3f} -> {best_sub:.3f}, all {f_cur:.4f} -> {f_try:.4f} "
+              f"{'KEPT' if ok else 'dropped'}; {lead_name} sweep {sweep_before:.2f} -> {sweep_after:.2f} st; "
+              f"free {names}", flush=True)
+        log.append((lead_name, f_try if ok else f_cur))
+        if ok:
+            u_cur, f_cur, det = u_try, f_try, det_try
+            accepted += 1
+            tried.pop(lead, None)
+            history.append((time.time() - start, f_cur))
+            if on_improve:
+                on_improve(u_cur, f_cur)
+        else:
+            tried[lead] = rounds
+        rounds += 1
+    return u_cur, f_cur, {"reason": "time cap reached", "generations": rounds, "evaluations": evals,
+                          "restarts": globals_run, "seconds": time.time() - start, "history": history,
+                          "focus_rounds": rounds, "focus_accepted": accepted, "focus_global_passes": globals_run}
+
+
 # ---------------------------------------------------------------------------
 # Reporting
 # ---------------------------------------------------------------------------
@@ -1504,6 +1654,21 @@ def main():
                     help="weight on the resonant-peak sweep track (peak frequency over time, 30 ms frames, "
                     "semitones) at Resonance >= 50 %% (0 = off)")
     ap.add_argument("--evaluate-only", action="store_true", help="score the current code, no fitting")
+    ap.add_argument("--focus", action="store_true",
+                    help="hybrid search: an all-note pass, then short fits on the worst notes (their set's "
+                    "worst, the constants they respond to most), each kept only if the whole set improves; "
+                    "see optimize_focus()")
+    ap.add_argument("--focus-warmup", type=float, default=0.3, help="--focus: share of the time for the first "
+                    "all-note pass (default 0.3)")
+    ap.add_argument("--focus-group", type=int, default=4, help="--focus: notes per group (default 4)")
+    ap.add_argument("--focus-params", type=int, default=8, help="--focus: constants freed per round (default 8)")
+    ap.add_argument("--focus-seconds", type=float, default=60.0, help="--focus: seconds per focused fit (default 60)")
+    ap.add_argument("--focus-anchor-weight", type=float, default=0.5,
+                    help="--focus: weight of the anchor notes (one per other set) against the group (default 0.5)")
+    ap.add_argument("--focus-global-every", type=int, default=6,
+                    help="--focus: an all-note pass every this many rounds (default 6)")
+    ap.add_argument("--focus-global-seconds", type=float, default=240.0,
+                    help="--focus: length of each all-note pass (default 240)")
     ap.add_argument("--apply", action="store_true", help="write fitted defaults into src/core/SynthEngine.hpp")
     args = ap.parse_args()
 
@@ -1574,8 +1739,18 @@ def main():
             tmp.write_text(json.dumps(prof, indent=1) + "\n", encoding="utf-8")
             tmp.replace(ckpt_dir / "checkpoint.json")
 
-        u_best, _, run = optimize(problem, problem.u0, args.max_minutes * 60, args.patience_minutes * 60,
-                                  args.sigma, args.seed, on_improve=checkpoint)
+        if args.focus:
+            # A short all-note pass first, then focused rounds.
+            secs, t_fit = args.max_minutes * 60, time.time()
+            warm = secs * args.focus_warmup
+            u_warm, _, run0 = optimize(problem, problem.u0, warm, min(warm, args.patience_minutes * 60),
+                                       args.sigma, args.seed, on_improve=checkpoint)
+            u_best, _, run = optimize_focus(problem, u_warm, secs - (time.time() - t_fit), args.sigma,
+                                            args.seed, args, on_improve=checkpoint)
+            run["evaluations"] += run0["evaluations"]
+        else:
+            u_best, _, run = optimize(problem, problem.u0, args.max_minutes * 60, args.patience_minutes * 60,
+                                      args.sigma, args.seed, on_improve=checkpoint)
         print(f"Stopped: {run['reason']} after {run['evaluations']} evaluations")
     after = summarize(problem, u_best)
     sens = {} if args.no_sensitivity else sensitivity(problem, u_best, after["aggregate"]["objective"])
