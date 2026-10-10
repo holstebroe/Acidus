@@ -1,0 +1,60 @@
+// Paste into acidus::SynthParameters (src/core/SynthEngine.hpp), or rerun with --apply.
+// Fitted 20261010-150807 against 97 hardware reference samples.
+// Cutoff law re-expressed so plugin knob 0/0.5/1 = hardware min/half/max:
+float oscCouplingHz{47.5163f};
+float oscSawLpfHz{27850.4f};
+float oscSawShape{-0.0587049f};
+float oscSquareDutyDepth{0.109511f};
+float oscSquareLevel{0.359848f};
+float vcfAttackMs{0.10475f};
+float vcaAttackMs{0.913057f};
+float vcaNormalDelayMs{4.34566f};
+float vcfDecayMinSec{0.0620691f};
+float vcfDecayMaxSec{0.961183f};
+float vcfDecayTaper{18.1779f};
+float accentDecaySec{0.0741033f};
+float vegDecaySec{1.0711f};
+float vcaGateOffMs{0.504529f};
+float vcaGateOffAccentMs{7.21504f};
+float vcaResTapRatio{2.01894f};
+float vcaGainSaturationDrive{0.00863538f};
+float vcaCutoffLevelDb{-1.58026f};
+float vcaCutoffLevelResDb{1.68229f};
+float cutoffBaseHz{264.11f};
+float cutoffSpanOct{3.15648f};
+float cutoffTaperExp{1.61066f};
+
+// Fitted hardware knob positions (plugin knob value at each labeled position):
+//   accent     x0   : 0.000  (nominal 0.00)
+//   accent     x100 : 1.000  (nominal 1.00)
+//   accent     x25  : 0.252  (nominal 0.25)
+//   accent     x50  : 0.504  (nominal 0.50)
+//   accent     x74  : 0.748  (nominal 0.75)
+//   cutoff     x0   : 0.000  (nominal 0.00)
+//   cutoff     x100 : 1.000  (nominal 1.00)
+//   cutoff     x25  : 0.252  (nominal 0.25)
+//   cutoff     x50  : 0.504  (nominal 0.50)
+//   cutoff     x74  : 0.748  (nominal 0.75)
+//   decay      x0   : 0.000  (nominal 0.00)
+//   decay      x10  : 0.102  (nominal 0.10)
+//   decay      x100 : 1.000  (nominal 1.00)
+//   decay      x25  : 0.252  (nominal 0.25)
+//   decay      x40  : 0.402  (nominal 0.40)
+//   decay      x50  : 0.504  (nominal 0.50)
+//   decay      x59  : 0.598  (nominal 0.60)
+//   decay      x74  : 0.748  (nominal 0.75)
+//   decay      x89  : 0.898  (nominal 0.90)
+//   envMod     x0   : 0.000  (nominal 0.00)
+//   envMod     x100 : 1.000  (nominal 1.00)
+//   envMod     x25  : 0.252  (nominal 0.25)
+//   envMod     x50  : 0.504  (nominal 0.50)
+//   envMod     x59  : 0.598  (nominal 0.60)
+//   envMod     x70  : 0.701  (nominal 0.70)
+//   envMod     x74  : 0.748  (nominal 0.75)
+//   envMod     x80  : 0.803  (nominal 0.80)
+//   envMod     x89  : 0.898  (nominal 0.90)
+//   resonance  x0   : 0.000  (nominal 0.00)
+//   resonance  x100 : 1.000  (nominal 1.00)
+//   resonance  x25  : 0.252  (nominal 0.25)
+//   resonance  x50  : 0.504  (nominal 0.50)
+//   resonance  x74  : 0.748  (nominal 0.75)
