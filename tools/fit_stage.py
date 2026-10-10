@@ -848,13 +848,18 @@ def main():
                 or (i > 0 and (extra[i - 1].startswith("--w-") or extra[i - 1] == "--workers"))]
         print(f"level pass: {LEVEL_PASS} for up to {args.level_pass:g} min ...", flush=True)
         subprocess.run([sys.executable, str(TOOLS / "calibrate_reference.py"), "--manifest", str(manifest),
-                        "--calibration", str(ckpt), "--fix", "knobs", "--w-sweep", "1", "--only", LEVEL_PASS,
+                        "--calibration", str(ckpt), "--fix", "knobs", "--w-sweep", "1", "--only", LEVEL_PASS + ",timing",
                         "--max-minutes", str(args.level_pass), "--patience-minutes", str(args.level_pass / 2.0),
                         "--sigma", "0.15", "--out", str(level_dir), "--no-sensitivity"] + keep, check=True)
         level = json.loads((level_dir / "result.json").read_text())
-        if (level_dir / "checkpoint.json").exists():
+        # The profile doesn't carry the fitted note timing, so the pass
+        # refits it too; keep the pass only if it beats the main fit.
+        if (level_dir / "checkpoint.json").exists() and \
+                level["after"]["aggregate"]["cost"] < result["after"]["aggregate"]["cost"]:
             result["after"] = level["after"]
             ckpt = level_dir / "checkpoint.json"
+        else:
+            print("level pass: no gain over the main fit, kept the main fit")
     prof = json.loads((ckpt if ckpt.exists() and not args.evaluate_only else start).read_text())
     prof.pop("checkpoint", None)
     prof.update({"name": f"{src}-stage{stage}{suffix}", "source": f"{src}, stage {stage} of docs/EMULATION_TRAINING_PLAN.md (tools/fit_stage.py)",
