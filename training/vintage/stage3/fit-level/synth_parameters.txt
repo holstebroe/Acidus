@@ -1,59 +1,14 @@
 // Paste into acidus::SynthParameters (src/core/SynthEngine.hpp), or rerun with --apply.
-// Fitted 20261010-164658 against 141 hardware reference samples.
+// Fitted 20261010-165910 against 141 hardware reference samples.
 // Cutoff law re-expressed so plugin knob 0/0.5/1 = hardware min/half/max:
-float oscCouplingHz{45.7595f};
-float oscSawLpfHz{24949.4f};
-float oscSawShape{-0.0463497f};
-float oscSquareDutyDepth{0.108876f};
-float oscSquareLevel{0.378679f};
-float filterFeedbackGain{17.7424f};
-float filterResonanceLimit{0.925759f};
-float filterResonanceSkew{-0.391034f};
-float resCouplingHz{87.6979f};
-float filterCapScale1{1.15533f};
-float filterCapScale2{0.605395f};
-float filterCapScale3{0.987455f};
-float filterCapScale4{0.97326f};
-float filterLadderInputScale{0.0357838f};
-float filterInputCouplingHz{5.01886f};
-float filterOutputCouplingHz{14598.1f};
-float filterPostHpHz{92.7754f};
-float filterNotchHz{11.6473f};
-float filterNotchBandwidthHz{6.02404f};
-float filterAllpassHz{12.3797f};
+float oscSquareLevel{0.416866f};
+float accentVcaDepth{1.94732f};
+float vcaResTapRatio{2.12117f};
+float vcaCutoffLevelDb{-1.79301f};
+float vcaCutoffLevelResDb{1.98035f};
 float cutoffBaseHz{263.839f};
 float cutoffSpanOct{3.19673f};
 float cutoffTaperExp{1.71474f};
-float cutoffMaxHz{25787.1f};
-float envModScaleC0{0.956937f};
-float envModScaleC0Slope{4.94272f};
-float envModScaleC1{0.995927f};
-float envModScaleC1Slope{3.04483f};
-float envModOffset{0.350121f};
-float envModOffsetCutSlope{0.00695166f};
-float envModTaperExp{1.94168f};
-float envModTaperMid{0.727585f};
-float envModTaperWidth{0.17802f};
-float accentSweepDepthOct{5.83315f};
-float accentVcaDepth{2.72222f};
-float accentChargeBaseSec{0.0233909f};
-float accentChargePotSec{0.0308091f};
-float accentMixSec{0.106549f};
-float accentDiodeDrop{0.300019f};
-float vcfAttackMs{0.0767118f};
-float vcaAttackMs{0.782114f};
-float vcaNormalDelayMs{4.29981f};
-float vcfDecayMinSec{0.0597137f};
-float vcfDecayMaxSec{0.966923f};
-float vcfDecayTaper{18.0693f};
-float accentDecaySec{0.0818214f};
-float vegDecaySec{1.04533f};
-float vcaGateOffMs{0.545313f};
-float vcaGateOffAccentMs{8.65841f};
-float vcaResTapRatio{1.98911f};
-float vcaGainSaturationDrive{0.247164f};
-float vcaCutoffLevelDb{-1.31197f};
-float vcaCutoffLevelResDb{2.0121f};
 
 // Fitted hardware knob positions (plugin knob value at each labeled position):
 //   accent     x0   : 0.000  (nominal 0.00)

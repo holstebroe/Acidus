@@ -23,7 +23,7 @@
   "vegDecaySec": 1.0453300815144682,
   "vcaGateOffMs": 0.5453128353311869,
   "vcaGateOffAccentMs": 8.658414582913071,
-  "vcaResTapRatio": 1.9891149834577067,
+  "vcaResTapRatio": 2.121174912024751,
   "vcaGainSaturationDrive": 0.2471641982631067,
   "vcoOctaveScale": 1.0,
   "cutoffBaseHz": 263.8392161660843,
@@ -36,14 +36,14 @@
   "envModOffset": 0.3501211785890723,
   "envModOffsetCutSlope": 0.00695165876438858,
   "accentSweepDepthOct": 5.833151946736973,
-  "accentVcaDepth": 2.7222234019328484,
+  "accentVcaDepth": 1.9473152018590383,
   "accentChargeBaseSec": 0.023390932744708763,
   "accentChargePotSec": 0.03080914407992063,
   "accentMixSec": 0.10654910075346205,
   "oscSawLpfHz": 24949.389330553902,
   "oscSawShape": -0.04634970946104794,
   "oscSquareDutyDepth": 0.10887574917604832,
-  "oscSquareLevel": 0.3786785278670866,
+  "oscSquareLevel": 0.41686621224971915,
   "vcfAttackMs": 0.0767117649946995,
   "vcaAttackMs": 0.7821142661865327,
   "vcfDecayMinSec": 0.0597137255723485,
@@ -60,13 +60,9 @@
   "vcaNormalDelayMs": 4.299813311911507,
   "filterCouplingNetwork": 0.0,
   "filterNetworkTimeScale": 1.0,
-  "vcaCutoffLevelDb": -1.3119727486491453,
-  "vcaCutoffLevelResDb": 2.0120976738852754
+  "vcaCutoffLevelDb": -1.7930090826418628,
+  "vcaCutoffLevelResDb": 1.9803491235584634
  },
- "name": "vintage-stage3-a",
- "started_from": "calibrations/vintage-stage2-plain.json",
- "checkpoint": {
-  "objective": 2.131230284978189,
-  "time": "2026-10-10T16:44:03"
- }
+ "name": "vintage-stage3",
+ "started_from": "calibrations/vintage-stage3-a.json"
 }
