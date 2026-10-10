@@ -1873,10 +1873,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 66278,
+   "note_on_sample": 66280,
    "gate_ms": 1300.0,
-   "clip_start_sample": 64073,
-   "clip_end_sample": 141248,
+   "clip_start_sample": 64075,
+   "clip_end_sample": 141250,
    "render_tune_cents": 0.0
   },
   {
@@ -1903,10 +1903,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.25196999999999997
    },
-   "note_on_sample": 198578,
+   "note_on_sample": 198580,
    "gate_ms": 1300.0,
-   "clip_start_sample": 196373,
-   "clip_end_sample": 273548,
+   "clip_start_sample": 196375,
+   "clip_end_sample": 273550,
    "render_tune_cents": 0.0
   },
   {
@@ -1933,10 +1933,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.5039399999999999
    },
-   "note_on_sample": 330878,
+   "note_on_sample": 330880,
    "gate_ms": 1300.0,
-   "clip_start_sample": 328673,
-   "clip_end_sample": 405848,
+   "clip_start_sample": 328675,
+   "clip_end_sample": 405850,
    "render_tune_cents": 0.0
   },
   {
@@ -1963,10 +1963,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.74803
    },
-   "note_on_sample": 463178,
+   "note_on_sample": 463180,
    "gate_ms": 1300.0,
-   "clip_start_sample": 460973,
-   "clip_end_sample": 538148,
+   "clip_start_sample": 460975,
+   "clip_end_sample": 538150,
    "render_tune_cents": 0.0
   },
   {
@@ -1993,10 +1993,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 595478,
+   "note_on_sample": 595480,
    "gate_ms": 1300.0,
-   "clip_start_sample": 593273,
-   "clip_end_sample": 670448,
+   "clip_start_sample": 593275,
+   "clip_end_sample": 670450,
    "render_tune_cents": 0.0
   },
   {
@@ -2023,10 +2023,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.25196999999999997
    },
-   "note_on_sample": 727778,
+   "note_on_sample": 727780,
    "gate_ms": 1300.0,
-   "clip_start_sample": 725573,
-   "clip_end_sample": 802748,
+   "clip_start_sample": 725575,
+   "clip_end_sample": 802750,
    "render_tune_cents": 0.0
   },
   {
@@ -2053,10 +2053,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.5039399999999999
    },
-   "note_on_sample": 860078,
+   "note_on_sample": 860080,
    "gate_ms": 1300.0,
-   "clip_start_sample": 857873,
-   "clip_end_sample": 935048,
+   "clip_start_sample": 857875,
+   "clip_end_sample": 935050,
    "render_tune_cents": 0.0
   },
   {
@@ -2083,10 +2083,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.74803
    },
-   "note_on_sample": 992378,
+   "note_on_sample": 992380,
    "gate_ms": 1300.0,
-   "clip_start_sample": 990173,
-   "clip_end_sample": 1067348,
+   "clip_start_sample": 990175,
+   "clip_end_sample": 1067350,
    "render_tune_cents": 0.0
   },
   {
@@ -2113,10 +2113,10 @@
     "decay": 0.5039399999999999,
     "accent": 1.0
    },
-   "note_on_sample": 1124678,
+   "note_on_sample": 1124680,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1122473,
-   "clip_end_sample": 1199648,
+   "clip_start_sample": 1122475,
+   "clip_end_sample": 1199650,
    "render_tune_cents": 0.0
   },
   {
@@ -2143,10 +2143,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 1256978,
+   "note_on_sample": 1256980,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1254773,
-   "clip_end_sample": 1331948,
+   "clip_start_sample": 1254775,
+   "clip_end_sample": 1331950,
    "render_tune_cents": 0.0
   },
   {
@@ -2173,10 +2173,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.25196999999999997
    },
-   "note_on_sample": 1389278,
+   "note_on_sample": 1389280,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1387073,
-   "clip_end_sample": 1464248,
+   "clip_start_sample": 1387075,
+   "clip_end_sample": 1464250,
    "render_tune_cents": 0.0
   },
   {
@@ -2203,10 +2203,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.5039399999999999
    },
-   "note_on_sample": 1521578,
+   "note_on_sample": 1521580,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1519373,
-   "clip_end_sample": 1596548,
+   "clip_start_sample": 1519375,
+   "clip_end_sample": 1596550,
    "render_tune_cents": 0.0
   },
   {
@@ -2233,10 +2233,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.74803
    },
-   "note_on_sample": 1653878,
+   "note_on_sample": 1653880,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1651673,
-   "clip_end_sample": 1728848,
+   "clip_start_sample": 1651675,
+   "clip_end_sample": 1728850,
    "render_tune_cents": 0.0
   },
   {
@@ -2263,10 +2263,10 @@
     "decay": 0.5039399999999999,
     "accent": 1.0
    },
-   "note_on_sample": 1786178,
+   "note_on_sample": 1786180,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1783973,
-   "clip_end_sample": 1861148,
+   "clip_start_sample": 1783975,
+   "clip_end_sample": 1861150,
    "render_tune_cents": 0.0
   },
   {
@@ -2293,10 +2293,10 @@
     "decay": 0.5039399999999999,
     "accent": 1.0
    },
-   "note_on_sample": 1918478,
+   "note_on_sample": 1918480,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1916273,
-   "clip_end_sample": 1993448,
+   "clip_start_sample": 1916275,
+   "clip_end_sample": 1993450,
    "render_tune_cents": 0.0
   },
   {
@@ -2323,10 +2323,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 2050778,
+   "note_on_sample": 2050780,
    "gate_ms": 1300.0,
-   "clip_start_sample": 2048573,
-   "clip_end_sample": 2125748,
+   "clip_start_sample": 2048575,
+   "clip_end_sample": 2125750,
    "render_tune_cents": 0.0
   },
   {
@@ -2353,10 +2353,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 2183078,
+   "note_on_sample": 2183080,
    "gate_ms": 1300.0,
-   "clip_start_sample": 2180873,
-   "clip_end_sample": 2258048,
+   "clip_start_sample": 2180875,
+   "clip_end_sample": 2258050,
    "render_tune_cents": 0.0
   },
   {
@@ -2383,10 +2383,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 2315378,
+   "note_on_sample": 2315380,
    "gate_ms": 1300.0,
-   "clip_start_sample": 2313173,
-   "clip_end_sample": 2390348,
+   "clip_start_sample": 2313175,
+   "clip_end_sample": 2390350,
    "render_tune_cents": 0.0
   },
   {
@@ -2413,10 +2413,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 2447678,
+   "note_on_sample": 2447680,
    "gate_ms": 1300.0,
-   "clip_start_sample": 2445473,
-   "clip_end_sample": 2522648,
+   "clip_start_sample": 2445475,
+   "clip_end_sample": 2522650,
    "render_tune_cents": 0.0
   },
   {
@@ -2443,10 +2443,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 2579978,
+   "note_on_sample": 2579980,
    "gate_ms": 1300.0,
-   "clip_start_sample": 2577773,
-   "clip_end_sample": 2654948,
+   "clip_start_sample": 2577775,
+   "clip_end_sample": 2654950,
    "render_tune_cents": 0.0
   },
   {
@@ -2473,10 +2473,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 2712278,
+   "note_on_sample": 2712280,
    "gate_ms": 1300.0,
-   "clip_start_sample": 2710073,
-   "clip_end_sample": 2787248,
+   "clip_start_sample": 2710075,
+   "clip_end_sample": 2787250,
    "render_tune_cents": 0.0
   },
   {
@@ -2503,10 +2503,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 2844578,
+   "note_on_sample": 2844580,
    "gate_ms": 1300.0,
-   "clip_start_sample": 2842373,
-   "clip_end_sample": 2919548,
+   "clip_start_sample": 2842375,
+   "clip_end_sample": 2919550,
    "render_tune_cents": 0.0
   },
   {
@@ -2533,10 +2533,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 2976878,
+   "note_on_sample": 2976880,
    "gate_ms": 1300.0,
-   "clip_start_sample": 2974673,
-   "clip_end_sample": 3051848,
+   "clip_start_sample": 2974675,
+   "clip_end_sample": 3051850,
    "render_tune_cents": 0.0
   },
   {
@@ -2563,10 +2563,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 3109178,
+   "note_on_sample": 3109180,
    "gate_ms": 1300.0,
-   "clip_start_sample": 3106973,
-   "clip_end_sample": 3184148,
+   "clip_start_sample": 3106975,
+   "clip_end_sample": 3184150,
    "render_tune_cents": 0.0
   },
   {
@@ -2593,10 +2593,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 3241478,
+   "note_on_sample": 3241480,
    "gate_ms": 1300.0,
-   "clip_start_sample": 3239273,
-   "clip_end_sample": 3316448,
+   "clip_start_sample": 3239275,
+   "clip_end_sample": 3316450,
    "render_tune_cents": 0.0
   },
   {
@@ -2623,10 +2623,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 3373778,
+   "note_on_sample": 3373780,
    "gate_ms": 1300.0,
-   "clip_start_sample": 3371573,
-   "clip_end_sample": 3448748,
+   "clip_start_sample": 3371575,
+   "clip_end_sample": 3448750,
    "render_tune_cents": 0.0
   },
   {
@@ -2653,10 +2653,10 @@
     "decay": 0.0,
     "accent": 1.0
    },
-   "note_on_sample": 3506078,
+   "note_on_sample": 3506080,
    "gate_ms": 30.0,
-   "clip_start_sample": 3503873,
-   "clip_end_sample": 3525041,
+   "clip_start_sample": 3503875,
+   "clip_end_sample": 3525043,
    "render_tune_cents": 0.0
   },
   {
@@ -2683,10 +2683,10 @@
     "decay": 0.0,
     "accent": 1.0
    },
-   "note_on_sample": 3638378,
+   "note_on_sample": 3638380,
    "gate_ms": 60.0,
-   "clip_start_sample": 3636173,
-   "clip_end_sample": 3658664,
+   "clip_start_sample": 3636175,
+   "clip_end_sample": 3658666,
    "render_tune_cents": 0.0
   },
   {
@@ -2713,10 +2713,10 @@
     "decay": 0.0,
     "accent": 1.0
    },
-   "note_on_sample": 3770678,
+   "note_on_sample": 3770680,
    "gate_ms": 120.0,
-   "clip_start_sample": 3768473,
-   "clip_end_sample": 3793610,
+   "clip_start_sample": 3768475,
+   "clip_end_sample": 3793612,
    "render_tune_cents": 0.0
   },
   {
@@ -2743,10 +2743,10 @@
     "decay": 0.0,
     "accent": 1.0
    },
-   "note_on_sample": 3902978,
+   "note_on_sample": 3902980,
    "gate_ms": 250.0,
-   "clip_start_sample": 3900773,
-   "clip_end_sample": 3931643,
+   "clip_start_sample": 3900775,
+   "clip_end_sample": 3931645,
    "render_tune_cents": 0.0
   },
   {
@@ -2773,10 +2773,10 @@
     "decay": 0.0,
     "accent": 1.0
    },
-   "note_on_sample": 4035278,
+   "note_on_sample": 4035280,
    "gate_ms": 30.0,
-   "clip_start_sample": 4033073,
-   "clip_end_sample": 4054241,
+   "clip_start_sample": 4033075,
+   "clip_end_sample": 4054243,
    "render_tune_cents": 0.0
   },
   {
@@ -2803,10 +2803,10 @@
     "decay": 0.0,
     "accent": 1.0
    },
-   "note_on_sample": 4167578,
+   "note_on_sample": 4167580,
    "gate_ms": 60.0,
-   "clip_start_sample": 4165373,
-   "clip_end_sample": 4187864,
+   "clip_start_sample": 4165375,
+   "clip_end_sample": 4187866,
    "render_tune_cents": 0.0
   },
   {
@@ -2833,10 +2833,10 @@
     "decay": 0.0,
     "accent": 1.0
    },
-   "note_on_sample": 4299878,
+   "note_on_sample": 4299880,
    "gate_ms": 120.0,
-   "clip_start_sample": 4297673,
-   "clip_end_sample": 4322810,
+   "clip_start_sample": 4297675,
+   "clip_end_sample": 4322812,
    "render_tune_cents": 0.0
   },
   {
@@ -2863,10 +2863,10 @@
     "decay": 0.0,
     "accent": 1.0
    },
-   "note_on_sample": 4432178,
+   "note_on_sample": 4432180,
    "gate_ms": 250.0,
-   "clip_start_sample": 4429973,
-   "clip_end_sample": 4460843,
+   "clip_start_sample": 4429975,
+   "clip_end_sample": 4460845,
    "render_tune_cents": 0.0
   },
   {
@@ -2893,10 +2893,10 @@
     "decay": 0.0,
     "accent": 1.0
    },
-   "note_on_sample": 4564478,
+   "note_on_sample": 4564480,
    "gate_ms": 4000.0,
-   "clip_start_sample": 4562273,
-   "clip_end_sample": 4758518,
+   "clip_start_sample": 4562275,
+   "clip_end_sample": 4758520,
    "render_tune_cents": 0.0
   },
   {
@@ -2923,9 +2923,9 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 4815848,
+   "note_on_sample": 4815850,
    "gate_ms": 1300.0,
-   "clip_start_sample": 4813643,
+   "clip_start_sample": 4813645,
    "clip_end_sample": 4889808,
    "render_tune_cents": 0.0
   }
