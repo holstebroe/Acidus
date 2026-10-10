@@ -43,10 +43,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 66321,
+   "note_on_sample": 66324,
    "gate_ms": 1300.0,
-   "clip_start_sample": 64116,
-   "clip_end_sample": 141291,
+   "clip_start_sample": 64119,
+   "clip_end_sample": 141294,
    "render_tune_cents": 0.0
   },
   {
@@ -73,10 +73,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 198621,
+   "note_on_sample": 198624,
    "gate_ms": 1300.0,
-   "clip_start_sample": 196416,
-   "clip_end_sample": 273591,
+   "clip_start_sample": 196419,
+   "clip_end_sample": 273594,
    "render_tune_cents": 0.0
   },
   {
@@ -103,10 +103,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 330921,
+   "note_on_sample": 330924,
    "gate_ms": 1300.0,
-   "clip_start_sample": 328716,
-   "clip_end_sample": 405891,
+   "clip_start_sample": 328719,
+   "clip_end_sample": 405894,
    "render_tune_cents": 0.0
   },
   {
@@ -133,10 +133,10 @@
     "decay": 0.0,
     "accent": 0.0
    },
-   "note_on_sample": 463221,
+   "note_on_sample": 463224,
    "gate_ms": 1300.0,
-   "clip_start_sample": 461016,
-   "clip_end_sample": 538191,
+   "clip_start_sample": 461019,
+   "clip_end_sample": 538194,
    "render_tune_cents": 0.0
   },
   {
@@ -163,10 +163,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 595521,
+   "note_on_sample": 595524,
    "gate_ms": 1300.0,
-   "clip_start_sample": 593316,
-   "clip_end_sample": 670491,
+   "clip_start_sample": 593319,
+   "clip_end_sample": 670494,
    "render_tune_cents": 0.0
   },
   {
@@ -193,10 +193,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 727821,
+   "note_on_sample": 727824,
    "gate_ms": 1300.0,
-   "clip_start_sample": 725616,
-   "clip_end_sample": 802791,
+   "clip_start_sample": 725619,
+   "clip_end_sample": 802794,
    "render_tune_cents": 0.0
   },
   {
@@ -223,10 +223,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 860121,
+   "note_on_sample": 860124,
    "gate_ms": 1300.0,
-   "clip_start_sample": 857916,
-   "clip_end_sample": 935091,
+   "clip_start_sample": 857919,
+   "clip_end_sample": 935094,
    "render_tune_cents": 0.0
   },
   {
@@ -253,10 +253,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 992421,
+   "note_on_sample": 992424,
    "gate_ms": 1300.0,
-   "clip_start_sample": 990216,
-   "clip_end_sample": 1067391,
+   "clip_start_sample": 990219,
+   "clip_end_sample": 1067394,
    "render_tune_cents": 0.0
   },
   {
@@ -283,10 +283,10 @@
     "decay": 0.5039399999999999,
     "accent": 1.0
    },
-   "note_on_sample": 1124721,
+   "note_on_sample": 1124724,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1122516,
-   "clip_end_sample": 1199691,
+   "clip_start_sample": 1122519,
+   "clip_end_sample": 1199694,
    "render_tune_cents": 0.0
   },
   {
@@ -313,10 +313,10 @@
     "decay": 0.5039399999999999,
     "accent": 1.0
    },
-   "note_on_sample": 1257021,
+   "note_on_sample": 1257024,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1254816,
-   "clip_end_sample": 1331991,
+   "clip_start_sample": 1254819,
+   "clip_end_sample": 1331994,
    "render_tune_cents": 0.0
   },
   {
@@ -343,10 +343,10 @@
     "decay": 0.5039399999999999,
     "accent": 1.0
    },
-   "note_on_sample": 1389321,
+   "note_on_sample": 1389324,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1387116,
-   "clip_end_sample": 1464291,
+   "clip_start_sample": 1387119,
+   "clip_end_sample": 1464294,
    "render_tune_cents": 0.0
   },
   {
@@ -373,10 +373,10 @@
     "decay": 0.5039399999999999,
     "accent": 1.0
    },
-   "note_on_sample": 1521621,
+   "note_on_sample": 1521624,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1519416,
-   "clip_end_sample": 1596591,
+   "clip_start_sample": 1519419,
+   "clip_end_sample": 1596594,
    "render_tune_cents": 0.0
   },
   {
@@ -403,10 +403,10 @@
     "decay": 0.0,
     "accent": 1.0
    },
-   "note_on_sample": 1653921,
+   "note_on_sample": 1653924,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1651716,
-   "clip_end_sample": 1728891,
+   "clip_start_sample": 1651719,
+   "clip_end_sample": 1728894,
    "render_tune_cents": 0.0
   },
   {
@@ -433,10 +433,10 @@
     "decay": 1.0,
     "accent": 1.0
    },
-   "note_on_sample": 1786221,
+   "note_on_sample": 1786224,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1784016,
-   "clip_end_sample": 1861191,
+   "clip_start_sample": 1784019,
+   "clip_end_sample": 1861194,
    "render_tune_cents": 0.0
   },
   {
@@ -463,10 +463,10 @@
     "decay": 0.0,
     "accent": 1.0
    },
-   "note_on_sample": 1918521,
+   "note_on_sample": 1918524,
    "gate_ms": 1300.0,
-   "clip_start_sample": 1916316,
-   "clip_end_sample": 1993491,
+   "clip_start_sample": 1916319,
+   "clip_end_sample": 1993494,
    "render_tune_cents": 0.0
   },
   {
@@ -493,10 +493,10 @@
     "decay": 1.0,
     "accent": 1.0
    },
-   "note_on_sample": 2050821,
+   "note_on_sample": 2050824,
    "gate_ms": 1300.0,
-   "clip_start_sample": 2048616,
-   "clip_end_sample": 2125791,
+   "clip_start_sample": 2048619,
+   "clip_end_sample": 2125794,
    "render_tune_cents": 0.0
   },
   {
@@ -523,10 +523,10 @@
     "decay": 0.25196999999999997,
     "accent": 0.0
    },
-   "note_on_sample": 2183121,
+   "note_on_sample": 2183124,
    "gate_ms": 2500.0,
-   "clip_start_sample": 2180916,
-   "clip_end_sample": 2311011,
+   "clip_start_sample": 2180919,
+   "clip_end_sample": 2311014,
    "render_tune_cents": 0.0
   },
   {
@@ -553,10 +553,10 @@
     "decay": 0.74803,
     "accent": 0.0
    },
-   "note_on_sample": 2368341,
+   "note_on_sample": 2368344,
    "gate_ms": 2500.0,
-   "clip_start_sample": 2366136,
-   "clip_end_sample": 2496231,
+   "clip_start_sample": 2366139,
+   "clip_end_sample": 2496234,
    "render_tune_cents": 0.0
   },
   {
@@ -583,10 +583,10 @@
     "decay": 0.25196999999999997,
     "accent": 0.0
    },
-   "note_on_sample": 2553561,
+   "note_on_sample": 2553564,
    "gate_ms": 2500.0,
-   "clip_start_sample": 2551356,
-   "clip_end_sample": 2681451,
+   "clip_start_sample": 2551359,
+   "clip_end_sample": 2681454,
    "render_tune_cents": 0.0
   },
   {
@@ -613,10 +613,10 @@
     "decay": 0.74803,
     "accent": 0.0
    },
-   "note_on_sample": 2738781,
+   "note_on_sample": 2738784,
    "gate_ms": 2500.0,
-   "clip_start_sample": 2736576,
-   "clip_end_sample": 2866671,
+   "clip_start_sample": 2736579,
+   "clip_end_sample": 2866674,
    "render_tune_cents": 0.0
   },
   {
@@ -643,10 +643,10 @@
     "decay": 0.25196999999999997,
     "accent": 0.0
    },
-   "note_on_sample": 2924001,
+   "note_on_sample": 2924004,
    "gate_ms": 2500.0,
-   "clip_start_sample": 2921796,
-   "clip_end_sample": 3051891,
+   "clip_start_sample": 2921799,
+   "clip_end_sample": 3051894,
    "render_tune_cents": 0.0
   },
   {
@@ -673,10 +673,10 @@
     "decay": 0.74803,
     "accent": 0.0
    },
-   "note_on_sample": 3109221,
+   "note_on_sample": 3109224,
    "gate_ms": 2500.0,
-   "clip_start_sample": 3107016,
-   "clip_end_sample": 3237111,
+   "clip_start_sample": 3107019,
+   "clip_end_sample": 3237114,
    "render_tune_cents": 0.0
   },
   {
@@ -703,10 +703,10 @@
     "decay": 0.25196999999999997,
     "accent": 0.0
    },
-   "note_on_sample": 3294441,
+   "note_on_sample": 3294444,
    "gate_ms": 2500.0,
-   "clip_start_sample": 3292236,
-   "clip_end_sample": 3422331,
+   "clip_start_sample": 3292239,
+   "clip_end_sample": 3422334,
    "render_tune_cents": 0.0
   },
   {
@@ -733,10 +733,10 @@
     "decay": 0.74803,
     "accent": 0.0
    },
-   "note_on_sample": 3479661,
+   "note_on_sample": 3479664,
    "gate_ms": 2500.0,
-   "clip_start_sample": 3477456,
-   "clip_end_sample": 3607551,
+   "clip_start_sample": 3477459,
+   "clip_end_sample": 3607554,
    "render_tune_cents": 0.0
   },
   {
@@ -763,10 +763,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 3664881,
+   "note_on_sample": 3664884,
    "gate_ms": 1300.0,
-   "clip_start_sample": 3662676,
-   "clip_end_sample": 3739851,
+   "clip_start_sample": 3662679,
+   "clip_end_sample": 3739854,
    "render_tune_cents": 0.0
   },
   {
@@ -793,10 +793,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 3797181,
+   "note_on_sample": 3797184,
    "gate_ms": 1300.0,
-   "clip_start_sample": 3794976,
-   "clip_end_sample": 3872151,
+   "clip_start_sample": 3794979,
+   "clip_end_sample": 3872154,
    "render_tune_cents": 0.0
   },
   {
@@ -823,10 +823,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 3929481,
+   "note_on_sample": 3929484,
    "gate_ms": 1300.0,
-   "clip_start_sample": 3927276,
-   "clip_end_sample": 4004451,
+   "clip_start_sample": 3927279,
+   "clip_end_sample": 4004454,
    "render_tune_cents": 0.0
   },
   {
@@ -853,10 +853,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 4061781,
+   "note_on_sample": 4061784,
    "gate_ms": 1300.0,
-   "clip_start_sample": 4059576,
-   "clip_end_sample": 4136751,
+   "clip_start_sample": 4059579,
+   "clip_end_sample": 4136754,
    "render_tune_cents": 0.0
   },
   {
@@ -883,10 +883,10 @@
     "decay": 0.74803,
     "accent": 1.0
    },
-   "note_on_sample": 4194081,
+   "note_on_sample": 4194084,
    "gate_ms": 150.0,
-   "clip_start_sample": 4191876,
-   "clip_end_sample": 4218336,
+   "clip_start_sample": 4191879,
+   "clip_end_sample": 4218339,
    "render_tune_cents": 0.0
   },
   {
@@ -913,10 +913,10 @@
     "decay": 0.74803,
     "accent": 1.0
    },
-   "note_on_sample": 4326381,
+   "note_on_sample": 4326384,
    "gate_ms": 150.0,
-   "clip_start_sample": 4324176,
-   "clip_end_sample": 4350636,
+   "clip_start_sample": 4324179,
+   "clip_end_sample": 4350639,
    "render_tune_cents": 0.0
   },
   {
@@ -943,10 +943,10 @@
     "decay": 0.74803,
     "accent": 1.0
    },
-   "note_on_sample": 4458681,
+   "note_on_sample": 4458684,
    "gate_ms": 1300.0,
-   "clip_start_sample": 4456476,
-   "clip_end_sample": 4533651,
+   "clip_start_sample": 4456479,
+   "clip_end_sample": 4533654,
    "render_tune_cents": 0.0
   },
   {
@@ -973,10 +973,10 @@
     "decay": 0.74803,
     "accent": 1.0
    },
-   "note_on_sample": 4590981,
+   "note_on_sample": 4590984,
    "gate_ms": 1300.0,
-   "clip_start_sample": 4588776,
-   "clip_end_sample": 4665951,
+   "clip_start_sample": 4588779,
+   "clip_end_sample": 4665954,
    "render_tune_cents": 0.0
   },
   {
@@ -1003,10 +1003,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 4723281,
+   "note_on_sample": 4723284,
    "gate_ms": 1300.0,
-   "clip_start_sample": 4721076,
-   "clip_end_sample": 4798251,
+   "clip_start_sample": 4721079,
+   "clip_end_sample": 4798254,
    "render_tune_cents": 0.0
   },
   {
@@ -1033,10 +1033,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 4855581,
+   "note_on_sample": 4855584,
    "gate_ms": 1300.0,
-   "clip_start_sample": 4853376,
-   "clip_end_sample": 4930551,
+   "clip_start_sample": 4853379,
+   "clip_end_sample": 4930554,
    "render_tune_cents": 0.0
   },
   {
@@ -1063,10 +1063,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 4987881,
+   "note_on_sample": 4987884,
    "gate_ms": 1300.0,
-   "clip_start_sample": 4985676,
-   "clip_end_sample": 5062851,
+   "clip_start_sample": 4985679,
+   "clip_end_sample": 5062854,
    "render_tune_cents": 0.0
   },
   {
@@ -1093,10 +1093,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 5120181,
+   "note_on_sample": 5120184,
    "gate_ms": 1300.0,
-   "clip_start_sample": 5117976,
-   "clip_end_sample": 5195151,
+   "clip_start_sample": 5117979,
+   "clip_end_sample": 5195154,
    "render_tune_cents": 0.0
   },
   {
@@ -1123,10 +1123,10 @@
     "decay": 0.5039399999999999,
     "accent": 1.0
    },
-   "note_on_sample": 5252481,
+   "note_on_sample": 5252484,
    "gate_ms": 1300.0,
-   "clip_start_sample": 5250276,
-   "clip_end_sample": 5327451,
+   "clip_start_sample": 5250279,
+   "clip_end_sample": 5327454,
    "render_tune_cents": 0.0
   },
   {
@@ -1153,10 +1153,10 @@
     "decay": 0.5039399999999999,
     "accent": 1.0
    },
-   "note_on_sample": 5384781,
+   "note_on_sample": 5384784,
    "gate_ms": 1300.0,
-   "clip_start_sample": 5382576,
-   "clip_end_sample": 5459751,
+   "clip_start_sample": 5382579,
+   "clip_end_sample": 5459754,
    "render_tune_cents": 0.0
   },
   {
@@ -1183,10 +1183,10 @@
     "decay": 0.5039399999999999,
     "accent": 1.0
    },
-   "note_on_sample": 5517081,
+   "note_on_sample": 5517084,
    "gate_ms": 1300.0,
-   "clip_start_sample": 5514876,
-   "clip_end_sample": 5592051,
+   "clip_start_sample": 5514879,
+   "clip_end_sample": 5592054,
    "render_tune_cents": 0.0
   },
   {
@@ -1213,10 +1213,10 @@
     "decay": 0.5039399999999999,
     "accent": 1.0
    },
-   "note_on_sample": 5649381,
+   "note_on_sample": 5649384,
    "gate_ms": 1300.0,
-   "clip_start_sample": 5647176,
-   "clip_end_sample": 5724351,
+   "clip_start_sample": 5647179,
+   "clip_end_sample": 5724354,
    "render_tune_cents": 0.0
   },
   {
@@ -1243,10 +1243,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 5781681,
+   "note_on_sample": 5781684,
    "gate_ms": 1300.0,
-   "clip_start_sample": 5779476,
-   "clip_end_sample": 5856651,
+   "clip_start_sample": 5779479,
+   "clip_end_sample": 5856654,
    "render_tune_cents": 0.0
   },
   {
@@ -1273,10 +1273,10 @@
     "decay": 0.5039399999999999,
     "accent": 1.0
    },
-   "note_on_sample": 5913981,
+   "note_on_sample": 5913984,
    "gate_ms": 1300.0,
-   "clip_start_sample": 5911776,
-   "clip_end_sample": 5988951,
+   "clip_start_sample": 5911779,
+   "clip_end_sample": 5988954,
    "render_tune_cents": 0.0
   },
   {
@@ -1303,10 +1303,10 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 6046281,
+   "note_on_sample": 6046284,
    "gate_ms": 1300.0,
-   "clip_start_sample": 6044076,
-   "clip_end_sample": 6121251,
+   "clip_start_sample": 6044079,
+   "clip_end_sample": 6121254,
    "render_tune_cents": 0.0
   },
   {
@@ -1333,9 +1333,9 @@
     "decay": 0.5039399999999999,
     "accent": 0.0
    },
-   "note_on_sample": 6178581,
+   "note_on_sample": 6178584,
    "gate_ms": 1300.0,
-   "clip_start_sample": 6176376,
+   "clip_start_sample": 6176379,
    "clip_end_sample": 6244560,
    "render_tune_cents": 0.0
   }

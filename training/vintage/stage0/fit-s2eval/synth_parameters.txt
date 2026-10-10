@@ -1,0 +1,37 @@
+// Paste into acidus::SynthParameters (src/core/SynthEngine.hpp), or rerun with --apply.
+// Fitted 20261010-153308 against 44 hardware reference samples.
+float oscSquareLevel{0.389011f};
+float filterFeedbackGain{16.8032f};
+float filterResonanceLimit{0.927525f};
+float cutoffBaseHz{264.11f};
+float cutoffSpanOct{3.15648f};
+float envModScaleC0Slope{4.99247f};
+float envModScaleC1Slope{3.38169f};
+float envModOffset{0.382045f};
+float accentSweepDepthOct{5.60555f};
+float accentVcaDepth{2.39425f};
+float vcfDecayMinSec{0.0636577f};
+float vcfDecayMaxSec{1.0691f};
+float accentDecaySec{0.0844488f};
+float vegDecaySec{1.00902f};
+float vcaResTapRatio{1.6824f};
+
+// Fitted hardware knob positions (plugin knob value at each labeled position):
+//   accent     x0   : 0.000  (nominal 0.00)
+//   accent     x100 : 1.000  (nominal 1.00)
+//   cutoff     x100 : 1.000  (nominal 1.00)
+//   cutoff     x25  : 0.252  (nominal 0.25)
+//   cutoff     x50  : 0.504  (nominal 0.50)
+//   cutoff     x74  : 0.748  (nominal 0.75)
+//   decay      x0   : 0.000  (nominal 0.00)
+//   decay      x100 : 1.000  (nominal 1.00)
+//   decay      x25  : 0.252  (nominal 0.25)
+//   decay      x50  : 0.504  (nominal 0.50)
+//   decay      x74  : 0.748  (nominal 0.75)
+//   envMod     x0   : 0.000  (nominal 0.00)
+//   envMod     x100 : 1.000  (nominal 1.00)
+//   envMod     x25  : 0.252  (nominal 0.25)
+//   envMod     x50  : 0.504  (nominal 0.50)
+//   envMod     x74  : 0.748  (nominal 0.75)
+//   resonance  x100 : 1.000  (nominal 1.00)
+//   resonance  x74  : 0.748  (nominal 0.75)
