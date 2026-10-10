@@ -1,0 +1,29 @@
+// Paste into acidus::SynthParameters (src/core/SynthEngine.hpp), or rerun with --apply.
+// Fitted 20261010-184244 against 23 hardware reference samples.
+// Cutoff law re-expressed so plugin knob 0/0.5/1 = hardware min/half/max:
+float oscSquareLevel{0.428704f};
+float accentVcaDepth{3.49865f};
+float vcaResTapRatio{2.0876f};
+float vcaCutoffLevelDb{-2.82755f};
+float vcaCutoffLevelResDb{0.0990496f};
+float cutoffBaseHz{240.398f};
+float cutoffSpanOct{3.29466f};
+float cutoffTaperExp{1.42889f};
+
+// Fitted hardware knob positions (plugin knob value at each labeled position):
+//   accent     x0   : 0.000  (nominal 0.00)
+//   accent     x100 : 1.000  (nominal 1.00)
+//   cutoff     x0   : 0.000  (nominal 0.00)
+//   cutoff     x100 : 1.000  (nominal 1.00)
+//   cutoff     x25  : 0.252  (nominal 0.25)
+//   cutoff     x50  : 0.504  (nominal 0.50)
+//   decay      x0   : 0.000  (nominal 0.00)
+//   decay      x100 : 1.000  (nominal 1.00)
+//   decay      x50  : 0.504  (nominal 0.50)
+//   envMod     x0   : 0.000  (nominal 0.00)
+//   envMod     x100 : 1.000  (nominal 1.00)
+//   envMod     x50  : 0.504  (nominal 0.50)
+//   resonance  x0   : 0.000  (nominal 0.00)
+//   resonance  x100 : 1.000  (nominal 1.00)
+//   resonance  x50  : 0.504  (nominal 0.50)
+//   resonance  x74  : 0.748  (nominal 0.75)
