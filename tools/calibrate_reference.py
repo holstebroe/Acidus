@@ -1110,6 +1110,7 @@ class CMAES:
         return self.m + self.sigma * (z * self.D) @ self.B.T
 
     def tell(self, X, f):
+        self.m_prev = self.m.copy()
         X = np.asarray(X)
         self.evals += len(f)
         idx = np.argsort(f)
@@ -1157,15 +1158,20 @@ def optimize(problem, u0, seconds, patience, sigma0, seed, label="fit", popsize=
             reason = f"no progress for {patience:.0f} s"
             break
         X = es.ask()
-        F = batch_eval([np.asarray(x) for x in X])
+        # The mean is scored too: near an optimum, where most samples of a
+        # high-dimensional search are worse than the start, the mean the
+        # search drifts toward often is not.
+        F_all = batch_eval([np.asarray(x) for x in X] + [np.clip(es.m, 0, 1)])
+        F = F_all[:-1]
         es.tell(X, F)
         gens += 1
-        evals += len(F)
-        i = int(np.argmin(F))
-        if F[i] < best_f - max(1e-4, 1e-4 * abs(best_f)):
+        evals += len(F_all)
+        cand = list(X) + [np.clip(es.m_prev, 0, 1)]
+        i = int(np.argmin(F_all))
+        if F_all[i] < best_f - max(1e-4, 1e-4 * abs(best_f)):
             last_improve = time.time()
-        if F[i] < best_f:
-            best_f, best_u = F[i], np.clip(X[i], 0, 1)
+        if F_all[i] < best_f:
+            best_f, best_u = F_all[i], np.clip(cand[i], 0, 1)
             history.append((time.time() - start, best_f))
             if on_improve:
                 on_improve(best_u, best_f)
