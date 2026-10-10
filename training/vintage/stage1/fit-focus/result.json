@@ -1,0 +1,4148 @@
+{
+  "generated": "20261010-112443",
+  "elapsed_sec": 1816.8585386276245,
+  "run": {
+    "reason": "time cap reached",
+    "generations": 13,
+    "evaluations": 1855,
+    "restarts": 2,
+    "seconds": 1254.190510749817,
+    "history": [
+      [
+        0.0,
+        2.489674151751059
+      ],
+      [
+        159.6720588207245,
+        2.452393407004194
+      ],
+      [
+        467.7877690792084,
+        2.391496288404568
+      ],
+      [
+        730.2733099460602,
+        2.2785898625446577
+      ],
+      [
+        961.2903470993042,
+        2.2690259631659857
+      ],
+      [
+        1254.1893570423126,
+        2.2599798748357443
+      ]
+    ],
+    "focus_rounds": 13,
+    "focus_accepted": 3,
+    "focus_global_passes": 2
+  },
+  "weights": {
+    "harm": 1.0,
+    "inter": 0.25,
+    "env": 0.5,
+    "stft": 0.5,
+    "peak": 2.0,
+    "wave": 0.0,
+    "sweep": 2.0,
+    "harmt": 0.0
+  },
+  "references": [
+    {
+      "name": "1A-1",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x0",
+        "resonance": "x0",
+        "envMod": "x0",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1A"
+    },
+    {
+      "name": "1A-2",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x0",
+        "resonance": "x50",
+        "envMod": "x0",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1A"
+    },
+    {
+      "name": "1A-3",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x0",
+        "resonance": "x100",
+        "envMod": "x0",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1A"
+    },
+    {
+      "name": "1A-4",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x50",
+        "resonance": "x0",
+        "envMod": "x0",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1A"
+    },
+    {
+      "name": "1A-5",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x50",
+        "resonance": "x50",
+        "envMod": "x0",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1A"
+    },
+    {
+      "name": "1A-6",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x50",
+        "resonance": "x100",
+        "envMod": "x0",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1A"
+    },
+    {
+      "name": "1A-7",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x100",
+        "resonance": "x0",
+        "envMod": "x0",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1A"
+    },
+    {
+      "name": "1A-8",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x100",
+        "resonance": "x50",
+        "envMod": "x0",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1A"
+    },
+    {
+      "name": "1A-9",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x100",
+        "resonance": "x100",
+        "envMod": "x0",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1A"
+    },
+    {
+      "name": "1B-1",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x50",
+        "resonance": "x74",
+        "envMod": "x0",
+        "decay": "x50",
+        "accent": "x0"
+      },
+      "set": "1B"
+    },
+    {
+      "name": "1B-2",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x50",
+        "resonance": "x74",
+        "envMod": "x50",
+        "decay": "x50",
+        "accent": "x0"
+      },
+      "set": "1B"
+    },
+    {
+      "name": "1B-3",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x50",
+        "resonance": "x74",
+        "envMod": "x100",
+        "decay": "x50",
+        "accent": "x0"
+      },
+      "set": "1B"
+    },
+    {
+      "name": "1B-4",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x0",
+        "resonance": "x74",
+        "envMod": "x100",
+        "decay": "x50",
+        "accent": "x0"
+      },
+      "set": "1B"
+    },
+    {
+      "name": "1B-5",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x100",
+        "resonance": "x74",
+        "envMod": "x100",
+        "decay": "x50",
+        "accent": "x0"
+      },
+      "set": "1B"
+    },
+    {
+      "name": "1C-1",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x25",
+        "resonance": "x74",
+        "envMod": "x100",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1C"
+    },
+    {
+      "name": "1C-2",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x25",
+        "resonance": "x74",
+        "envMod": "x100",
+        "decay": "x50",
+        "accent": "x0"
+      },
+      "set": "1C"
+    },
+    {
+      "name": "1C-3",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x25",
+        "resonance": "x74",
+        "envMod": "x100",
+        "decay": "x100",
+        "accent": "x0"
+      },
+      "set": "1C"
+    },
+    {
+      "name": "1D-1",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x25",
+        "resonance": "x0",
+        "envMod": "x50",
+        "decay": "x50",
+        "accent": "x100"
+      },
+      "set": "1D"
+    },
+    {
+      "name": "1D-2",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": true,
+      "knob_labels": {
+        "cutoff": "x25",
+        "resonance": "x0",
+        "envMod": "x50",
+        "decay": "x50",
+        "accent": "x100"
+      },
+      "set": "1D"
+    },
+    {
+      "name": "1D-3",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x25",
+        "resonance": "x100",
+        "envMod": "x50",
+        "decay": "x50",
+        "accent": "x100"
+      },
+      "set": "1D"
+    },
+    {
+      "name": "1D-4",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": true,
+      "knob_labels": {
+        "cutoff": "x25",
+        "resonance": "x100",
+        "envMod": "x50",
+        "decay": "x50",
+        "accent": "x100"
+      },
+      "set": "1D"
+    },
+    {
+      "name": "1E-1",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x50",
+        "resonance": "x0",
+        "envMod": "x0",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1E"
+    },
+    {
+      "name": "1E-2",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x50",
+        "resonance": "x0",
+        "envMod": "x0",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1E"
+    },
+    {
+      "name": "1R-1",
+      "f0_hz": 65.40639132514966,
+      "tuning_cents": 0.0,
+      "label_tuning_cents": 0.0,
+      "pitch_drift_cents": 0.0,
+      "accent_step": false,
+      "knob_labels": {
+        "cutoff": "x50",
+        "resonance": "x50",
+        "envMod": "x0",
+        "decay": "x0",
+        "accent": "x0"
+      },
+      "set": "1R"
+    }
+  ],
+  "before": {
+    "aggregate": {
+      "cost": 2.781955547703383,
+      "harm_within_1db": 27.050242144154655,
+      "harm_within_3db": 59.430084459070315,
+      "harm_within_6db": 89.794143124642,
+      "harm_mean_abs_db": 2.8527570897170897,
+      "level_rms_db": 4.0310119950506795,
+      "harm": 2.492925199560056,
+      "inter": 0.7609203655315214,
+      "env": 4.139674021160135,
+      "stft": 8.470175710792198,
+      "wave": 0.0,
+      "sweep": 3.175713173033991,
+      "harmt": 7.133539363424291,
+      "peak": 2.7530929560674466,
+      "objective": 2.781955547703383,
+      "gain_db": -8.552057546534078
+    },
+    "samples": [
+      {
+        "cost": 1.3650739399606773,
+        "components": {
+          "harm": 2.6980618570185735,
+          "inter": 0.0,
+          "env": 5.447194389083825,
+          "stft": 6.220106146387492,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 4.4794830387548865
+        },
+        "level_db": -4.443651089821477,
+        "harm_within_1db": 0.0,
+        "harm_within_3db": 8.0,
+        "harm_within_6db": 72.0,
+        "harm_mean_abs_db": 5.012857537718964,
+        "harm_mean_abs_db_first10": 4.781006054841578,
+        "worst_harmonics": [
+          {
+            "k": 10,
+            "hz": 654.1,
+            "ref_db": -48.4,
+            "sim_db": -55.4,
+            "err_db": -6.7
+          },
+          {
+            "k": 9,
+            "hz": 588.7,
+            "ref_db": -45.3,
+            "sim_db": -51.6,
+            "err_db": -6.3
+          },
+          {
+            "k": 13,
+            "hz": 850.3,
+            "ref_db": -56.6,
+            "sim_db": -65.5,
+            "err_db": -6.2
+          },
+          {
+            "k": 17,
+            "hz": 1111.9,
+            "ref_db": -65.4,
+            "sim_db": -76.3,
+            "err_db": -6.1
+          },
+          {
+            "k": 14,
+            "hz": 915.7,
+            "ref_db": -59.1,
+            "sim_db": -68.4,
+            "err_db": -6.1
+          },
+          {
+            "k": 11,
+            "hz": 719.5,
+            "ref_db": -51.4,
+            "sim_db": -59.0,
+            "err_db": -6.1
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 1.8472498583995247,
+        "components": {
+          "harm": 1.9681758230404318,
+          "inter": 0.0,
+          "env": 2.6675742534558204,
+          "stft": 7.695559196069604,
+          "peak": 1.7004375366913842,
+          "wave": 0.0,
+          "sweep": 0.4973469969055587,
+          "harmt": 5.527700534355817
+        },
+        "level_db": -1.2537193936949724,
+        "harm_within_1db": 7.142857142857142,
+        "harm_within_3db": 21.428571428571427,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 3.677041976110768,
+        "harm_mean_abs_db_first10": 3.038303367851048,
+        "worst_harmonics": [
+          {
+            "k": 10,
+            "hz": 654.1,
+            "ref_db": -42.3,
+            "sim_db": -47.5,
+            "err_db": -4.7
+          },
+          {
+            "k": 9,
+            "hz": 588.7,
+            "ref_db": -39.0,
+            "sim_db": -43.6,
+            "err_db": -4.6
+          },
+          {
+            "k": 11,
+            "hz": 719.5,
+            "ref_db": -45.5,
+            "sim_db": -51.1,
+            "err_db": -4.5
+          },
+          {
+            "k": 21,
+            "hz": 1373.5,
+            "ref_db": -68.4,
+            "sim_db": -77.2,
+            "err_db": -4.5
+          },
+          {
+            "k": 25,
+            "hz": 1635.2,
+            "ref_db": -74.7,
+            "sim_db": -84.5,
+            "err_db": -4.4
+          },
+          {
+            "k": 19,
+            "hz": 1242.7,
+            "ref_db": -64.8,
+            "sim_db": -73.0,
+            "err_db": -4.4
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 130.8,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": -12.0,
+          "ref_height_db": -1.5,
+          "sim_height_db": 0.0,
+          "shape_error_db": 1.7
+        }
+      },
+      {
+        "cost": 3.446357087880126,
+        "components": {
+          "harm": 2.2837293376011387,
+          "inter": 0.19827244858433968,
+          "env": 2.276471350542312,
+          "stft": 7.500016883653545,
+          "peak": 3.335366395443043,
+          "wave": 0.0,
+          "sweep": 3.8237287207597754,
+          "harmt": 5.12004359908836
+        },
+        "level_db": 0.19111963226657386,
+        "harm_within_1db": 12.5,
+        "harm_within_3db": 28.125,
+        "harm_within_6db": 93.75,
+        "harm_mean_abs_db": 3.987252030478702,
+        "harm_mean_abs_db_first10": 1.9555882470496968,
+        "worst_harmonics": [
+          {
+            "k": 13,
+            "hz": 850.3,
+            "ref_db": -45.1,
+            "sim_db": -52.0,
+            "err_db": -6.7
+          },
+          {
+            "k": 14,
+            "hz": 915.7,
+            "ref_db": -47.4,
+            "sim_db": -54.9,
+            "err_db": -6.5
+          },
+          {
+            "k": 12,
+            "hz": 784.9,
+            "ref_db": -43.0,
+            "sim_db": -48.9,
+            "err_db": -5.9
+          },
+          {
+            "k": 23,
+            "hz": 1504.3,
+            "ref_db": -65.8,
+            "sim_db": -75.3,
+            "err_db": -5.6
+          },
+          {
+            "k": 26,
+            "hz": 1700.6,
+            "ref_db": -70.5,
+            "sim_db": -80.5,
+            "err_db": -5.5
+          },
+          {
+            "k": 20,
+            "hz": 1308.1,
+            "ref_db": -60.5,
+            "sim_db": -69.3,
+            "err_db": -5.4
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 196.2,
+          "sim_freq_hz": 196.2,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": -0.1,
+          "sim_height_db": 0.2,
+          "shape_error_db": 3.34
+        }
+      },
+      {
+        "cost": 1.211137597501569,
+        "components": {
+          "harm": 1.5641066903376062,
+          "inter": 0.08275845031577857,
+          "env": 4.576408216140793,
+          "stft": 7.393219146795717,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 4.848514255704193
+        },
+        "level_db": 4.324247061605818,
+        "harm_within_1db": 26.190476190476193,
+        "harm_within_3db": 80.95238095238095,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.911816645194686,
+        "harm_mean_abs_db_first10": 2.306873954778262,
+        "worst_harmonics": [
+          {
+            "k": 1,
+            "hz": 65.4,
+            "ref_db": 0.0,
+            "sim_db": 4.7,
+            "err_db": 4.7
+          },
+          {
+            "k": 2,
+            "hz": 130.8,
+            "ref_db": -4.7,
+            "sim_db": -0.5,
+            "err_db": 4.2
+          },
+          {
+            "k": 38,
+            "hz": 2485.4,
+            "ref_db": -76.1,
+            "sim_db": -79.7,
+            "err_db": -3.6
+          },
+          {
+            "k": 36,
+            "hz": 2354.6,
+            "ref_db": -74.1,
+            "sim_db": -77.5,
+            "err_db": -3.4
+          },
+          {
+            "k": 37,
+            "hz": 2420.0,
+            "ref_db": -75.2,
+            "sim_db": -78.6,
+            "err_db": -3.4
+          },
+          {
+            "k": 35,
+            "hz": 2289.2,
+            "ref_db": -73.2,
+            "sim_db": -76.4,
+            "err_db": -3.2
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 2.727764365689731,
+        "components": {
+          "harm": 1.6460629904488664,
+          "inter": 0.1779860478957642,
+          "env": 4.997314637353923,
+          "stft": 7.667559261766,
+          "peak": 1.4366883776715957,
+          "wave": 0.0,
+          "sweep": 3.076077039117429,
+          "harmt": 6.96784421112686
+        },
+        "level_db": 3.637211927484096,
+        "harm_within_1db": 56.52173913043478,
+        "harm_within_3db": 86.95652173913044,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.4407614266569282,
+        "harm_mean_abs_db_first10": 3.6446942268406284,
+        "worst_harmonics": [
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -8.9,
+            "sim_db": -4.0,
+            "err_db": 5.0
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -12.3,
+            "sim_db": -7.4,
+            "err_db": 4.9
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -5.4,
+            "sim_db": -1.0,
+            "err_db": 4.4
+          },
+          {
+            "k": 2,
+            "hz": 130.8,
+            "ref_db": -4.0,
+            "sim_db": 0.2,
+            "err_db": 4.2
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -5.9,
+            "sim_db": -2.0,
+            "err_db": 3.9
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -15.2,
+            "sim_db": -11.3,
+            "err_db": 3.9
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 1.44
+        }
+      },
+      {
+        "cost": 3.3387436810421063,
+        "components": {
+          "harm": 1.5819914173264278,
+          "inter": 0.4317001885955092,
+          "env": 3.6180714665203375,
+          "stft": 9.32048631184272,
+          "peak": 3.383440700264831,
+          "wave": 0.0,
+          "sweep": 2.9705356261633358,
+          "harmt": 8.011709251811164
+        },
+        "level_db": 2.958564572465052,
+        "harm_within_1db": 56.25,
+        "harm_within_3db": 89.58333333333334,
+        "harm_within_6db": 97.91666666666666,
+        "harm_mean_abs_db": 1.4066926768158854,
+        "harm_mean_abs_db_first10": 3.275057139210155,
+        "worst_harmonics": [
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -7.6,
+            "sim_db": 0.0,
+            "err_db": 7.7
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -4.6,
+            "sim_db": 1.2,
+            "err_db": 5.7
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -9.8,
+            "sim_db": -5.0,
+            "err_db": 4.8
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -6.2,
+            "sim_db": -2.8,
+            "err_db": 3.4
+          },
+          {
+            "k": 9,
+            "hz": 588.7,
+            "ref_db": -11.9,
+            "sim_db": -8.7,
+            "err_db": 3.3
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -5.7,
+            "sim_db": -2.9,
+            "err_db": 2.8
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 327.0,
+          "sim_freq_hz": 457.8,
+          "freq_ratio_semitones": 5.83,
+          "ref_height_db": -1.9,
+          "sim_height_db": -0.9,
+          "shape_error_db": 3.38
+        }
+      },
+      {
+        "cost": 2.9198415127751143,
+        "components": {
+          "harm": 5.699557927969662,
+          "inter": 3.866777800425559,
+          "env": 12.100891274178247,
+          "stft": 11.064622879358577,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 8.00595834540242
+        },
+        "level_db": 12.094515304070857,
+        "harm_within_1db": 0.0,
+        "harm_within_3db": 0.0,
+        "harm_within_6db": 88.46153846153845,
+        "harm_mean_abs_db": 4.557385064944419,
+        "harm_mean_abs_db_first10": 11.602071043323866,
+        "worst_harmonics": [
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -8.4,
+            "sim_db": 6.5,
+            "err_db": 14.9
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -10.7,
+            "sim_db": 3.6,
+            "err_db": 14.3
+          },
+          {
+            "k": 2,
+            "hz": 130.8,
+            "ref_db": -4.9,
+            "sim_db": 9.3,
+            "err_db": 14.2
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -12.5,
+            "sim_db": 0.8,
+            "err_db": 13.3
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -13.9,
+            "sim_db": -1.8,
+            "err_db": 12.0
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -15.1,
+            "sim_db": -4.3,
+            "err_db": 10.8
+          }
+        ],
+        "spurious_hf": [
+          {
+            "type": "harmonic",
+            "hz": 4251.4,
+            "excess_db": 3.8
+          },
+          {
+            "type": "harmonic",
+            "hz": 4055.2,
+            "excess_db": 3.8
+          },
+          {
+            "type": "harmonic",
+            "hz": 4120.6,
+            "excess_db": 3.8
+          }
+        ],
+        "peak": null
+      },
+      {
+        "cost": 3.673628687844111,
+        "components": {
+          "harm": 3.6207558756136375,
+          "inter": 2.792236195916633,
+          "env": 5.760876793312464,
+          "stft": 7.120779098647552,
+          "peak": 2.7282984710710028,
+          "wave": 0.0,
+          "sweep": 3.3719697431554416,
+          "harmt": 5.449464823404148
+        },
+        "level_db": 6.0522644865047965,
+        "harm_within_1db": 75.59055118110236,
+        "harm_within_3db": 84.25196850393701,
+        "harm_within_6db": 88.18897637795276,
+        "harm_mean_abs_db": 1.7401122819267165,
+        "harm_mean_abs_db_first10": 7.696789470881757,
+        "worst_harmonics": [
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -11.9,
+            "sim_db": -3.4,
+            "err_db": 8.5
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -13.0,
+            "sim_db": -4.5,
+            "err_db": 8.5
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -13.8,
+            "sim_db": -5.5,
+            "err_db": 8.4
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -10.4,
+            "sim_db": -2.0,
+            "err_db": 8.4
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -14.5,
+            "sim_db": -6.3,
+            "err_db": 8.2
+          },
+          {
+            "k": 9,
+            "hz": 588.7,
+            "ref_db": -15.0,
+            "sim_db": -7.0,
+            "err_db": 8.1
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 2.73
+        }
+      },
+      {
+        "cost": 2.345557994672831,
+        "components": {
+          "harm": 2.7378357991716085,
+          "inter": 1.8684644946198374,
+          "env": 2.9846352180073636,
+          "stft": 5.017305412392597,
+          "peak": 2.5911651512718725,
+          "wave": 0.0,
+          "sweep": 1.1357424630674506,
+          "harmt": 5.042804397419146
+        },
+        "level_db": 2.253670936774852,
+        "harm_within_1db": 5.825242718446602,
+        "harm_within_3db": 75.72815533980582,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 2.6108741392987325,
+        "harm_mean_abs_db_first10": 4.391531501511291,
+        "worst_harmonics": [
+          {
+            "k": 22,
+            "hz": 1438.9,
+            "ref_db": -15.4,
+            "sim_db": -9.9,
+            "err_db": 5.5
+          },
+          {
+            "k": 21,
+            "hz": 1373.5,
+            "ref_db": -16.3,
+            "sim_db": -10.9,
+            "err_db": 5.5
+          },
+          {
+            "k": 20,
+            "hz": 1308.1,
+            "ref_db": -17.0,
+            "sim_db": -11.6,
+            "err_db": 5.4
+          },
+          {
+            "k": 23,
+            "hz": 1504.3,
+            "ref_db": -13.9,
+            "sim_db": -8.6,
+            "err_db": 5.3
+          },
+          {
+            "k": 19,
+            "hz": 1242.7,
+            "ref_db": -17.4,
+            "sim_db": -12.1,
+            "err_db": 5.2
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -13.3,
+            "sim_db": -8.2,
+            "err_db": 5.2
+          }
+        ],
+        "spurious_hf": [
+          {
+            "type": "harmonic",
+            "hz": 5690.4,
+            "excess_db": 3.5
+          },
+          {
+            "type": "harmonic",
+            "hz": 5755.8,
+            "excess_db": 3.2
+          },
+          {
+            "type": "harmonic",
+            "hz": 8306.6,
+            "excess_db": 3.0
+          }
+        ],
+        "peak": {
+          "ref_freq_hz": 1700.6,
+          "sim_freq_hz": 1700.6,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": -3.9,
+          "sim_height_db": -3.6,
+          "shape_error_db": 2.59
+        }
+      },
+      {
+        "cost": 2.7998953534645192,
+        "components": {
+          "harm": 1.8638383432893033,
+          "inter": 0.12422163707468113,
+          "env": 3.8246595536924475,
+          "stft": 9.159044927384068,
+          "peak": 2.086811452216145,
+          "wave": 0.0,
+          "sweep": 2.4694885308123617,
+          "harmt": 8.013091305157715
+        },
+        "level_db": 2.9923896647487576,
+        "harm_within_1db": 0.0,
+        "harm_within_3db": 62.0,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 2.5292911236136155,
+        "harm_mean_abs_db_first10": 3.465457270950142,
+        "worst_harmonics": [
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -8.2,
+            "sim_db": -2.9,
+            "err_db": 5.3
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -9.6,
+            "sim_db": -4.5,
+            "err_db": 5.1
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -11.0,
+            "sim_db": -6.8,
+            "err_db": 4.2
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -6.4,
+            "sim_db": -2.5,
+            "err_db": 3.9
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -6.5,
+            "sim_db": -2.7,
+            "err_db": 3.8
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -6.2,
+            "sim_db": -3.0,
+            "err_db": 3.2
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 392.4,
+          "freq_ratio_semitones": 31.02,
+          "ref_height_db": 0.0,
+          "sim_height_db": -4.2,
+          "shape_error_db": 2.09
+        }
+      },
+      {
+        "cost": 3.0576715144844315,
+        "components": {
+          "harm": 1.9986134270320626,
+          "inter": 0.36829375525384234,
+          "env": 3.9940730491775023,
+          "stft": 10.193328239537106,
+          "peak": 2.241242547322968,
+          "wave": 0.0,
+          "sweep": 2.7217871803394664,
+          "harmt": 8.553171077464967
+        },
+        "level_db": 2.7608282666098436,
+        "harm_within_1db": 3.076923076923077,
+        "harm_within_3db": 72.3076923076923,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 2.4329679162670907,
+        "harm_mean_abs_db_first10": 3.6096136637881187,
+        "worst_harmonics": [
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -9.5,
+            "sim_db": -4.3,
+            "err_db": 5.3
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -8.1,
+            "sim_db": -3.0,
+            "err_db": 5.2
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -10.6,
+            "sim_db": -6.0,
+            "err_db": 4.7
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -11.6,
+            "sim_db": -7.6,
+            "err_db": 4.1
+          },
+          {
+            "k": 18,
+            "hz": 1177.3,
+            "ref_db": -27.8,
+            "sim_db": -31.4,
+            "err_db": -3.6
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -6.1,
+            "sim_db": -2.6,
+            "err_db": 3.5
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 327.0,
+          "freq_ratio_semitones": 27.86,
+          "ref_height_db": 0.0,
+          "sim_height_db": -4.2,
+          "shape_error_db": 2.24
+        }
+      },
+      {
+        "cost": 3.0892800088727266,
+        "components": {
+          "harm": 1.2833482648379242,
+          "inter": 0.024435965029474566,
+          "env": 3.54295924702127,
+          "stft": 9.566073674235177,
+          "peak": 2.3478412229926673,
+          "wave": 0.0,
+          "sweep": 3.3841719463728452,
+          "harmt": 7.78491781260178
+        },
+        "level_db": 1.8471701536328464,
+        "harm_within_1db": 76.19047619047619,
+        "harm_within_3db": 92.85714285714286,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 0.886459495608598,
+        "harm_mean_abs_db_first10": 2.8683596992615596,
+        "worst_harmonics": [
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -8.8,
+            "sim_db": -5.0,
+            "err_db": 3.9
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -10.4,
+            "sim_db": -6.6,
+            "err_db": 3.8
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -11.6,
+            "sim_db": -8.0,
+            "err_db": 3.6
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -6.5,
+            "sim_db": -3.1,
+            "err_db": 3.3
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -12.6,
+            "sim_db": -9.3,
+            "err_db": 3.3
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -13.4,
+            "sim_db": -10.4,
+            "err_db": 3.0
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 2.35
+        }
+      },
+      {
+        "cost": 3.3566623295936346,
+        "components": {
+          "harm": 1.4044932069935288,
+          "inter": 0.0,
+          "env": 4.088165457748677,
+          "stft": 10.905506162403665,
+          "peak": 2.7567116832405305,
+          "wave": 0.0,
+          "sweep": 3.282193588204728,
+          "harmt": 10.684764661875331
+        },
+        "level_db": -1.6980350214392868,
+        "harm_within_1db": 52.80898876404494,
+        "harm_within_3db": 93.25842696629213,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.2332212927656694,
+        "harm_mean_abs_db_first10": 0.8678737137945867,
+        "worst_harmonics": [
+          {
+            "k": 13,
+            "hz": 850.3,
+            "ref_db": -17.6,
+            "sim_db": -23.4,
+            "err_db": -5.1
+          },
+          {
+            "k": 15,
+            "hz": 981.1,
+            "ref_db": -18.4,
+            "sim_db": -29.2,
+            "err_db": -4.8
+          },
+          {
+            "k": 14,
+            "hz": 915.7,
+            "ref_db": -18.1,
+            "sim_db": -26.2,
+            "err_db": -4.6
+          },
+          {
+            "k": 16,
+            "hz": 1046.5,
+            "ref_db": -19.2,
+            "sim_db": -32.2,
+            "err_db": -4.4
+          },
+          {
+            "k": 12,
+            "hz": 784.9,
+            "ref_db": -16.9,
+            "sim_db": -21.0,
+            "err_db": -4.1
+          },
+          {
+            "k": 17,
+            "hz": 1111.9,
+            "ref_db": -19.5,
+            "sim_db": -35.0,
+            "err_db": -3.5
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 12623.4,
+          "freq_ratio_semitones": 91.11,
+          "ref_height_db": 0.0,
+          "sim_height_db": -137.9,
+          "shape_error_db": 2.76
+        }
+      },
+      {
+        "cost": 5.00536762351024,
+        "components": {
+          "harm": 5.581142539679955,
+          "inter": 3.0066204404623695,
+          "env": 5.771137194780043,
+          "stft": 7.712730772316602,
+          "peak": 2.903574544904537,
+          "wave": 0.0,
+          "sweep": 6.200833461893028,
+          "harmt": 7.226425003311858
+        },
+        "level_db": 4.596162155148601,
+        "harm_within_1db": 0.0,
+        "harm_within_3db": 17.94871794871795,
+        "harm_within_6db": 80.34188034188034,
+        "harm_mean_abs_db": 4.860572338408411,
+        "harm_mean_abs_db_first10": 6.7060274680220235,
+        "worst_harmonics": [
+          {
+            "k": 9,
+            "hz": 588.7,
+            "ref_db": -14.8,
+            "sim_db": -6.7,
+            "err_db": 8.1
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -14.4,
+            "sim_db": -6.4,
+            "err_db": 8.0
+          },
+          {
+            "k": 168,
+            "hz": 10988.3,
+            "ref_db": -49.7,
+            "sim_db": -41.9,
+            "err_db": 7.8
+          },
+          {
+            "k": 167,
+            "hz": 10922.9,
+            "ref_db": -49.6,
+            "sim_db": -41.8,
+            "err_db": 7.8
+          },
+          {
+            "k": 166,
+            "hz": 10857.5,
+            "ref_db": -49.4,
+            "sim_db": -41.7,
+            "err_db": 7.7
+          },
+          {
+            "k": 165,
+            "hz": 10792.1,
+            "ref_db": -49.3,
+            "sim_db": -41.6,
+            "err_db": 7.7
+          }
+        ],
+        "spurious_hf": [
+          {
+            "type": "harmonic",
+            "hz": 15762.9,
+            "excess_db": 12.5
+          },
+          {
+            "type": "harmonic",
+            "hz": 15828.3,
+            "excess_db": 12.4
+          },
+          {
+            "type": "harmonic",
+            "hz": 15893.8,
+            "excess_db": 12.4
+          },
+          {
+            "type": "inter-harmonic",
+            "hz": 15795.6,
+            "excess_db": 11.2
+          }
+        ],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 2.9
+        }
+      },
+      {
+        "cost": 2.2340622405437753,
+        "components": {
+          "harm": 0.40092764496667654,
+          "inter": 0.5124941848889107,
+          "env": 2.0985487111776897,
+          "stft": 12.049849536011045,
+          "peak": 1.7576584527286931,
+          "wave": 0.0,
+          "sweep": 1.4221608915789685,
+          "harmt": 10.930653086485073
+        },
+        "level_db": -0.5316315178050575,
+        "harm_within_1db": 70.0,
+        "harm_within_3db": 100.0,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 0.7916338843943038,
+        "harm_mean_abs_db_first10": 0.7549687358831235,
+        "worst_harmonics": [
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -18.2,
+            "sim_db": -20.9,
+            "err_db": -1.8
+          },
+          {
+            "k": 2,
+            "hz": 130.8,
+            "ref_db": -6.0,
+            "sim_db": -4.7,
+            "err_db": 1.3
+          },
+          {
+            "k": 1,
+            "hz": 65.4,
+            "ref_db": 0.0,
+            "sim_db": -1.2,
+            "err_db": -1.2
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -12.9,
+            "sim_db": -12.1,
+            "err_db": 0.8
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -10.2,
+            "sim_db": -9.4,
+            "err_db": 0.8
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -17.4,
+            "sim_db": -18.0,
+            "err_db": -0.6
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 1.76
+        }
+      },
+      {
+        "cost": 2.79852950931923,
+        "components": {
+          "harm": 1.9634005099416032,
+          "inter": 0.0,
+          "env": 3.3822092064402165,
+          "stft": 10.89532816535448,
+          "peak": 2.679439622806561,
+          "wave": 0.0,
+          "sweep": 1.5148804958965587,
+          "harmt": 10.114414012354207
+        },
+        "level_db": 0.3648878332926247,
+        "harm_within_1db": 12.631578947368421,
+        "harm_within_3db": 76.84210526315789,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 2.4661287543497217,
+        "harm_mean_abs_db_first10": 1.7740652836779554,
+        "worst_harmonics": [
+          {
+            "k": 46,
+            "hz": 3008.7,
+            "ref_db": -42.0,
+            "sim_db": -58.4,
+            "err_db": -5.5
+          },
+          {
+            "k": 51,
+            "hz": 3335.7,
+            "ref_db": -47.9,
+            "sim_db": -62.5,
+            "err_db": -5.5
+          },
+          {
+            "k": 52,
+            "hz": 3401.1,
+            "ref_db": -48.8,
+            "sim_db": -63.3,
+            "err_db": -5.4
+          },
+          {
+            "k": 50,
+            "hz": 3270.3,
+            "ref_db": -46.9,
+            "sim_db": -61.7,
+            "err_db": -5.4
+          },
+          {
+            "k": 47,
+            "hz": 3074.1,
+            "ref_db": -43.4,
+            "sim_db": -59.3,
+            "err_db": -5.4
+          },
+          {
+            "k": 45,
+            "hz": 2943.3,
+            "ref_db": -40.4,
+            "sim_db": -57.6,
+            "err_db": -5.3
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 2.68
+        }
+      },
+      {
+        "cost": 3.779714644335867,
+        "components": {
+          "harm": 4.386418254492912,
+          "inter": 0.0,
+          "env": 1.370100616437911,
+          "stft": 7.431874171085528,
+          "peak": 2.8909093645476873,
+          "wave": 0.0,
+          "sweep": 4.526996074874582,
+          "harmt": 7.467811221167873
+        },
+        "level_db": -1.3275579072099624,
+        "harm_within_1db": 18.11023622047244,
+        "harm_within_3db": 45.66929133858268,
+        "harm_within_6db": 85.8267716535433,
+        "harm_mean_abs_db": 4.039396544605942,
+        "harm_mean_abs_db_first10": 1.1852744913879731,
+        "worst_harmonics": [
+          {
+            "k": 28,
+            "hz": 1831.4,
+            "ref_db": -19.1,
+            "sim_db": -33.6,
+            "err_db": -13.3
+          },
+          {
+            "k": 27,
+            "hz": 1766.0,
+            "ref_db": -18.9,
+            "sim_db": -31.9,
+            "err_db": -13.0
+          },
+          {
+            "k": 29,
+            "hz": 1896.8,
+            "ref_db": -19.4,
+            "sim_db": -35.2,
+            "err_db": -12.8
+          },
+          {
+            "k": 30,
+            "hz": 1962.2,
+            "ref_db": -19.6,
+            "sim_db": -36.7,
+            "err_db": -12.7
+          },
+          {
+            "k": 31,
+            "hz": 2027.6,
+            "ref_db": -19.9,
+            "sim_db": -38.1,
+            "err_db": -12.6
+          },
+          {
+            "k": 32,
+            "hz": 2093.0,
+            "ref_db": -20.1,
+            "sim_db": -39.4,
+            "err_db": -12.3
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 2.89
+        }
+      },
+      {
+        "cost": 1.2713481603494803,
+        "components": {
+          "harm": 2.866251947408987,
+          "inter": 0.0,
+          "env": 2.529417842535064,
+          "stft": 7.629930267015466,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 5.52173185636263
+        },
+        "level_db": 0.8637542307980061,
+        "harm_within_1db": 9.75609756097561,
+        "harm_within_3db": 24.390243902439025,
+        "harm_within_6db": 58.536585365853654,
+        "harm_mean_abs_db": 4.715659741619354,
+        "harm_mean_abs_db_first10": 2.3057630284898742,
+        "worst_harmonics": [
+          {
+            "k": 18,
+            "hz": 1177.3,
+            "ref_db": -51.2,
+            "sim_db": -58.1,
+            "err_db": -6.9
+          },
+          {
+            "k": 19,
+            "hz": 1242.7,
+            "ref_db": -52.9,
+            "sim_db": -60.0,
+            "err_db": -6.9
+          },
+          {
+            "k": 20,
+            "hz": 1308.1,
+            "ref_db": -54.6,
+            "sim_db": -61.9,
+            "err_db": -6.8
+          },
+          {
+            "k": 21,
+            "hz": 1373.5,
+            "ref_db": -56.2,
+            "sim_db": -63.7,
+            "err_db": -6.7
+          },
+          {
+            "k": 22,
+            "hz": 1438.9,
+            "ref_db": -57.8,
+            "sim_db": -65.5,
+            "err_db": -6.7
+          },
+          {
+            "k": 17,
+            "hz": 1111.9,
+            "ref_db": -49.4,
+            "sim_db": -56.0,
+            "err_db": -6.6
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 1.2101967208165996,
+        "components": {
+          "harm": 2.125723640559241,
+          "inter": 0.8747166475295128,
+          "env": 4.664571263063496,
+          "stft": 5.77408214226076,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 3.8849635610617197
+        },
+        "level_db": 4.847904032370441,
+        "harm_within_1db": 37.03703703703704,
+        "harm_within_3db": 74.07407407407408,
+        "harm_within_6db": 88.88888888888889,
+        "harm_mean_abs_db": 2.188580396674197,
+        "harm_mean_abs_db_first10": 4.140602570726616,
+        "worst_harmonics": [
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -9.1,
+            "sim_db": -1.8,
+            "err_db": 7.3
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -11.8,
+            "sim_db": -4.9,
+            "err_db": 6.9
+          },
+          {
+            "k": 2,
+            "hz": 130.8,
+            "ref_db": -4.9,
+            "sim_db": 1.4,
+            "err_db": 6.3
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -13.9,
+            "sim_db": -7.9,
+            "err_db": 6.0
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -15.5,
+            "sim_db": -10.8,
+            "err_db": 4.8
+          },
+          {
+            "k": 1,
+            "hz": 65.4,
+            "ref_db": 0.0,
+            "sim_db": 3.7,
+            "err_db": 3.7
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 4.752777967764799,
+        "components": {
+          "harm": 3.119883866781311,
+          "inter": 0.4370311431285322,
+          "env": 3.232231374437634,
+          "stft": 8.642218720062079,
+          "peak": 6.427363942562275,
+          "wave": 0.0,
+          "sweep": 3.8418838567960703,
+          "harmt": 7.938024740351465
+        },
+        "level_db": 1.5175196136783187,
+        "harm_within_1db": 6.122448979591836,
+        "harm_within_3db": 26.53061224489796,
+        "harm_within_6db": 57.14285714285714,
+        "harm_mean_abs_db": 4.905088611865323,
+        "harm_mean_abs_db_first10": 2.2264269521825093,
+        "worst_harmonics": [
+          {
+            "k": 25,
+            "hz": 1635.2,
+            "ref_db": -50.7,
+            "sim_db": -58.7,
+            "err_db": -7.9
+          },
+          {
+            "k": 24,
+            "hz": 1569.8,
+            "ref_db": -49.3,
+            "sim_db": -57.3,
+            "err_db": -7.9
+          },
+          {
+            "k": 26,
+            "hz": 1700.6,
+            "ref_db": -52.1,
+            "sim_db": -60.0,
+            "err_db": -7.9
+          },
+          {
+            "k": 27,
+            "hz": 1766.0,
+            "ref_db": -53.5,
+            "sim_db": -61.3,
+            "err_db": -7.8
+          },
+          {
+            "k": 28,
+            "hz": 1831.4,
+            "ref_db": -54.9,
+            "sim_db": -62.7,
+            "err_db": -7.8
+          },
+          {
+            "k": 29,
+            "hz": 1896.8,
+            "ref_db": -56.3,
+            "sim_db": -64.0,
+            "err_db": -7.7
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 588.7,
+          "sim_freq_hz": 261.6,
+          "freq_ratio_semitones": -14.04,
+          "ref_height_db": -10.3,
+          "sim_height_db": -1.1,
+          "shape_error_db": 6.43
+        }
+      },
+      {
+        "cost": 4.473931079178703,
+        "components": {
+          "harm": 1.8618235889507506,
+          "inter": 0.6899880263750803,
+          "env": 3.2251209083360104,
+          "stft": 11.502573890692977,
+          "peak": 4.111772578895991,
+          "wave": 0.0,
+          "sweep": 5.17017804600795,
+          "harmt": 10.331858186936692
+        },
+        "level_db": 0.7152258043441924,
+        "harm_within_1db": 37.68115942028986,
+        "harm_within_3db": 71.01449275362319,
+        "harm_within_6db": 98.55072463768117,
+        "harm_mean_abs_db": 2.012711311560571,
+        "harm_mean_abs_db_first10": 2.6591397099079623,
+        "worst_harmonics": [
+          {
+            "k": 43,
+            "hz": 2812.5,
+            "ref_db": -55.8,
+            "sim_db": -62.1,
+            "err_db": -6.3
+          },
+          {
+            "k": 44,
+            "hz": 2877.9,
+            "ref_db": -57.0,
+            "sim_db": -62.7,
+            "err_db": -5.7
+          },
+          {
+            "k": 42,
+            "hz": 2747.1,
+            "ref_db": -54.8,
+            "sim_db": -60.5,
+            "err_db": -5.7
+          },
+          {
+            "k": 45,
+            "hz": 2943.3,
+            "ref_db": -57.9,
+            "sim_db": -63.0,
+            "err_db": -5.0
+          },
+          {
+            "k": 18,
+            "hz": 1177.3,
+            "ref_db": -20.6,
+            "sim_db": -25.3,
+            "err_db": -4.8
+          },
+          {
+            "k": 41,
+            "hz": 2681.7,
+            "ref_db": -54.2,
+            "sim_db": -58.7,
+            "err_db": -4.6
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 981.1,
+          "sim_freq_hz": 14258.6,
+          "freq_ratio_semitones": 46.34,
+          "ref_height_db": -6.4,
+          "sim_height_db": -140.6,
+          "shape_error_db": 4.11
+        }
+      },
+      {
+        "cost": 1.8184489276732088,
+        "components": {
+          "harm": 4.07396840846327,
+          "inter": 2.5733081662115826,
+          "env": 6.026551759390933,
+          "stft": 7.2694689364918466,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 8.184853296574493
+        },
+        "level_db": 6.000438742513503,
+        "harm_within_1db": 6.0606060606060606,
+        "harm_within_3db": 24.242424242424242,
+        "harm_within_6db": 45.45454545454545,
+        "harm_mean_abs_db": 5.916845760159414,
+        "harm_mean_abs_db_first10": 5.86229874190106,
+        "worst_harmonics": [
+          {
+            "k": 29,
+            "hz": 1896.8,
+            "ref_db": -78.0,
+            "sim_db": -66.2,
+            "err_db": 11.9
+          },
+          {
+            "k": 27,
+            "hz": 1766.0,
+            "ref_db": -74.6,
+            "sim_db": -63.8,
+            "err_db": 10.8
+          },
+          {
+            "k": 15,
+            "hz": 981.1,
+            "ref_db": -47.8,
+            "sim_db": -64.2,
+            "err_db": -10.0
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -36.6,
+            "sim_db": -26.6,
+            "err_db": 9.9
+          },
+          {
+            "k": 10,
+            "hz": 654.1,
+            "ref_db": -41.1,
+            "sim_db": -31.3,
+            "err_db": 9.8
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -31.4,
+            "sim_db": -21.7,
+            "err_db": 9.7
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 1.0183539329018325,
+        "components": {
+          "harm": 1.521089768471388,
+          "inter": 0.014403909835590922,
+          "env": 3.0119498508048728,
+          "stft": 6.668092818607462,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 3.8908954526001835
+        },
+        "level_db": 4.208579707003626,
+        "harm_within_1db": 24.390243902439025,
+        "harm_within_3db": 82.92682926829268,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.8721829707214355,
+        "harm_mean_abs_db_first10": 2.366243469278867,
+        "worst_harmonics": [
+          {
+            "k": 1,
+            "hz": 65.4,
+            "ref_db": 0.0,
+            "sim_db": 4.5,
+            "err_db": 4.5
+          },
+          {
+            "k": 2,
+            "hz": 130.8,
+            "ref_db": -4.7,
+            "sim_db": -0.7,
+            "err_db": 4.0
+          },
+          {
+            "k": 38,
+            "hz": 2485.4,
+            "ref_db": -76.5,
+            "sim_db": -80.1,
+            "err_db": -3.5
+          },
+          {
+            "k": 37,
+            "hz": 2420.0,
+            "ref_db": -75.6,
+            "sim_db": -79.0,
+            "err_db": -3.4
+          },
+          {
+            "k": 36,
+            "hz": 2354.6,
+            "ref_db": -74.6,
+            "sim_db": -77.9,
+            "err_db": -3.3
+          },
+          {
+            "k": 35,
+            "hz": 2289.2,
+            "ref_db": -73.6,
+            "sim_db": -76.7,
+            "err_db": -3.1
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 3.2253384063063404,
+        "components": {
+          "harm": 1.579003659044481,
+          "inter": 0.2183792706135147,
+          "env": 4.161042874204377,
+          "stft": 8.884460298640704,
+          "peak": 1.423858208514811,
+          "wave": 0.0,
+          "sweep": 4.577149279632302,
+          "harmt": 7.223846990810029
+        },
+        "level_db": 3.605600779569531,
+        "harm_within_1db": 55.319148936170215,
+        "harm_within_3db": 87.2340425531915,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.2706362314507007,
+        "harm_mean_abs_db_first10": 3.527270050155816,
+        "worst_harmonics": [
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -8.9,
+            "sim_db": -4.0,
+            "err_db": 4.9
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -12.2,
+            "sim_db": -7.4,
+            "err_db": 4.8
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -5.4,
+            "sim_db": -1.1,
+            "err_db": 4.4
+          },
+          {
+            "k": 2,
+            "hz": 130.8,
+            "ref_db": -4.0,
+            "sim_db": 0.2,
+            "err_db": 4.2
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -5.9,
+            "sim_db": -2.0,
+            "err_db": 3.9
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -15.1,
+            "sim_db": -11.4,
+            "err_db": 3.7
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 1.42
+        }
+      }
+    ]
+  },
+  "after": {
+    "aggregate": {
+      "cost": 2.2599798748357443,
+      "harm_within_1db": 25.665660071448304,
+      "harm_within_3db": 75.81788798309003,
+      "harm_within_6db": 96.68637445778194,
+      "harm_mean_abs_db": 2.2230083637366325,
+      "level_rms_db": 2.986298667232577,
+      "harm": 1.8303404297269212,
+      "inter": 0.5319021676959755,
+      "env": 3.453395689465624,
+      "stft": 7.541531398361291,
+      "wave": 0.0,
+      "sweep": 2.7048022712930297,
+      "harmt": 6.030620429235049,
+      "peak": 1.9992645772898134,
+      "objective": 2.2599798748357443,
+      "gain_db": -10.843013976405
+    },
+    "samples": [
+      {
+        "cost": 1.143364870790658,
+        "components": {
+          "harm": 2.0498783942322514,
+          "inter": 0.0,
+          "env": 4.128885465153609,
+          "stft": 6.0634186312651135,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 4.570614467490321
+        },
+        "level_db": -3.2615651943823982,
+        "harm_within_1db": 0.0,
+        "harm_within_3db": 36.0,
+        "harm_within_6db": 92.0,
+        "harm_mean_abs_db": 3.8427527083202775,
+        "harm_mean_abs_db_first10": 2.327835833794544,
+        "worst_harmonics": [
+          {
+            "k": 17,
+            "hz": 1111.9,
+            "ref_db": -65.4,
+            "sim_db": -72.3,
+            "err_db": -6.1
+          },
+          {
+            "k": 21,
+            "hz": 1373.5,
+            "ref_db": -72.7,
+            "sim_db": -80.7,
+            "err_db": -6.1
+          },
+          {
+            "k": 20,
+            "hz": 1308.1,
+            "ref_db": -71.0,
+            "sim_db": -78.7,
+            "err_db": -5.8
+          },
+          {
+            "k": 18,
+            "hz": 1177.3,
+            "ref_db": -67.5,
+            "sim_db": -74.6,
+            "err_db": -5.7
+          },
+          {
+            "k": 14,
+            "hz": 915.7,
+            "ref_db": -59.1,
+            "sim_db": -64.7,
+            "err_db": -5.6
+          },
+          {
+            "k": 16,
+            "hz": 1046.5,
+            "ref_db": -63.5,
+            "sim_db": -69.9,
+            "err_db": -5.6
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 1.4378147240814334,
+        "components": {
+          "harm": 1.5420175003311027,
+          "inter": 0.0,
+          "env": 1.5721832563896696,
+          "stft": 8.601114481184224,
+          "peak": 0.6814908312898964,
+          "wave": 0.0,
+          "sweep": 0.4973469969055587,
+          "harmt": 6.670046667948076
+        },
+        "level_db": -1.1642794887895944,
+        "harm_within_1db": 10.714285714285714,
+        "harm_within_3db": 46.42857142857143,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 2.878199733700259,
+        "harm_mean_abs_db_first10": 1.326448001370067,
+        "worst_harmonics": [
+          {
+            "k": 21,
+            "hz": 1373.5,
+            "ref_db": -68.4,
+            "sim_db": -73.8,
+            "err_db": -4.5
+          },
+          {
+            "k": 25,
+            "hz": 1635.2,
+            "ref_db": -74.7,
+            "sim_db": -80.9,
+            "err_db": -4.4
+          },
+          {
+            "k": 19,
+            "hz": 1242.7,
+            "ref_db": -64.8,
+            "sim_db": -69.6,
+            "err_db": -4.4
+          },
+          {
+            "k": 23,
+            "hz": 1504.3,
+            "ref_db": -71.7,
+            "sim_db": -77.5,
+            "err_db": -4.4
+          },
+          {
+            "k": 17,
+            "hz": 1111.9,
+            "ref_db": -60.8,
+            "sim_db": -65.1,
+            "err_db": -4.3
+          },
+          {
+            "k": 20,
+            "hz": 1308.1,
+            "ref_db": -66.6,
+            "sim_db": -71.7,
+            "err_db": -4.3
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 130.8,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": -12.0,
+          "ref_height_db": -1.5,
+          "sim_height_db": 0.0,
+          "shape_error_db": 0.68
+        }
+      },
+      {
+        "cost": 2.6898559185298567,
+        "components": {
+          "harm": 1.9949390421398676,
+          "inter": 0.0,
+          "env": 1.3307668268603383,
+          "stft": 7.651998165048174,
+          "peak": 1.3177899427001358,
+          "wave": 0.0,
+          "sweep": 3.844849033658605,
+          "harmt": 5.746920278794294
+        },
+        "level_db": -0.7979273424015914,
+        "harm_within_1db": 12.5,
+        "harm_within_3db": 37.5,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 3.5427621586553624,
+        "harm_mean_abs_db_first10": 1.2803098196635738,
+        "worst_harmonics": [
+          {
+            "k": 23,
+            "hz": 1504.3,
+            "ref_db": -65.8,
+            "sim_db": -72.6,
+            "err_db": -5.6
+          },
+          {
+            "k": 26,
+            "hz": 1700.6,
+            "ref_db": -70.5,
+            "sim_db": -77.8,
+            "err_db": -5.5
+          },
+          {
+            "k": 20,
+            "hz": 1308.1,
+            "ref_db": -60.5,
+            "sim_db": -66.8,
+            "err_db": -5.4
+          },
+          {
+            "k": 15,
+            "hz": 981.1,
+            "ref_db": -49.8,
+            "sim_db": -55.4,
+            "err_db": -5.3
+          },
+          {
+            "k": 14,
+            "hz": 915.7,
+            "ref_db": -47.4,
+            "sim_db": -52.7,
+            "err_db": -5.3
+          },
+          {
+            "k": 29,
+            "hz": 1896.8,
+            "ref_db": -74.7,
+            "sim_db": -82.4,
+            "err_db": -5.3
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 196.2,
+          "sim_freq_hz": 196.2,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": -0.1,
+          "sim_height_db": 0.5,
+          "shape_error_db": 1.32
+        }
+      },
+      {
+        "cost": 1.0758941690379613,
+        "components": {
+          "harm": 1.1983933383764704,
+          "inter": 0.0,
+          "env": 3.5413454957171218,
+          "stft": 7.510544940504452,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 4.9426404159714545
+        },
+        "level_db": 3.519541135266235,
+        "harm_within_1db": 42.857142857142854,
+        "harm_within_3db": 95.23809523809523,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.2360515006528805,
+        "harm_mean_abs_db_first10": 2.221898760472966,
+        "worst_harmonics": [
+          {
+            "k": 1,
+            "hz": 65.4,
+            "ref_db": 0.0,
+            "sim_db": 3.7,
+            "err_db": 3.7
+          },
+          {
+            "k": 2,
+            "hz": 130.8,
+            "ref_db": -4.7,
+            "sim_db": -1.2,
+            "err_db": 3.5
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -8.7,
+            "sim_db": -6.2,
+            "err_db": 2.6
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -13.0,
+            "sim_db": -10.8,
+            "err_db": 2.2
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -17.0,
+            "sim_db": -15.0,
+            "err_db": 2.1
+          },
+          {
+            "k": 40,
+            "hz": 2616.3,
+            "ref_db": -78.0,
+            "sim_db": -80.1,
+            "err_db": -2.0
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 2.456098571296117,
+        "components": {
+          "harm": 1.686757755713197,
+          "inter": 0.0,
+          "env": 4.235396068443877,
+          "stft": 7.615383217081709,
+          "peak": 1.4998815655877717,
+          "wave": 0.0,
+          "sweep": 2.369352770474599,
+          "harmt": 7.340747579683432
+        },
+        "level_db": 2.50884915303047,
+        "harm_within_1db": 6.521739130434782,
+        "harm_within_3db": 80.43478260869566,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 2.2834886324893486,
+        "harm_mean_abs_db_first10": 3.2180832917352142,
+        "worst_harmonics": [
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -12.3,
+            "sim_db": -7.6,
+            "err_db": 4.6
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -15.2,
+            "sim_db": -11.2,
+            "err_db": 4.1
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -8.9,
+            "sim_db": -4.9,
+            "err_db": 4.0
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -18.3,
+            "sim_db": -14.8,
+            "err_db": 3.4
+          },
+          {
+            "k": 13,
+            "hz": 850.3,
+            "ref_db": -34.1,
+            "sim_db": -30.9,
+            "err_db": 3.2
+          },
+          {
+            "k": 12,
+            "hz": 784.9,
+            "ref_db": -31.3,
+            "sim_db": -28.1,
+            "err_db": 3.2
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 1.5
+        }
+      },
+      {
+        "cost": 3.9138878132399584,
+        "components": {
+          "harm": 1.6376432981815718,
+          "inter": 0.16181025331867852,
+          "env": 1.843195892261586,
+          "stft": 9.410398593961308,
+          "peak": 3.550113322657075,
+          "wave": 0.0,
+          "sweep": 5.028339541406451,
+          "harmt": 8.35801365201469
+        },
+        "level_db": 1.2172493007539846,
+        "harm_within_1db": 20.833333333333336,
+        "harm_within_3db": 81.25,
+        "harm_within_6db": 97.91666666666666,
+        "harm_mean_abs_db": 2.125807705900056,
+        "harm_mean_abs_db_first10": 2.5968136193528943,
+        "worst_harmonics": [
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -7.6,
+            "sim_db": -0.8,
+            "err_db": 6.8
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -9.8,
+            "sim_db": -4.6,
+            "err_db": 5.2
+          },
+          {
+            "k": 14,
+            "hz": 915.7,
+            "ref_db": -31.2,
+            "sim_db": -27.2,
+            "err_db": 4.0
+          },
+          {
+            "k": 17,
+            "hz": 1111.9,
+            "ref_db": -39.0,
+            "sim_db": -35.4,
+            "err_db": 3.5
+          },
+          {
+            "k": 16,
+            "hz": 1046.5,
+            "ref_db": -36.4,
+            "sim_db": -33.0,
+            "err_db": 3.4
+          },
+          {
+            "k": 18,
+            "hz": 1177.3,
+            "ref_db": -41.0,
+            "sim_db": -37.7,
+            "err_db": 3.3
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 327.0,
+          "sim_freq_hz": 457.8,
+          "freq_ratio_semitones": 5.83,
+          "ref_height_db": -1.9,
+          "sim_height_db": -0.3,
+          "shape_error_db": 3.55
+        }
+      },
+      {
+        "cost": 2.055963262137731,
+        "components": {
+          "harm": 3.692812723267203,
+          "inter": 2.1312353679360494,
+          "env": 8.355763685009382,
+          "stft": 8.892533961209823,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 5.458566622598554
+        },
+        "level_db": 8.325302445501112,
+        "harm_within_1db": 14.423076923076922,
+        "harm_within_3db": 88.46153846153845,
+        "harm_within_6db": 92.3076923076923,
+        "harm_mean_abs_db": 2.053337222098414,
+        "harm_mean_abs_db_first10": 8.092083814199773,
+        "worst_harmonics": [
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -8.4,
+            "sim_db": 2.9,
+            "err_db": 11.2
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -10.7,
+            "sim_db": 0.0,
+            "err_db": 10.8
+          },
+          {
+            "k": 2,
+            "hz": 130.8,
+            "ref_db": -4.9,
+            "sim_db": 5.5,
+            "err_db": 10.4
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -12.5,
+            "sim_db": -2.7,
+            "err_db": 9.8
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -13.9,
+            "sim_db": -5.3,
+            "err_db": 8.6
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -15.1,
+            "sim_db": -7.6,
+            "err_db": 7.5
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 3.002045160050859,
+        "components": {
+          "harm": 2.293552494527449,
+          "inter": 1.5516598782072364,
+          "env": 3.203222450548999,
+          "stft": 5.874934690556725,
+          "peak": 2.7122414890588877,
+          "wave": 0.0,
+          "sweep": 3.058876618783987,
+          "harmt": 3.668339089840148
+        },
+        "level_db": 3.372549374111027,
+        "harm_within_1db": 69.29133858267717,
+        "harm_within_3db": 88.18897637795276,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.1075270855163246,
+        "harm_mean_abs_db_first10": 4.999759817361086,
+        "worst_harmonics": [
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -11.9,
+            "sim_db": -6.0,
+            "err_db": 5.9
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -13.0,
+            "sim_db": -7.2,
+            "err_db": 5.8
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -10.4,
+            "sim_db": -4.6,
+            "err_db": 5.7
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -13.8,
+            "sim_db": -8.2,
+            "err_db": 5.7
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -14.5,
+            "sim_db": -9.0,
+            "err_db": 5.5
+          },
+          {
+            "k": 9,
+            "hz": 588.7,
+            "ref_db": -15.0,
+            "sim_db": -9.8,
+            "err_db": 5.3
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 2.71
+        }
+      },
+      {
+        "cost": 1.9177767356999866,
+        "components": {
+          "harm": 1.7807169106693024,
+          "inter": 1.0087273609979888,
+          "env": 2.0496559261006864,
+          "stft": 3.672103314744949,
+          "peak": 2.348771632642323,
+          "wave": 0.0,
+          "sweep": 1.1973914807493258,
+          "harmt": 4.115669702755157
+        },
+        "level_db": -0.313097006871919,
+        "harm_within_1db": 12.62135922330097,
+        "harm_within_3db": 93.20388349514563,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.9684247557042682,
+        "harm_mean_abs_db_first10": 2.551791222291186,
+        "worst_harmonics": [
+          {
+            "k": 26,
+            "hz": 1700.6,
+            "ref_db": -3.9,
+            "sim_db": -9.2,
+            "err_db": -5.3
+          },
+          {
+            "k": 25,
+            "hz": 1635.2,
+            "ref_db": -7.2,
+            "sim_db": -10.7,
+            "err_db": -3.5
+          },
+          {
+            "k": 32,
+            "hz": 2093.0,
+            "ref_db": -11.5,
+            "sim_db": -14.9,
+            "err_db": -3.5
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -12.1,
+            "sim_db": -8.9,
+            "err_db": 3.2
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -13.3,
+            "sim_db": -10.1,
+            "err_db": 3.2
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -14.3,
+            "sim_db": -11.2,
+            "err_db": 3.1
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 1700.6,
+          "sim_freq_hz": 1831.4,
+          "freq_ratio_semitones": 1.28,
+          "ref_height_db": -3.9,
+          "sim_height_db": -6.6,
+          "shape_error_db": 2.35
+        }
+      },
+      {
+        "cost": 2.8645971235196295,
+        "components": {
+          "harm": 2.022521581630232,
+          "inter": 0.0,
+          "env": 2.351672369813138,
+          "stft": 9.132299836282177,
+          "peak": 1.807103917914142,
+          "wave": 0.0,
+          "sweep": 3.262508250745754,
+          "harmt": 8.337611029458419
+        },
+        "level_db": 1.478357010256743,
+        "harm_within_1db": 2.0,
+        "harm_within_3db": 42.0,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 3.219771042108263,
+        "harm_mean_abs_db_first10": 2.1943060927519378,
+        "worst_harmonics": [
+          {
+            "k": 48,
+            "hz": 3139.5,
+            "ref_db": -78.0,
+            "sim_db": -73.4,
+            "err_db": 4.6
+          },
+          {
+            "k": 49,
+            "hz": 3204.9,
+            "ref_db": -78.8,
+            "sim_db": -74.3,
+            "err_db": 4.5
+          },
+          {
+            "k": 47,
+            "hz": 3074.1,
+            "ref_db": -77.1,
+            "sim_db": -72.6,
+            "err_db": 4.5
+          },
+          {
+            "k": 45,
+            "hz": 2943.3,
+            "ref_db": -75.3,
+            "sim_db": -70.8,
+            "err_db": 4.5
+          },
+          {
+            "k": 46,
+            "hz": 3008.7,
+            "ref_db": -76.2,
+            "sim_db": -71.7,
+            "err_db": 4.5
+          },
+          {
+            "k": 50,
+            "hz": 3270.3,
+            "ref_db": -79.6,
+            "sim_db": -75.1,
+            "err_db": 4.5
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 15435.9,
+          "freq_ratio_semitones": 94.59,
+          "ref_height_db": 0.0,
+          "sim_height_db": -145.5,
+          "shape_error_db": 1.81
+        }
+      },
+      {
+        "cost": 2.7463636670284712,
+        "components": {
+          "harm": 0.9529135331029372,
+          "inter": 0.0,
+          "env": 2.522762063409002,
+          "stft": 9.843075718857243,
+          "peak": 1.999588014629468,
+          "wave": 0.0,
+          "sweep": 3.0148822327164737,
+          "harmt": 8.260140560056351
+        },
+        "level_db": 1.199314586176112,
+        "harm_within_1db": 80.0,
+        "harm_within_3db": 96.92307692307692,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 0.8886537826565493,
+        "harm_mean_abs_db_first10": 1.945685304663752,
+        "worst_harmonics": [
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -9.5,
+            "sim_db": -6.1,
+            "err_db": 3.5
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -8.1,
+            "sim_db": -4.9,
+            "err_db": 3.2
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -10.6,
+            "sim_db": -7.7,
+            "err_db": 2.9
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -11.6,
+            "sim_db": -9.4,
+            "err_db": 2.3
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -6.1,
+            "sim_db": -4.2,
+            "err_db": 1.9
+          },
+          {
+            "k": 16,
+            "hz": 1046.5,
+            "ref_db": -21.8,
+            "sim_db": -23.7,
+            "err_db": -1.9
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 2.0
+        }
+      },
+      {
+        "cost": 2.2210294470227714,
+        "components": {
+          "harm": 1.162770071594551,
+          "inter": 0.2558983373119268,
+          "env": 2.1925424332292223,
+          "stft": 7.5358115561453465,
+          "peak": 1.9448224985003923,
+          "wave": 0.0,
+          "sweep": 1.9504336981408597,
+          "harmt": 5.847895427038118
+        },
+        "level_db": -0.10722889722330531,
+        "harm_within_1db": 19.047619047619047,
+        "harm_within_3db": 100.0,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.5145936092784067,
+        "harm_mean_abs_db_first10": 0.89178444411397,
+        "worst_harmonics": [
+          {
+            "k": 30,
+            "hz": 1962.2,
+            "ref_db": -23.3,
+            "sim_db": -26.2,
+            "err_db": -2.8
+          },
+          {
+            "k": 24,
+            "hz": 1569.8,
+            "ref_db": -21.0,
+            "sim_db": -23.7,
+            "err_db": -2.7
+          },
+          {
+            "k": 29,
+            "hz": 1896.8,
+            "ref_db": -22.7,
+            "sim_db": -25.8,
+            "err_db": -2.5
+          },
+          {
+            "k": 31,
+            "hz": 2027.6,
+            "ref_db": -24.1,
+            "sim_db": -26.6,
+            "err_db": -2.5
+          },
+          {
+            "k": 23,
+            "hz": 1504.3,
+            "ref_db": -20.8,
+            "sim_db": -23.2,
+            "err_db": -2.5
+          },
+          {
+            "k": 32,
+            "hz": 2093.0,
+            "ref_db": -24.5,
+            "sim_db": -26.9,
+            "err_db": -2.4
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 1.94
+        }
+      },
+      {
+        "cost": 2.542012694951653,
+        "components": {
+          "harm": 1.6384850837882172,
+          "inter": 0.0,
+          "env": 7.559700618401565,
+          "stft": 7.576750813393453,
+          "peak": 2.3466442197900745,
+          "wave": 0.0,
+          "sweep": 0.9937900520909776,
+          "harmt": 4.9360816074178455
+        },
+        "level_db": -3.2881745768521107,
+        "harm_within_1db": 43.82022471910113,
+        "harm_within_3db": 91.01123595505618,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.3675768878644965,
+        "harm_mean_abs_db_first10": 2.2913157507407718,
+        "worst_harmonics": [
+          {
+            "k": 1,
+            "hz": 65.4,
+            "ref_db": 0.0,
+            "sim_db": -4.5,
+            "err_db": -4.5
+          },
+          {
+            "k": 15,
+            "hz": 981.1,
+            "ref_db": -18.4,
+            "sim_db": -22.8,
+            "err_db": -4.4
+          },
+          {
+            "k": 16,
+            "hz": 1046.5,
+            "ref_db": -19.2,
+            "sim_db": -23.5,
+            "err_db": -4.3
+          },
+          {
+            "k": 14,
+            "hz": 915.7,
+            "ref_db": -18.1,
+            "sim_db": -22.1,
+            "err_db": -4.0
+          },
+          {
+            "k": 13,
+            "hz": 850.3,
+            "ref_db": -17.6,
+            "sim_db": -21.4,
+            "err_db": -3.7
+          },
+          {
+            "k": 12,
+            "hz": 784.9,
+            "ref_db": -16.9,
+            "sim_db": -20.6,
+            "err_db": -3.6
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 2.35
+        }
+      },
+      {
+        "cost": 3.482796418466425,
+        "components": {
+          "harm": 2.190567927415304,
+          "inter": 0.4688019831028661,
+          "env": 4.439307281332602,
+          "stft": 5.633129215619773,
+          "peak": 2.879882926020679,
+          "wave": 0.0,
+          "sweep": 4.331862545853296,
+          "harmt": 4.846355403467528
+        },
+        "level_db": 2.1524605942236956,
+        "harm_within_1db": 38.46153846153847,
+        "harm_within_3db": 87.17948717948718,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.5068636381076468,
+        "harm_mean_abs_db_first10": 4.222670369891972,
+        "worst_harmonics": [
+          {
+            "k": 9,
+            "hz": 588.7,
+            "ref_db": -14.8,
+            "sim_db": -9.3,
+            "err_db": 5.4
+          },
+          {
+            "k": 10,
+            "hz": 654.1,
+            "ref_db": -14.9,
+            "sim_db": -9.7,
+            "err_db": 5.3
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -14.4,
+            "sim_db": -9.1,
+            "err_db": 5.3
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -13.8,
+            "sim_db": -8.8,
+            "err_db": 5.1
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -13.0,
+            "sim_db": -8.1,
+            "err_db": 4.9
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -11.9,
+            "sim_db": -7.2,
+            "err_db": 4.8
+          }
+        ],
+        "spurious_hf": [
+          {
+            "type": "harmonic",
+            "hz": 15501.3,
+            "excess_db": 3.9
+          },
+          {
+            "type": "harmonic",
+            "hz": 15435.9,
+            "excess_db": 3.9
+          },
+          {
+            "type": "harmonic",
+            "hz": 15239.7,
+            "excess_db": 3.8
+          }
+        ],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 2.88
+        }
+      },
+      {
+        "cost": 1.880411187568224,
+        "components": {
+          "harm": 1.008964571150128,
+          "inter": 1.236230944353118,
+          "env": 4.919189851248685,
+          "stft": 7.446878406110964,
+          "peak": 0.9799157214365989,
+          "wave": 0.0,
+          "sweep": 1.1458410217549848,
+          "harmt": 6.0570341639579155
+        },
+        "level_db": -2.868064307921363,
+        "harm_within_1db": 20.0,
+        "harm_within_3db": 80.0,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.8545912749773243,
+        "harm_mean_abs_db_first10": 1.8179261264661442,
+        "worst_harmonics": [
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -17.4,
+            "sim_db": -20.7,
+            "err_db": -3.3
+          },
+          {
+            "k": 1,
+            "hz": 65.4,
+            "ref_db": 0.0,
+            "sim_db": -3.1,
+            "err_db": -3.1
+          },
+          {
+            "k": 2,
+            "hz": 130.8,
+            "ref_db": -6.0,
+            "sim_db": -8.6,
+            "err_db": -2.6
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -15.9,
+            "sim_db": -18.4,
+            "err_db": -2.5
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -10.2,
+            "sim_db": -12.0,
+            "err_db": -1.8
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -18.2,
+            "sim_db": -21.7,
+            "err_db": -1.8
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 0.98
+        }
+      },
+      {
+        "cost": 2.2741158226234215,
+        "components": {
+          "harm": 1.5873019020016816,
+          "inter": 2.1532181011984535,
+          "env": 4.898811435538178,
+          "stft": 6.039315333804462,
+          "peak": 2.0940232507498826,
+          "wave": 0.0,
+          "sweep": 1.2152537889620014,
+          "harmt": 5.7528984526920794
+        },
+        "level_db": -1.4844667345829263,
+        "harm_within_1db": 14.736842105263156,
+        "harm_within_3db": 100.0,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 2.1723401414540855,
+        "harm_mean_abs_db_first10": 0.7426752328610953,
+        "worst_harmonics": [
+          {
+            "k": 19,
+            "hz": 1242.7,
+            "ref_db": -20.2,
+            "sim_db": -23.5,
+            "err_db": -2.9
+          },
+          {
+            "k": 16,
+            "hz": 1046.5,
+            "ref_db": -18.8,
+            "sim_db": -21.7,
+            "err_db": -2.9
+          },
+          {
+            "k": 17,
+            "hz": 1111.9,
+            "ref_db": -19.4,
+            "sim_db": -22.3,
+            "err_db": -2.9
+          },
+          {
+            "k": 80,
+            "hz": 5232.5,
+            "ref_db": -66.2,
+            "sim_db": -63.3,
+            "err_db": 2.9
+          },
+          {
+            "k": 78,
+            "hz": 5101.7,
+            "ref_db": -65.2,
+            "sim_db": -62.3,
+            "err_db": 2.9
+          },
+          {
+            "k": 77,
+            "hz": 5036.3,
+            "ref_db": -64.7,
+            "sim_db": -61.8,
+            "err_db": 2.9
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 2.09
+        }
+      },
+      {
+        "cost": 2.3003738479637246,
+        "components": {
+          "harm": 2.916514157062353,
+          "inter": 0.0,
+          "env": 2.5799917271727693,
+          "stft": 5.5828056046125,
+          "peak": 2.4932102146825117,
+          "wave": 0.0,
+          "sweep": 1.1965016487266342,
+          "harmt": 3.162681801388734
+        },
+        "level_db": -3.3661693599083216,
+        "harm_within_1db": 10.236220472440944,
+        "harm_within_3db": 71.65354330708661,
+        "harm_within_6db": 89.76377952755905,
+        "harm_mean_abs_db": 2.4397489467485056,
+        "harm_mean_abs_db_first10": 2.0809455803270986,
+        "worst_harmonics": [
+          {
+            "k": 38,
+            "hz": 2485.4,
+            "ref_db": -21.7,
+            "sim_db": -29.1,
+            "err_db": -7.4
+          },
+          {
+            "k": 37,
+            "hz": 2420.0,
+            "ref_db": -21.4,
+            "sim_db": -28.7,
+            "err_db": -7.3
+          },
+          {
+            "k": 39,
+            "hz": 2550.8,
+            "ref_db": -22.3,
+            "sim_db": -29.6,
+            "err_db": -7.3
+          },
+          {
+            "k": 36,
+            "hz": 2354.6,
+            "ref_db": -21.1,
+            "sim_db": -28.3,
+            "err_db": -7.2
+          },
+          {
+            "k": 35,
+            "hz": 2289.2,
+            "ref_db": -20.8,
+            "sim_db": -27.9,
+            "err_db": -7.1
+          },
+          {
+            "k": 40,
+            "hz": 2616.3,
+            "ref_db": -23.0,
+            "sim_db": -30.1,
+            "err_db": -7.0
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 2.49
+        }
+      },
+      {
+        "cost": 1.036895109521339,
+        "components": {
+          "harm": 1.8123145791560424,
+          "inter": 0.0,
+          "env": 1.5606988318544457,
+          "stft": 7.7758608788502075,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 5.6506817174078305
+        },
+        "level_db": 0.7641670343607672,
+        "harm_within_1db": 12.195121951219512,
+        "harm_within_3db": 43.90243902439025,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 3.0672497916064083,
+        "harm_mean_abs_db_first10": 1.317339255238236,
+        "worst_harmonics": [
+          {
+            "k": 35,
+            "hz": 2289.2,
+            "ref_db": -74.0,
+            "sim_db": -79.1,
+            "err_db": -5.1
+          },
+          {
+            "k": 34,
+            "hz": 2223.8,
+            "ref_db": -73.0,
+            "sim_db": -78.0,
+            "err_db": -5.0
+          },
+          {
+            "k": 33,
+            "hz": 2158.4,
+            "ref_db": -71.9,
+            "sim_db": -76.8,
+            "err_db": -4.9
+          },
+          {
+            "k": 36,
+            "hz": 2354.6,
+            "ref_db": -75.1,
+            "sim_db": -80.3,
+            "err_db": -4.9
+          },
+          {
+            "k": 32,
+            "hz": 2093.0,
+            "ref_db": -70.8,
+            "sim_db": -75.6,
+            "err_db": -4.8
+          },
+          {
+            "k": 31,
+            "hz": 2027.6,
+            "ref_db": -69.7,
+            "sim_db": -74.4,
+            "err_db": -4.7
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 1.0083345741098382,
+        "components": {
+          "harm": 1.2336746976710846,
+          "inter": 0.09366620138100222,
+          "env": 4.255012221396662,
+          "stft": 5.834987458943647,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 3.617250492269143
+        },
+        "level_db": 1.4431688939638998,
+        "harm_within_1db": 33.33333333333333,
+        "harm_within_3db": 77.77777777777779,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.7638327779670817,
+        "harm_mean_abs_db_first10": 2.0239041481166824,
+        "worst_harmonics": [
+          {
+            "k": 11,
+            "hz": 719.5,
+            "ref_db": -21.7,
+            "sim_db": -25.5,
+            "err_db": -3.9
+          },
+          {
+            "k": 12,
+            "hz": 784.9,
+            "ref_db": -22.7,
+            "sim_db": -27.1,
+            "err_db": -3.8
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -9.1,
+            "sim_db": -5.5,
+            "err_db": 3.6
+          },
+          {
+            "k": 13,
+            "hz": 850.3,
+            "ref_db": -23.8,
+            "sim_db": -28.5,
+            "err_db": -3.3
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -11.8,
+            "sim_db": -8.6,
+            "err_db": 3.2
+          },
+          {
+            "k": 10,
+            "hz": 654.1,
+            "ref_db": -20.6,
+            "sim_db": -23.7,
+            "err_db": -3.1
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 2.9564712953644294,
+        "components": {
+          "harm": 1.3227648220423012,
+          "inter": 0.1147030878137266,
+          "env": 1.8832506367668111,
+          "stft": 8.331595247391222,
+          "peak": 1.8420332955812522,
+          "wave": 0.0,
+          "sweep": 4.1675077343952145,
+          "harmt": 7.442094732527958
+        },
+        "level_db": -0.0385509153635165,
+        "harm_within_1db": 22.448979591836736,
+        "harm_within_3db": 77.55102040816327,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.9748855056965606,
+        "harm_mean_abs_db_first10": 0.7298571095236468,
+        "worst_harmonics": [
+          {
+            "k": 28,
+            "hz": 1831.4,
+            "ref_db": -54.9,
+            "sim_db": -59.2,
+            "err_db": -4.3
+          },
+          {
+            "k": 29,
+            "hz": 1896.8,
+            "ref_db": -56.3,
+            "sim_db": -60.6,
+            "err_db": -4.3
+          },
+          {
+            "k": 27,
+            "hz": 1766.0,
+            "ref_db": -53.5,
+            "sim_db": -57.7,
+            "err_db": -4.2
+          },
+          {
+            "k": 30,
+            "hz": 1962.2,
+            "ref_db": -57.8,
+            "sim_db": -61.8,
+            "err_db": -4.0
+          },
+          {
+            "k": 26,
+            "hz": 1700.6,
+            "ref_db": -52.1,
+            "sim_db": -56.1,
+            "err_db": -3.9
+          },
+          {
+            "k": 31,
+            "hz": 2027.6,
+            "ref_db": -59.1,
+            "sim_db": -62.9,
+            "err_db": -3.8
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 588.7,
+          "sim_freq_hz": 12296.4,
+          "freq_ratio_semitones": 52.62,
+          "ref_height_db": -10.3,
+          "sim_height_db": -149.3,
+          "shape_error_db": 1.84
+        }
+      },
+      {
+        "cost": 3.547415392658711,
+        "components": {
+          "harm": 1.0028855803001921,
+          "inter": 0.972837455789802,
+          "env": 2.1252097482472108,
+          "stft": 10.763616883393997,
+          "peak": 2.007597181747407,
+          "wave": 0.0,
+          "sweep": 5.232821790276942,
+          "harmt": 9.347521599945594
+        },
+        "level_db": -1.544389382311665,
+        "harm_within_1db": 55.072463768115945,
+        "harm_within_3db": 97.10144927536231,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.0747391866873508,
+        "harm_mean_abs_db_first10": 1.0381300223797005,
+        "worst_harmonics": [
+          {
+            "k": 47,
+            "hz": 3074.1,
+            "ref_db": -60.3,
+            "sim_db": -63.5,
+            "err_db": -3.2
+          },
+          {
+            "k": 48,
+            "hz": 3139.5,
+            "ref_db": -61.9,
+            "sim_db": -65.0,
+            "err_db": -3.1
+          },
+          {
+            "k": 1,
+            "hz": 65.4,
+            "ref_db": 0.0,
+            "sim_db": -2.7,
+            "err_db": -2.7
+          },
+          {
+            "k": 46,
+            "hz": 3008.7,
+            "ref_db": -58.8,
+            "sim_db": -61.5,
+            "err_db": -2.7
+          },
+          {
+            "k": 49,
+            "hz": 3204.9,
+            "ref_db": -63.2,
+            "sim_db": -65.7,
+            "err_db": -2.5
+          },
+          {
+            "k": 69,
+            "hz": 4513.0,
+            "ref_db": -79.0,
+            "sim_db": -76.9,
+            "err_db": 2.2
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 981.1,
+          "sim_freq_hz": 15305.1,
+          "freq_ratio_semitones": 47.56,
+          "ref_height_db": -6.4,
+          "sim_height_db": -141.7,
+          "shape_error_db": 2.01
+        }
+      },
+      {
+        "cost": 1.9899452121072108,
+        "components": {
+          "harm": 4.533020378362105,
+          "inter": 2.6168630532925654,
+          "env": 6.090633968980122,
+          "stft": 8.40920889898952,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 8.885458468210018
+        },
+        "level_db": 6.0742255494024,
+        "harm_within_1db": 12.121212121212121,
+        "harm_within_3db": 21.21212121212121,
+        "harm_within_6db": 48.484848484848484,
+        "harm_mean_abs_db": 6.4992466613941415,
+        "harm_mean_abs_db_first10": 6.499520697936544,
+        "worst_harmonics": [
+          {
+            "k": 29,
+            "hz": 1896.8,
+            "ref_db": -78.0,
+            "sim_db": -64.1,
+            "err_db": 13.9
+          },
+          {
+            "k": 27,
+            "hz": 1766.0,
+            "ref_db": -74.6,
+            "sim_db": -61.8,
+            "err_db": 12.8
+          },
+          {
+            "k": 10,
+            "hz": 654.1,
+            "ref_db": -41.1,
+            "sim_db": -30.1,
+            "err_db": 11.0
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -36.6,
+            "sim_db": -25.6,
+            "err_db": 11.0
+          },
+          {
+            "k": 25,
+            "hz": 1635.2,
+            "ref_db": -70.6,
+            "sim_db": -59.8,
+            "err_db": 10.8
+          },
+          {
+            "k": 12,
+            "hz": 784.9,
+            "ref_db": -45.2,
+            "sim_db": -34.5,
+            "err_db": 10.7
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 0.9327987384023791,
+        "components": {
+          "harm": 1.179504616089078,
+          "inter": 0.0,
+          "env": 2.3665247029025327,
+          "stft": 6.93445029494905,
+          "peak": 0.0,
+          "wave": 0.0,
+          "sweep": 0.0,
+          "harmt": 4.196291372913627
+        },
+        "level_db": 3.3953148481626823,
+        "harm_within_1db": 41.46341463414634,
+        "harm_within_3db": 95.1219512195122,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.2333889928582253,
+        "harm_mean_abs_db_first10": 2.2800755607867265,
+        "worst_harmonics": [
+          {
+            "k": 1,
+            "hz": 65.4,
+            "ref_db": 0.0,
+            "sim_db": 3.6,
+            "err_db": 3.6
+          },
+          {
+            "k": 2,
+            "hz": 130.8,
+            "ref_db": -4.7,
+            "sim_db": -1.3,
+            "err_db": 3.4
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -8.8,
+            "sim_db": -6.3,
+            "err_db": 2.5
+          },
+          {
+            "k": 4,
+            "hz": 261.6,
+            "ref_db": -13.2,
+            "sim_db": -10.9,
+            "err_db": 2.2
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -17.3,
+            "sim_db": -15.2,
+            "err_db": 2.1
+          },
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -21.1,
+            "sim_db": -19.0,
+            "err_db": 2.1
+          }
+        ],
+        "spurious_hf": [],
+        "peak": null
+      },
+      {
+        "cost": 2.7632552398850656,
+        "components": {
+          "harm": 1.4872553546414853,
+          "inter": 0.0,
+          "env": 2.875773590396755,
+          "stft": 8.864537417770945,
+          "peak": 1.4823877889383306,
+          "wave": 0.0,
+          "sweep": 3.4740794063398326,
+          "harmt": 7.523334995793894
+        },
+        "level_db": 2.4772380051159053,
+        "harm_within_1db": 21.27659574468085,
+        "harm_within_3db": 91.48936170212765,
+        "harm_within_6db": 100.0,
+        "harm_mean_abs_db": 1.7363669872369434,
+        "harm_mean_abs_db_first10": 3.1006591150504006,
+        "worst_harmonics": [
+          {
+            "k": 6,
+            "hz": 392.4,
+            "ref_db": -12.2,
+            "sim_db": -7.7,
+            "err_db": 4.5
+          },
+          {
+            "k": 5,
+            "hz": 327.0,
+            "ref_db": -8.9,
+            "sim_db": -5.0,
+            "err_db": 3.9
+          },
+          {
+            "k": 7,
+            "hz": 457.8,
+            "ref_db": -15.1,
+            "sim_db": -11.2,
+            "err_db": 3.9
+          },
+          {
+            "k": 8,
+            "hz": 523.3,
+            "ref_db": -18.0,
+            "sim_db": -14.8,
+            "err_db": 3.1
+          },
+          {
+            "k": 3,
+            "hz": 196.2,
+            "ref_db": -5.4,
+            "sim_db": -2.4,
+            "err_db": 3.0
+          },
+          {
+            "k": 2,
+            "hz": 130.8,
+            "ref_db": -4.0,
+            "sim_db": -1.0,
+            "err_db": 3.0
+          }
+        ],
+        "spurious_hf": [],
+        "peak": {
+          "ref_freq_hz": 65.4,
+          "sim_freq_hz": 65.4,
+          "freq_ratio_semitones": 0.0,
+          "ref_height_db": 0.0,
+          "sim_height_db": 0.0,
+          "shape_error_db": 1.48
+        }
+      }
+    ]
+  },
+  "model_parameters": {
+    "oscSquareLevel": {
+      "before": 0.7055304988399317,
+      "after": 0.7922990536671325,
+      "sensitivity": null
+    },
+    "filterFeedbackGain": {
+      "before": 17.420330396372933,
+      "after": 16.14248597267515,
+      "sensitivity": null
+    },
+    "filterResonanceLimit": {
+      "before": 0.9124452306410816,
+      "after": 0.9216917778192523,
+      "sensitivity": null
+    },
+    "cutoffBaseHz": {
+      "before": 212.17855544076042,
+      "after": 245.0114514252687,
+      "sensitivity": null
+    },
+    "cutoffSpanOct": {
+      "before": 3.3212535737425477,
+      "after": 3.242661659905104,
+      "sensitivity": null
+    },
+    "envModScaleC0Slope": {
+      "before": 2.814244933127905,
+      "after": 5.031202191032839,
+      "sensitivity": null
+    },
+    "envModScaleC1Slope": {
+      "before": 4.479568088816521,
+      "after": 4.025265015295922,
+      "sensitivity": null
+    },
+    "envModOffset": {
+      "before": 0.34907904064426,
+      "after": 0.36667953850739554,
+      "sensitivity": null
+    },
+    "accentSweepDepthOct": {
+      "before": 7.926887843941886,
+      "after": 8.636711520481093,
+      "sensitivity": null
+    },
+    "accentVcaDepth": {
+      "before": 2.2842935528105657,
+      "after": 2.3269930728606645,
+      "sensitivity": null
+    },
+    "vcfDecayMinSec": {
+      "before": 0.0560606750221091,
+      "after": 0.056529523488563986,
+      "sensitivity": null
+    },
+    "vcfDecayMaxSec": {
+      "before": 1.1404342686304567,
+      "after": 1.1216367006072092,
+      "sensitivity": null
+    },
+    "accentDecaySec": {
+      "before": 0.07558787467794514,
+      "after": 0.06338401109489615,
+      "sensitivity": null
+    },
+    "vegDecaySec": {
+      "before": 1.0378911718601105,
+      "after": 1.0253059300156508,
+      "sensitivity": null
+    },
+    "vcaResTapRatio": {
+      "before": 1.0503123933583098,
+      "after": 1.173483315219374,
+      "sensitivity": null
+    },
+    "vcaCutoffLevelDb": {
+      "before": 0.0,
+      "after": -1.185050757250103,
+      "sensitivity": null
+    },
+    "vcaCutoffLevelResDb": {
+      "before": 0.0,
+      "after": -0.21484816407521912,
+      "sensitivity": null
+    }
+  },
+  "knob_positions": {
+    "accent@x0": {
+      "nominal": 0.0,
+      "fitted": 0.0,
+      "sensitivity": null
+    },
+    "accent@x100": {
+      "nominal": 1.0,
+      "fitted": 1.0,
+      "sensitivity": null
+    },
+    "cutoff@x0": {
+      "nominal": 0.0,
+      "fitted": 0.0,
+      "sensitivity": null
+    },
+    "cutoff@x100": {
+      "nominal": 1.0,
+      "fitted": 1.0,
+      "sensitivity": null
+    },
+    "cutoff@x25": {
+      "nominal": 0.25196999999999997,
+      "fitted": 0.25196999999999997,
+      "sensitivity": null
+    },
+    "cutoff@x50": {
+      "nominal": 0.5039399999999999,
+      "fitted": 0.5039399999999999,
+      "sensitivity": null
+    },
+    "decay@x0": {
+      "nominal": 0.0,
+      "fitted": 0.0,
+      "sensitivity": null
+    },
+    "decay@x100": {
+      "nominal": 1.0,
+      "fitted": 1.0,
+      "sensitivity": null
+    },
+    "decay@x50": {
+      "nominal": 0.5039399999999999,
+      "fitted": 0.5039399999999999,
+      "sensitivity": null
+    },
+    "envMod@x0": {
+      "nominal": 0.0,
+      "fitted": 0.0,
+      "sensitivity": null
+    },
+    "envMod@x100": {
+      "nominal": 1.0,
+      "fitted": 1.0,
+      "sensitivity": null
+    },
+    "envMod@x50": {
+      "nominal": 0.5039399999999999,
+      "fitted": 0.5039399999999999,
+      "sensitivity": null
+    },
+    "resonance@x0": {
+      "nominal": 0.0,
+      "fitted": 0.0,
+      "sensitivity": null
+    },
+    "resonance@x100": {
+      "nominal": 1.0,
+      "fitted": 1.0,
+      "sensitivity": null
+    },
+    "resonance@x50": {
+      "nominal": 0.5039399999999999,
+      "fitted": 0.5039399999999999,
+      "sensitivity": null
+    },
+    "resonance@x74": {
+      "nominal": 0.74803,
+      "fitted": 0.74803,
+      "sensitivity": null
+    }
+  },
+  "timing": {
+    "onsetMs": {
+      "before": 0.0,
+      "after": -0.5984961217177123
+    },
+    "gateMs": {
+      "before": 1300.0,
+      "after": 1310.6261407021013
+    }
+  },
+  "absorbed_cutoff_law": {
+    "cutoffBaseHz": 245.0114514252687,
+    "cutoffSpanOct": 3.242661659905104,
+    "cutoffTaperExp": 1.42889
+  },
+  "label_check": {},
+  "suspect_samples": [
+    [
+      "1D-1",
+      [
+        "spectrum is within 1.0 dB of 1E-2 although the cutoff/envMod/decay/accent label differs -- one of the two labels is probably wrong"
+      ]
+    ],
+    [
+      "1A-4",
+      [
+        "spectrum is within 1.2 dB of 1D-1 although the cutoff/envMod/decay/accent label differs -- one of the two labels is probably wrong"
+      ]
+    ],
+    [
+      "1A-6",
+      [
+        "error 3.91 is 1.7x the median"
+      ]
+    ],
+    [
+      "1D-4",
+      [
+        "error 3.55 is 1.6x the median"
+      ]
+    ],
+    [
+      "1B-5",
+      [
+        "error 3.48 is 1.5x the median"
+      ]
+    ]
+  ],
+  "duplicate_labels": [
+    {
+      "a": "1A-4",
+      "b": "1D-1",
+      "knobs": [
+        "cutoff",
+        "envMod",
+        "decay",
+        "accent"
+      ],
+      "spectral_distance_db": 1.2484901471262648
+    },
+    {
+      "a": "1D-1",
+      "b": "1E-2",
+      "knobs": [
+        "cutoff",
+        "envMod",
+        "decay",
+        "accent"
+      ],
+      "spectral_distance_db": 1.043267485458362
+    }
+  ]
+}
