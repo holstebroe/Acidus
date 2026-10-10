@@ -532,10 +532,14 @@ def sweep_valid(freq_log2, hop_sec, settle_sec=0.040, ceiling_oct=np.log2(1.4)):
 SWEEP_MIN_HEIGHT_DB = 6.0   # frames where the reference's peak is at least this clear
 
 
-def sweep_error(rf, sf):
+def sweep_error(rf, sf, gate_ms=None):
     """RMS difference (semitones, clipped at 2 octaves) between the
     reference's and the render's resonant-peak tracks, over the frames where
-    the reference shows a clear peak."""
+    the reference shows a clear peak. gate_ms = (note-on, note-off) in the
+    clip: only frames inside it count. Before and after the note the
+    reference's noise floor can read as a 6 dB "peak" while the render is
+    silent (its tracker then reads 16 kHz), which put a constant ~10 st into
+    every clip with a tail."""
     if "sweep" not in rf or "sweep" not in sf:
         return 0.0
     (rfr, rh), (sfr, _) = rf["sweep"], sf["sweep"]
@@ -543,6 +547,9 @@ def sweep_error(rf, sf):
     if "sweep_valid" not in rf:
         rf["sweep_valid"] = sweep_valid(rfr, 0.010)
     m = (rh[:n] >= SWEEP_MIN_HEIGHT_DB) & rf["sweep_valid"][:n]
+    if gate_ms is not None:
+        centre = 10.0 * np.arange(n) + 15.0   # 30 ms frames every 10 ms
+        m &= (centre >= gate_ms[0]) & (centre <= gate_ms[1])
     if not np.any(m):
         return 0.0
     e = np.clip(12.0 * (sfr[:n] - rfr[:n]), -24.0, 24.0)[m]
@@ -993,7 +1000,7 @@ class Problem:
             "stft": weighted_rms(e["stft"]),
             "peak": weighted_rms(sim_rel - ref.peak_ref_rel, ref.peak_weight),
             "wave": wave_error(ref, sf["y"]) if self.w["wave"] > 0 else 0.0,
-            "sweep": sweep_error(ref.feat, sf),
+            "sweep": sweep_error(ref.feat, sf, (ref.onset_ms, ref.onset_ms + ref.gate_ms)),
             "harmt": weighted_rms(e["harmt"], e["harmt_w"]),
         }
         cost = sum(self.w[k] * comp[k] for k in comp) / sum(self.w.values())

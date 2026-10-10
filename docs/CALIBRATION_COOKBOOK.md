@@ -182,7 +182,7 @@ represents that one setting, and the extra controls do not become plugin knobs.
 See the `hellfish` profile in `calibrations/README.md` for what "mapped onto
 existing constants" looks like.
 
-**A software plugin or emulation.** See [`EMULATION_TRAINING_PLAN.md`](EMULATION_TRAINING_PLAN.md) for a staged, reduced set (145 notes): one MIDI file per stage, rendered from the DAW as one WAV and fitted with `tools/fit_stage.py`. Use an **offline bounce** from a DAW, one note per
+**A software plugin or emulation.** See [`EMULATION_TRAINING_PLAN.md`](EMULATION_TRAINING_PLAN.md) for a staged, reduced set (141 fitted notes plus 44 sequence notes for listening): one MIDI file per stage, rendered from the DAW as one WAV and fitted with `tools/fit_stage.py`. Use an **offline bounce** from a DAW, one note per
 slot on a fixed grid, so the note-on time and gate length are exact (you set them in
 the MIDI clip). Knob positions are exact too (copy the plugin's 0..1 or 0..10
 value and convert to percent), so fit with `--fix knobs` (the knob positions are
@@ -527,6 +527,15 @@ python3 tools/calibrate_reference.py --manifest $M --include M6,M8 --evaluate-on
 As 8.3, but add `--fix knobs` (exact knob values), and use `--fix timing` if the note-on
 and gate in the CSV are sample-exact.
 
+Two circuit models can be fitted: `filterCouplingNetwork` 0 is Open303's empirical coupling
+(`x0x`, `acidvoice`, `hellfish`), 1 is Stinchcombe's full network (`factory`, `x0x-circuit`;
+adds `filterNetworkTimeScale`, drops the five Open303 coupling constants). The switch itself
+is never fitted: fit once with each (`fit_stage.py --network open303|stinchcombe`, or start
+from a profile with the other setting) and choose by listening, not by the score. On one
+resonant note the summary metrics ranked Stinchcombe ahead while its narrow late resonance
+line had smeared out; the Open303 fit kept it. See `CALIBRATION_PARAMETERS.md`, section on
+the coupling network.
+
 ### 8.5 How long
 
 The `ms/eval` figure printed at the start, times the evaluations you can afford. A rough
@@ -638,6 +647,9 @@ same, write it in the source README, and re-run.
 
 1. Listen to `renders/<id>_hardware.wav` against `_after.wav` for the worst notes and
    for at least one Resonance-100 accented note. The score can hide a wrong character.
+   Look at a plain spectrogram too (4096-point FFT, 0-9 kHz): the sweep track and the
+   1/3-octave spectrogram error smooth over a harmonic spacing and miss a narrow
+   resonance line that is too weak or too slow.
 2. Resonant-peak tracks (needs resonant notes from an Env Mod / Decay / Accent sweep):
 
    ```bash
