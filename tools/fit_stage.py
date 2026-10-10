@@ -844,8 +844,9 @@ def main():
     ckpt = fit_dir / "checkpoint.json"
     if args.level_tracking and args.level_pass > 0 and not args.evaluate_only and ckpt.exists():
         level_dir = work / f"fit{suffix}-level"
-        keep = [a for i, a in enumerate(extra) if a.startswith("--w-") or a == "--workers"
-                or (i > 0 and (extra[i - 1].startswith("--w-") or extra[i - 1] == "--workers"))]
+        passed = ("--workers", "--include", "--exclude")
+        keep = [a for i, a in enumerate(extra) if a.startswith("--w-") or a in passed or a.split("=")[0] in passed
+                or (i > 0 and (extra[i - 1].startswith("--w-") or extra[i - 1] in passed))]
         print(f"level pass: {LEVEL_PASS} for up to {args.level_pass:g} min ...", flush=True)
         subprocess.run([sys.executable, str(TOOLS / "calibrate_reference.py"), "--manifest", str(manifest),
                         "--calibration", str(ckpt), "--fix", "knobs", "--w-sweep", "1", "--only", LEVEL_PASS + ",timing",
