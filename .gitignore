@@ -12,3 +12,4 @@ calibration_results_*.log
 # fit_stage.py working audio under training/ (copies of the renders, A/B and Acidus renders)
 training/*/stage*/*.wav
 training/*/stage*/**/renders/
+training/*/stage*/fit*/checkpoint.json
