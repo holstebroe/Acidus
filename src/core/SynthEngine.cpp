@@ -78,6 +78,8 @@ const ParamRange kParamRanges[] = {
     {&SynthParameters::vcaGateOffMs, 0.05f, 1000.0f},
     {&SynthParameters::vcaGateOffAccentMs, 0.05f, 1000.0f},
     {&SynthParameters::vcaResTapRatio, 0.0f, 10.0f},
+    {&SynthParameters::vcaCutoffLevelDb, -12.0f, 12.0f},
+    {&SynthParameters::vcaCutoffLevelResDb, -12.0f, 12.0f},
     {&SynthParameters::vcaGainSaturationDrive, 0.0f, 50.0f},
     {&SynthParameters::vcoOctaveScale, 0.5f, 2.0f},
 
@@ -345,6 +347,20 @@ void SynthEngine::processAudio(float* outLeft, float* outRight, int numFrames) {
         float tapGain = (1.0f + p.vcaResTapRatio * resNorm) / (1.0f + p.vcaResTapRatio);
         float xVal = filterOut * tapGain * vcaGain;
         float vcaSignal = std::tanh(xVal);
+
+        // Cutoff level tracking: a plain gain after the VCA, in dB per
+        // octave of the instantaneous cutoff above 1 kHz. Not part of the
+        // 303 (whose level rises ~14 dB from Cutoff 25 to 100 % at
+        // Resonance 0, SET-A1); it lets a profile match an emulation whose
+        // level stays flat across the knob. 0 (the default) is the circuit,
+        // and since it is applied after every nonlinear stage, setting it
+        // back to 0 changes the level only, never the timbre or the sweep.
+        float levelDbPerOct = p.vcaCutoffLevelDb + (p.vcaCutoffLevelResDb - p.vcaCutoffLevelDb) * resNorm;
+        if (levelDbPerOct != 0.0f) {
+            float levelDb = levelDbPerOct * std::log2(totalCutoff / 1000.0f);
+            levelDb = std::min(std::max(levelDb, -48.0f), 48.0f);
+            vcaSignal *= std::pow(10.0f, levelDb / 20.0f);
+        }
 
         // Volume comes before the pedal, as with a real 303 plugged into
         // one: turning it up drives the Distortion+ harder.

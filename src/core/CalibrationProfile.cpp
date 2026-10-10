@@ -29,6 +29,8 @@ static const CalibrationField kFields[] = {
     ACIDUS_CAL_FIELD(vcaGateOffMs),
     ACIDUS_CAL_FIELD(vcaGateOffAccentMs),
     ACIDUS_CAL_FIELD(vcaResTapRatio),
+    ACIDUS_CAL_FIELD(vcaCutoffLevelDb),
+    ACIDUS_CAL_FIELD(vcaCutoffLevelResDb),
     ACIDUS_CAL_FIELD(vcaGainSaturationDrive),
     ACIDUS_CAL_FIELD(vcoOctaveScale),
     ACIDUS_CAL_FIELD(cutoffBaseHz),

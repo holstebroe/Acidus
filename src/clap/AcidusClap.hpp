@@ -129,7 +129,10 @@ enum ParamId : clap_id {
     PARAM_FILTER_COUPLING_NETWORK = 57,        // Filter.hpp - 0 = Open303 empirical coupling, 1 = Stinchcombe's full network
     PARAM_FILTER_NETWORK_TIME_SCALE = 58,      // Filter.hpp - Stinchcombe network RC time-constant scale
 
-    PARAM_EXPERIMENTAL_COUNT = 59,
+    PARAM_VCA_CUTOFF_LEVEL_DB = 59,            // SynthEngine.cpp - output level vs cutoff at Resonance 0, dB/oct (0 = circuit)
+    PARAM_VCA_CUTOFF_LEVEL_RES_DB = 60,        // SynthEngine.cpp - the same at Resonance max
+
+    PARAM_EXPERIMENTAL_COUNT = 61,
 
 #ifdef ACIDUS_CALIBRATION_BUILD
     PARAM_COUNT = PARAM_EXPERIMENTAL_COUNT

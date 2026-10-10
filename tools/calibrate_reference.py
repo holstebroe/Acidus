@@ -176,6 +176,11 @@ MODEL_PARAMS = {
     "vcaGateOffAccentMs":       (0.3, 80.0, True, "env"),
     "vcaResTapRatio":           (0.0, 3.0, False, "env"),     # filter->VCA taps, §12: 100k/220k = 0.45 or reversed 2.2
     "vcaGainSaturationDrive":   (0.0, 10.0, False, "env"),   # 0 = linear control law (default)
+    # Not a 303 part (0 = the circuit): output level vs cutoff, dB per octave,
+    # for emulations whose level stays flat across the Cutoff knob. Group
+    # "level" so no stage frees it unless asked (fit_stage --level-tracking).
+    "vcaCutoffLevelDb":         (-10.0, 4.0, False, "level"),  # at Resonance 0
+    "vcaCutoffLevelResDb":      (-10.0, 4.0, False, "level"),  # at Resonance max
 }
 
 # Plugin-side front-panel parameters that the knob positions map onto.
@@ -864,6 +869,8 @@ class Problem:
             init = float(self.r.defaults[self.r.index[name]])
             if name in fixed or (only and group not in only and name not in only):
                 continue
+            if group == "level" and not (only and (group in only or name in only)):
+                continue   # not a 303 part: only when named
             if name in bounds:
                 # A hard range: the start value is clipped into it.
                 lo, hi = bounds[name]
@@ -1463,7 +1470,8 @@ def main():
     ap.add_argument("--workers", type=int, default=os.cpu_count() or 4)
     ap.add_argument("--fmax", type=float, default=16000.0, help="highest frequency compared (Hz)")
     ap.add_argument("--only", default="", help="comma list of groups/params to fit "
-                    "(groups: osc, filter, cv, env, knobs, timing)")
+                    "(groups: osc, filter, cv, env, knobs, timing; level, the non-303 cutoff level "
+                    "tracking, is only fitted when named here)")
     ap.add_argument("--bound", default="",
                     help="comma list of name=lo:hi hard ranges for fitted constants, replacing the "
                     "default range (the start value is clipped into it), e.g. filterResonanceLimit=0.9:0.99")

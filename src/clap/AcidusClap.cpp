@@ -58,6 +58,8 @@ static const CalibrationBinding kCalibrationBindings[] = {
     { PARAM_FILTER_LADDER_TOPOLOGY, &SynthParameters::filterLadderTopology },
     { PARAM_FILTER_COUPLING_NETWORK, &SynthParameters::filterCouplingNetwork },
     { PARAM_FILTER_NETWORK_TIME_SCALE, &SynthParameters::filterNetworkTimeScale },
+    { PARAM_VCA_CUTOFF_LEVEL_DB, &SynthParameters::vcaCutoffLevelDb },
+    { PARAM_VCA_CUTOFF_LEVEL_RES_DB, &SynthParameters::vcaCutoffLevelResDb },
     { PARAM_CUTOFF_BASE_HZ, &SynthParameters::cutoffBaseHz },
     { PARAM_CUTOFF_SPAN_OCT, &SynthParameters::cutoffSpanOct },
     { PARAM_CUTOFF_TAPER_EXP, &SynthParameters::cutoffTaperExp },
@@ -790,6 +792,23 @@ bool AcidusClap::paramsInfo(uint32_t paramIndex, clap_param_info_t* paramInfo) c
             paramInfo->min_value = 0.5;
             paramInfo->max_value = 2.0;
             paramInfo->default_value = kCalibrationDefaults.filterNetworkTimeScale;
+            break;
+        case PARAM_VCA_CUTOFF_LEVEL_DB:
+            // Output level vs cutoff, dB per octave above 1 kHz, at
+            // Resonance 0. 0 = the circuit; negative flattens the level
+            // across the Cutoff knob (some emulations).
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Cutoff Level Tracking");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = -12.0;
+            paramInfo->max_value = 12.0;
+            paramInfo->default_value = kCalibrationDefaults.vcaCutoffLevelDb;
+            break;
+        case PARAM_VCA_CUTOFF_LEVEL_RES_DB:
+            snprintf(paramInfo->name, sizeof(paramInfo->name), "Cutoff Level Tracking (Reso Max)");
+            snprintf(paramInfo->module, sizeof(paramInfo->module), "Experimental/Envelope");
+            paramInfo->min_value = -12.0;
+            paramInfo->max_value = 12.0;
+            paramInfo->default_value = kCalibrationDefaults.vcaCutoffLevelResDb;
             break;
         case PARAM_CUTOFF_BASE_HZ:
             // The unit's cutoff trim (TM3): shifts the whole Cutoff range.

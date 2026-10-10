@@ -49,6 +49,8 @@ struct SynthParameters {
     float vcaGateOffMs{0.811348f};          // Envelope.hpp - VCA release tau at gate-off; Open303 1 ms (fitted 2026-09-29 to the x0x set, sweep-tracked)
     float vcaGateOffAccentMs{2.80367f};    // Envelope.hpp - VCA release tau at gate-off on accented notes; Open303 50 ms, neither measured unit shows a long accent tail (fitted 2026-09-29 to the x0x set, sweep-tracked)
     float vcaResTapRatio{1.24556f};       // SynthEngine.cpp - filter->VCA wiper tap relative to the fixed tap (§12 trace: 100k/220k = 0.45, reversed 2.2) (fitted 2026-09-29 to the x0x set, sweep-tracked)
+    float vcaCutoffLevelDb{0.0f};      // SynthEngine.cpp - output level vs cutoff at Resonance 0, dB per octave of the cutoff above 1 kHz; 0 = the circuit (the ladder's own pass-band loss). Not a 303 part: lets a profile match an emulation whose level stays flat across the Cutoff knob
+    float vcaCutoffLevelResDb{0.0f};   // SynthEngine.cpp - the same at Resonance max; blended linearly by the Resonance knob
     float vcaGainSaturationDrive{0.0f};   // SynthEngine.cpp - control-to-gain tanh ceiling; 0 = linear control law (§15.3). Old default 6.9 left accents no headroom
     float vcoOctaveScale{1.0f};   // Oscillator.hpp - VCO V/oct scale (TM5 width): 1 = exact 2:1 octaves; measured units 0.99-1.03 (TB303_REFERENCE.md §5.3)
 

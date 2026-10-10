@@ -750,6 +750,9 @@ def main():
     ap.add_argument("--patience", type=float, default=None,
                     help="stop after this many minutes without progress (default: a third of --minutes)")
     ap.add_argument("--evaluate-only", action="store_true", help="score the start profile, no fit")
+    ap.add_argument("--level-tracking", action="store_true",
+                    help="also fit the output level vs cutoff (vcaCutoffLevelDb/ResDb; not a 303 part, for an "
+                    "emulation whose level stays flat across the Cutoff knob)")
     args, extra = ap.parse_known_args()
 
     src, stage = args.source_id, args.stage
@@ -816,7 +819,7 @@ def main():
     fit_dir = work / f"fit{suffix}"
     cmd = [sys.executable, str(TOOLS / "calibrate_reference.py"), "--manifest", str(manifest),
            "--calibration", str(start), "--fix", ",".join(["knobs"] + list(stage_parameters(stage, start)[1])),
-           "--w-sweep", "1", "--only", STAGE_ONLY[stage],
+           "--w-sweep", "1", "--only", STAGE_ONLY[stage] + (",level" if args.level_tracking else ""),
            "--max-minutes", str(args.minutes), "--out", str(fit_dir), "--no-sensitivity",
            "--patience-minutes", str(args.patience if args.patience is not None else args.minutes / 3.0)]
     if args.evaluate_only:

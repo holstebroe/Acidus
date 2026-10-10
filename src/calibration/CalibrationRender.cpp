@@ -65,6 +65,8 @@ const ParamEntry kParams[] = {
     ACIDUS_PARAM(filterLadderTopology),
     ACIDUS_PARAM(filterCouplingNetwork),
     ACIDUS_PARAM(filterNetworkTimeScale),
+    ACIDUS_PARAM(vcaCutoffLevelDb),
+    ACIDUS_PARAM(vcaCutoffLevelResDb),
     // Offline-calibration constants
     ACIDUS_PARAM(cutoffBaseHz),
     ACIDUS_PARAM(cutoffSpanOct),
