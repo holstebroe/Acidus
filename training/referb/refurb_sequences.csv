@@ -1,0 +1,47 @@
+# Stage 4: multi-note clips (slides, accent runs). Times are absolute in the file.
+# A slide is a note-on before the previous note-off; knobs hold for the whole sequence.
+file,seq,event,note,on_ms,off_ms,accent,slide_from_previous,waveform,cutoff,resonance,envmod,decay,accent_knob,set,purpose
+refurb-stage4.wav,Q1-1,1,C2,1500,2110,no,no,saw,100.0,0.0,0.0,0.0,0.0,Q1,slide pitch law: interval and direction (RC vs constant rate)
+refurb-stage4.wav,Q1-1,2,C#2,2100,2700,no,yes,saw,100.0,0.0,0.0,0.0,0.0,Q1,slide pitch law: interval and direction (RC vs constant rate)
+refurb-stage4.wav,Q1-2,1,C2,4500,5110,no,no,saw,100.0,0.0,0.0,0.0,0.0,Q1,slide pitch law: interval and direction (RC vs constant rate)
+refurb-stage4.wav,Q1-2,2,D#2,5100,5700,no,yes,saw,100.0,0.0,0.0,0.0,0.0,Q1,slide pitch law: interval and direction (RC vs constant rate)
+refurb-stage4.wav,Q1-3,1,C2,7500,8110,no,no,saw,100.0,0.0,0.0,0.0,0.0,Q1,slide pitch law: interval and direction (RC vs constant rate)
+refurb-stage4.wav,Q1-3,2,G2,8100,8700,no,yes,saw,100.0,0.0,0.0,0.0,0.0,Q1,slide pitch law: interval and direction (RC vs constant rate)
+refurb-stage4.wav,Q1-4,1,C2,10500,11110,no,no,saw,100.0,0.0,0.0,0.0,0.0,Q1,slide pitch law: interval and direction (RC vs constant rate)
+refurb-stage4.wav,Q1-4,2,C3,11100,11700,no,yes,saw,100.0,0.0,0.0,0.0,0.0,Q1,slide pitch law: interval and direction (RC vs constant rate)
+refurb-stage4.wav,Q1-5,1,C3,13500,14110,no,no,saw,100.0,0.0,0.0,0.0,0.0,Q1,slide pitch law: interval and direction (RC vs constant rate)
+refurb-stage4.wav,Q1-5,2,C2,14100,14700,no,yes,saw,100.0,0.0,0.0,0.0,0.0,Q1,slide pitch law: interval and direction (RC vs constant rate)
+refurb-stage4.wav,Q1-6,1,C1,16500,17110,no,no,saw,100.0,0.0,0.0,0.0,0.0,Q1,slide pitch law: interval and direction (RC vs constant rate)
+refurb-stage4.wav,Q1-6,2,C3,17100,17700,no,yes,saw,100.0,0.0,0.0,0.0,0.0,Q1,slide pitch law: interval and direction (RC vs constant rate)
+refurb-stage4.wav,Q2-1,1,C2,19500,20110,no,no,saw,25.197,74.803,50.394,50.394,0.0,Q2,"slide x filter: same glide under a resonant, swept filter"
+refurb-stage4.wav,Q2-1,2,C3,20100,20700,no,yes,saw,25.197,74.803,50.394,50.394,0.0,Q2,"slide x filter: same glide under a resonant, swept filter"
+refurb-stage4.wav,Q3-1,1,C2,22500,22630,no,no,saw,100.0,0.0,0.0,0.0,0.0,Q3,slide chain: a glide that starts mid-glide
+refurb-stage4.wav,Q3-1,2,D#2,22620,22750,no,yes,saw,100.0,0.0,0.0,0.0,0.0,Q3,slide chain: a glide that starts mid-glide
+refurb-stage4.wav,Q3-1,3,G2,22740,22870,no,yes,saw,100.0,0.0,0.0,0.0,0.0,Q3,slide chain: a glide that starts mid-glide
+refurb-stage4.wav,Q3-1,4,C3,22860,23460,no,yes,saw,100.0,0.0,0.0,0.0,0.0,Q3,slide chain: a glide that starts mid-glide
+refurb-stage4.wav,Q4-1,1,C2,25500,25870,no,no,saw,25.197,74.803,100.0,74.803,100.0,Q4,slide x envelopes: no retrigger; accent switched mid-envelope
+refurb-stage4.wav,Q4-1,2,C3,25860,26800,no,yes,saw,25.197,74.803,100.0,74.803,100.0,Q4,slide x envelopes: no retrigger; accent switched mid-envelope
+refurb-stage4.wav,Q4-2,1,C2,28500,28870,no,no,saw,25.197,74.803,100.0,74.803,100.0,Q4,slide x envelopes: no retrigger; accent switched mid-envelope
+refurb-stage4.wav,Q4-2,2,C3,28860,29800,yes,yes,saw,25.197,74.803,100.0,74.803,100.0,Q4,slide x envelopes: no retrigger; accent switched mid-envelope
+refurb-stage4.wav,Q4-3,1,C2,31500,31870,yes,no,saw,25.197,74.803,100.0,74.803,100.0,Q4,slide x envelopes: no retrigger; accent switched mid-envelope
+refurb-stage4.wav,Q4-3,2,C3,31860,32800,no,yes,saw,25.197,74.803,100.0,74.803,100.0,Q4,slide x envelopes: no retrigger; accent switched mid-envelope
+refurb-stage4.wav,Q5-1,1,C2,34500,34560,yes,no,saw,25.197,100.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-1,2,C2,34620,34680,yes,no,saw,25.197,100.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-1,3,C2,34740,34800,yes,no,saw,25.197,100.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-1,4,C2,34860,34920,yes,no,saw,25.197,100.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-2,1,C2,37500,37560,yes,no,saw,25.197,0.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-2,2,C2,37620,37680,yes,no,saw,25.197,0.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-2,3,C2,37740,37800,yes,no,saw,25.197,0.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-2,4,C2,37860,37920,yes,no,saw,25.197,0.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-3,1,C2,40500,40560,yes,no,saw,25.197,100.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-3,2,C2,40740,40800,yes,no,saw,25.197,100.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-3,3,C2,40980,41040,yes,no,saw,25.197,100.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-3,4,C2,41220,41280,yes,no,saw,25.197,100.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-4,1,C2,43500,43560,no,no,saw,25.197,100.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-4,2,C2,43620,43680,yes,no,saw,25.197,100.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-4,3,C2,43740,43800,no,no,saw,25.197,100.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q5-4,4,C2,43860,43920,yes,no,saw,25.197,100.0,50.394,50.394,100.0,Q5,accent stacking on C13: runs of accents and spacing
+refurb-stage4.wav,Q6-1,1,C2,46500,46560,no,no,saw,25.197,74.803,100.0,100.0,0.0,Q6,MEG retrigger from a partly charged state
+refurb-stage4.wav,Q6-1,2,C2,46620,46680,no,no,saw,25.197,74.803,100.0,100.0,0.0,Q6,MEG retrigger from a partly charged state
+refurb-stage4.wav,Q6-1,3,C2,46740,46800,no,no,saw,25.197,74.803,100.0,100.0,0.0,Q6,MEG retrigger from a partly charged state
+refurb-stage4.wav,Q6-1,4,C2,46860,46920,no,no,saw,25.197,74.803,100.0,100.0,0.0,Q6,MEG retrigger from a partly charged state
