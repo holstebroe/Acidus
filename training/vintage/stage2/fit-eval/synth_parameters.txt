@@ -1,0 +1,74 @@
+// Paste into acidus::SynthParameters (src/core/SynthEngine.hpp), or rerun with --apply.
+// Fitted 20261010-094215 against 61 hardware reference samples.
+// Cutoff law re-expressed so plugin knob 0/0.5/1 = hardware min/half/max:
+float filterFeedbackGain{17.4203f};
+float filterResonanceLimit{0.912445f};
+float filterResonanceSkew{-0.871804f};
+float resCouplingHz{104.291f};
+float filterCapScale1{1.28949f};
+float filterCapScale2{0.697635f};
+float filterCapScale3{0.912745f};
+float filterCapScale4{1.06305f};
+float filterLadderInputScale{0.0352243f};
+float filterInputCouplingHz{6.01647f};
+float filterOutputCouplingHz{20000.0f};
+float filterPostHpHz{198.892f};
+float filterNotchHz{7.5164f};
+float filterNotchBandwidthHz{4.7f};
+float filterAllpassHz{14.008f};
+float cutoffBaseHz{212.179f};
+float cutoffSpanOct{3.32125f};
+float cutoffTaperExp{1.42889f};
+float cutoffMaxHz{23723.3f};
+float envModScaleC0{0.761449f};
+float envModScaleC0Slope{2.81424f};
+float envModScaleC1{0.777939f};
+float envModScaleC1Slope{4.47957f};
+float envModOffset{0.349079f};
+float envModOffsetCutSlope{-0.0238615f};
+float envModTaperExp{2.0f};
+float envModTaperMid{0.686116f};
+float envModTaperWidth{0.121931f};
+float accentSweepDepthOct{7.92689f};
+float accentVcaDepth{2.28429f};
+float accentChargeBaseSec{0.0305791f};
+float accentChargePotSec{0.0440208f};
+float accentMixSec{0.144977f};
+float accentDiodeDrop{0.300332f};
+float vcfDecayMinSec{0.0560607f};
+float vcfDecayMaxSec{1.14043f};
+float vcfDecayTaper{17.9825f};
+float vegDecaySec{1.03789f};
+float vcaResTapRatio{1.05031f};
+
+// Fitted hardware knob positions (plugin knob value at each labeled position):
+//   accent     x0   : 0.000  (nominal 0.00)
+//   accent     x100 : 1.000  (nominal 1.00)
+//   cutoff     x0   : 0.000  (nominal 0.00)
+//   cutoff     x100 : 1.000  (nominal 1.00)
+//   cutoff     x25  : 0.252  (nominal 0.25)
+//   cutoff     x50  : 0.504  (nominal 0.50)
+//   cutoff     x74  : 0.748  (nominal 0.75)
+//   decay      x0   : 0.000  (nominal 0.00)
+//   decay      x10  : 0.102  (nominal 0.10)
+//   decay      x100 : 1.000  (nominal 1.00)
+//   decay      x25  : 0.252  (nominal 0.25)
+//   decay      x40  : 0.402  (nominal 0.40)
+//   decay      x50  : 0.504  (nominal 0.50)
+//   decay      x59  : 0.598  (nominal 0.60)
+//   decay      x74  : 0.748  (nominal 0.75)
+//   decay      x89  : 0.898  (nominal 0.90)
+//   envMod     x0   : 0.000  (nominal 0.00)
+//   envMod     x100 : 1.000  (nominal 1.00)
+//   envMod     x25  : 0.252  (nominal 0.25)
+//   envMod     x50  : 0.504  (nominal 0.50)
+//   envMod     x59  : 0.598  (nominal 0.60)
+//   envMod     x70  : 0.701  (nominal 0.70)
+//   envMod     x74  : 0.748  (nominal 0.75)
+//   envMod     x80  : 0.803  (nominal 0.80)
+//   envMod     x89  : 0.898  (nominal 0.90)
+//   resonance  x0   : 0.000  (nominal 0.00)
+//   resonance  x100 : 1.000  (nominal 1.00)
+//   resonance  x25  : 0.252  (nominal 0.25)
+//   resonance  x50  : 0.504  (nominal 0.50)
+//   resonance  x74  : 0.748  (nominal 0.75)
