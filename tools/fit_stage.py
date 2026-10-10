@@ -62,6 +62,8 @@ STAGE_ONLY = {
     2: "cv,filter,vcfDecayMinSec,vcfDecayMaxSec,vcfDecayTaper,vegDecaySec,vcaResTapRatio,timing",
     3: "osc,filter,cv,env,timing",
 }
+# The constants that mostly set note levels, refitted together by --level-pass.
+LEVEL_PASS = "level,vcaResTapRatio,oscSquareLevel,accentVcaDepth"
 KNOB_KEYS = {"cutoff": "cutoff", "resonance": "resonance", "envmod": "envMod", "decay": "decay",
              "accent_knob": "accent"}
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -759,6 +761,10 @@ def main():
     ap.add_argument("--level-tracking", action="store_true",
                     help="also fit the output level vs cutoff (vcaCutoffLevelDb/ResDb; not a 303 part, for an "
                     "emulation whose level stays flat across the Cutoff knob)")
+    ap.add_argument("--level-pass", type=float, default=0.0, metavar="MINUTES",
+                    help="with --level-tracking: after the fit, refit only the level constants (cutoff level "
+                    "tracking, Resonance tap, square level, accent VCA depth) for this long, with a wide CMA "
+                    "step. They move together, which a small step on all constants does not find")
     args, extra = ap.parse_known_args()
 
     src, stage = args.source_id, args.stage
@@ -836,6 +842,19 @@ def main():
 
     result = json.loads((fit_dir / "result.json").read_text())
     ckpt = fit_dir / "checkpoint.json"
+    if args.level_tracking and args.level_pass > 0 and not args.evaluate_only and ckpt.exists():
+        level_dir = work / f"fit{suffix}-level"
+        keep = [a for i, a in enumerate(extra) if a.startswith("--w-") or a == "--workers"
+                or (i > 0 and (extra[i - 1].startswith("--w-") or extra[i - 1] == "--workers"))]
+        print(f"level pass: {LEVEL_PASS} for up to {args.level_pass:g} min ...", flush=True)
+        subprocess.run([sys.executable, str(TOOLS / "calibrate_reference.py"), "--manifest", str(manifest),
+                        "--calibration", str(ckpt), "--fix", "knobs", "--w-sweep", "1", "--only", LEVEL_PASS,
+                        "--max-minutes", str(args.level_pass), "--patience-minutes", str(args.level_pass / 2.0),
+                        "--sigma", "0.15", "--out", str(level_dir), "--no-sensitivity"] + keep, check=True)
+        level = json.loads((level_dir / "result.json").read_text())
+        if (level_dir / "checkpoint.json").exists():
+            result["after"] = level["after"]
+            ckpt = level_dir / "checkpoint.json"
     prof = json.loads((ckpt if ckpt.exists() and not args.evaluate_only else start).read_text())
     prof.pop("checkpoint", None)
     prof.update({"name": f"{src}-stage{stage}{suffix}", "source": f"{src}, stage {stage} of docs/EMULATION_TRAINING_PLAN.md (tools/fit_stage.py)",
